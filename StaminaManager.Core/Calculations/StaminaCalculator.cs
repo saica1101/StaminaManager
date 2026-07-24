@@ -4,6 +4,8 @@ namespace StaminaManager.Core.Calculations;
 
 public static class StaminaCalculator
 {
+    private const string FullTimeOutOfRangeMessage =
+        "満タン時刻が DateTimeOffset の表現範囲外です。";
     private const long AttentionPercent = 50;
     private const long NearFullPercent = 80;
     private const long FullPercent = 100;
@@ -12,6 +14,10 @@ public static class StaminaCalculator
         GameEntry entry,
         DateTimeOffset nowUtc)
     {
+        DateTimeOffset recordedAtUtc =
+            entry.RecordedAtUtc.ToUniversalTime();
+        nowUtc = nowUtc.ToUniversalTime();
+
         if (entry.BaseStamina >= entry.MaxStamina)
         {
             StaminaStatus status = entry.BaseStamina == entry.MaxStamina
@@ -30,12 +36,13 @@ public static class StaminaCalculator
         long elapsedMinutes = Math.Max(
             0L,
             (long)Math.Floor(
-                (nowUtc - entry.RecordedAtUtc).TotalMinutes));
+                (nowUtc - recordedAtUtc).TotalMinutes));
         long recovered = elapsedMinutes / entry.RecoveryMinutes;
         int current = (int)Math.Min(
             entry.MaxStamina,
             (long)entry.BaseStamina + recovered);
-        DateTimeOffset fullAtUtc = CalculateFullAtUtc(entry);
+        DateTimeOffset fullAtUtc =
+            CalculateFullAtUtc(entry, recordedAtUtc);
         TimeSpan remaining = fullAtUtc > nowUtc
             ? fullAtUtc - nowUtc
             : TimeSpan.Zero;
@@ -49,25 +56,39 @@ public static class StaminaCalculator
             remaining);
     }
 
-    private static DateTimeOffset CalculateFullAtUtc(GameEntry entry)
+    private static DateTimeOffset CalculateFullAtUtc(
+        GameEntry entry,
+        DateTimeOffset recordedAtUtc)
     {
+        long recoveryTicks;
+
         try
         {
             long remainingStamina =
                 (long)entry.MaxStamina - entry.BaseStamina;
             long recoveryMinutes = checked(
                 remainingStamina * entry.RecoveryMinutes);
-            long recoveryTicks = checked(
+            recoveryTicks = checked(
                 recoveryMinutes * TimeSpan.TicksPerMinute);
-
-            return entry.RecordedAtUtc.AddTicks(recoveryTicks);
         }
         catch (OverflowException)
         {
-            throw new ArgumentOutOfRangeException(
-                nameof(entry),
-                "The calculated full time is outside the supported range.");
+            throw CreateFullTimeOutOfRangeException();
         }
+
+        try
+        {
+            return recordedAtUtc.AddTicks(recoveryTicks);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            throw CreateFullTimeOutOfRangeException();
+        }
+
+        ArgumentOutOfRangeException
+            CreateFullTimeOutOfRangeException() => new(
+                nameof(entry),
+                FullTimeOutOfRangeMessage);
     }
 
     private static StaminaStatus GetStatus(int current, int maximum)
