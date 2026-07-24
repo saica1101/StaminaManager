@@ -61,6 +61,8 @@ one of: `余裕`, `注意`, `満タン間近`, `満タン`, or `自然回復停�
   decorative tiles.
 * **Progress Rings:** Circular, 6–8 px status stroke with a neutral track. Center
   content shows `current / maximum`; an adjacent text label explains the state.
+  High Contrast replaces product status colors with system text, highlight, and
+  border resources while retaining the numeric value and state label.
 * **Inputs/Forms:** Native `TextBox`, integer `NumberBox`, `ComboBox`,
   `ToggleSwitch`, and file pickers. Labels remain visible; validation appears
   directly beneath the affected field.
@@ -76,13 +78,14 @@ one of: `余裕`, `注意`, `満タン間近`, `満タン`, or `自然回復停�
 
 - Use a 4 px spacing base with 8, 12, 16, 20, 24, and 32 px steps.
 - Standard window content uses 20 px margins and 12 px card gaps.
-- Overview renders three columns at the standard wide window, two columns at a
-  medium width, and one column when narrow.
+- Overview uses the content viewport (excluding navigation and page margins):
+  three columns at 840 px or wider, two columns from 560 through 839 px, and one
+  column below 560 px.
 - The add-game card always follows the last registered game and becomes the first
   item in the empty state.
-- The standard window starts near 1120 × 760 effective pixels with a practical
-  minimum near 720 × 520. Compact mode uses a narrow utility layout near
-  420 × 520 and restores the previous normal bounds when exited.
+- The standard window starts at 1120 × 760 effective pixels with a 520 × 520
+  minimum. Compact mode switches to 420 × 520, permits resizing down to
+  360 × 480, and restores the previous normal bounds when exited.
 - Compact mode shows one selected game, its large progress ring, recovery time,
   and update/edit actions.
 - Avoid double-card nesting. Backdrop provides window depth; cards provide the
