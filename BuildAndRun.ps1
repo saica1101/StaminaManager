@@ -5,8 +5,8 @@ Builds and optionally runs a WinUI 3 / .NET project.
 .DESCRIPTION
 One command to build and run:  .\BuildAndRun.ps1 MyApp.csproj
 
-- Checks Developer Mode is enabled (required for packaged WinUI apps)
-- Auto-detects platform (x64/ARM64), defaults to Debug, auto-restores
+- Checks Developer Mode before launching packaged WinUI apps
+- Builds for the repository-supported x64 platform, defaults to Debug, auto-restores
 - Builds with dotnet build by default; pass -UseMSBuild to build with Visual Studio's MSBuild instead
 - After successful build, finds the output folder and runs with winapp run
 - Pass -SkipRun to build without launching
@@ -54,23 +54,6 @@ if ($ExtraArgs -contains '--symbols') {
 # Extra args are MSBuild-style flags like /p:Platform=x64
 $extraArgs = $ExtraArgs
 
-# -- 0. Check Developer Mode --
-$devMode = $false
-try {
-    $regPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock"
-    if (Test-Path $regPath) {
-        $val = Get-ItemProperty $regPath -Name AllowDevelopmentWithoutDevLicense -ErrorAction SilentlyContinue
-        if ($val.AllowDevelopmentWithoutDevLicense -eq 1) { $devMode = $true }
-    }
-} catch {}
-
-if (-not $devMode) {
-    Write-Host "ERROR: Developer Mode is not enabled." -ForegroundColor Red
-    Write-Host "WinUI 3 packaged apps require Developer Mode to deploy and run." -ForegroundColor Red
-    Write-Host "Enable it: Settings > System > For developers > Developer Mode" -ForegroundColor Yellow
-    exit 1
-}
-
 # -- 1. Find the .csproj if not specified --
 if (-not $Project) {
     $csprojFiles = Get-ChildItem -Path . -Filter "*.csproj" -Depth 0
@@ -85,16 +68,26 @@ if (-not $Project) {
     }
 }
 
-# -- 2. Auto-detect platform --
-$detectedPlatform = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "ARM64" } else { "x64" }
+# -- 2. Select the supported platform --
+$supportedPlatform = "x64"
+$detectedPlatform = $supportedPlatform
 $detectedConfig = "Debug"
 
-$hasPlatform = $extraArgs | Where-Object { $_ -match "^[/|-]p:Platform=" }
+$platformArgs = @($extraArgs | Where-Object { $_ -match "^[/|-]p:Platform=" })
+$hasPlatform = $platformArgs.Count -gt 0
 $hasConfig = $extraArgs | Where-Object { $_ -match "^[/|-]p:Configuration=" }
 $hasRestore = $extraArgs | Where-Object { $_ -match "^[/|-]restore$|^[/|-]t:restore$|^--restore$" }
 
 # Extract actual values if overridden
-if ($hasPlatform -and $hasPlatform -match "Platform=(\w+)") { $detectedPlatform = $Matches[1] }
+if ($platformArgs.Count -gt 1) {
+    Write-Host "ERROR: Specify Platform only once. Only x64 is supported." -ForegroundColor Red
+    exit 1
+}
+if ($hasPlatform -and $platformArgs[0] -match "Platform=(.+)$") { $detectedPlatform = $Matches[1] }
+if ($detectedPlatform -ine $supportedPlatform) {
+    Write-Host "ERROR: Unsupported Platform '$detectedPlatform'. Only x64 is supported." -ForegroundColor Red
+    exit 1
+}
 if ($hasConfig -and $hasConfig -match "Configuration=(\w+)") { $detectedConfig = $Matches[1] }
 
 $autoArgs = @()
@@ -227,15 +220,15 @@ if (-not $projectDir) { $projectDir = "." }
 # Search for the output folder pattern: bin\<Platform>\<Config>\<tfm>\win-<rid>\
 $binDir = Join-Path $projectDir "bin\$detectedPlatform\$detectedConfig"
 if (-not (Test-Path $binDir)) {
-    Write-Host "WARNING: Build output not found at $binDir -- skipping run" -ForegroundColor Yellow
-    exit 0
+    Write-Host "ERROR: Build output not found at $binDir." -ForegroundColor Red
+    exit 1
 }
 
 # Find the TFM folder (e.g., net10.0-windows10.0.26100.0)
 $tfmDirs = Get-ChildItem $binDir -Directory | Where-Object { $_.Name -match "^net\d" }
 if (-not $tfmDirs) {
-    Write-Host "WARNING: No TFM folder found in $binDir -- skipping run" -ForegroundColor Yellow
-    exit 0
+    Write-Host "ERROR: No TFM folder found in $binDir." -ForegroundColor Red
+    exit 1
 }
 
 $tfmDir = $tfmDirs | Sort-Object Name -Descending | Select-Object -First 1
@@ -248,9 +241,26 @@ if (-not (Test-Path $outputDir)) {
 # Check winapp is available
 $winapp = Get-Command winapp -ErrorAction SilentlyContinue
 if (-not $winapp) {
-    Write-Host "WARNING: winapp CLI not found in PATH -- skipping run" -ForegroundColor Yellow
+    Write-Host "ERROR: winapp CLI not found in PATH." -ForegroundColor Red
     Write-Host "Build output at: $outputDir"
-    exit 0
+    exit 1
+}
+
+# Check Developer Mode only when the app will actually be launched.
+$devMode = $false
+try {
+    $regPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock"
+    if (Test-Path $regPath) {
+        $val = Get-ItemProperty $regPath -Name AllowDevelopmentWithoutDevLicense -ErrorAction SilentlyContinue
+        if ($val.AllowDevelopmentWithoutDevLicense -eq 1) { $devMode = $true }
+    }
+} catch {}
+
+if (-not $devMode) {
+    Write-Host "ERROR: Developer Mode is not enabled." -ForegroundColor Red
+    Write-Host "WinUI 3 packaged apps require Developer Mode to deploy and run." -ForegroundColor Red
+    Write-Host "Enable it: Settings > System > For developers > Developer Mode" -ForegroundColor Yellow
+    exit 1
 }
 
 Write-Host ""
