@@ -1,0 +1,9 @@
+WinUIEx 2.9.0
+Project: https://github.com/dotMorten/WinUIEx
+License: MIT
+Copyright (c) 2021 Morten Nielsen
+
+CommunityToolkit.Mvvm 8.4.2
+Project: https://github.com/CommunityToolkit/dotnet
+License: MIT
+Copyright (c) .NET Foundation and Contributors. All rights reserved.

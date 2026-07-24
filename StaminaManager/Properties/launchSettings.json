@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "StaminaManager (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "StaminaManager (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

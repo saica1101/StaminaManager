@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="StaminaManager.Core/StaminaManager.Core.csproj" />
+  <Project Path="StaminaManager.Tests/StaminaManager.Tests.csproj" />
+  <Project Path="StaminaManager/StaminaManager.csproj" />
+</Solution>

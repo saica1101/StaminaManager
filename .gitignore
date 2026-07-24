@@ -11,3 +11,12 @@ TestResults/
 *.user
 *.suo
 *.log
+
+# Signing and package outputs
+*.pfx
+*.cer
+*.msix
+*.msixupload
+AppX/
+artifacts/
+tests/ui/results/
