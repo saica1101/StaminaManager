@@ -1,0 +1,240 @@
+using StaminaManager.Core.Validation;
+using System.Collections.Immutable;
+
+namespace StaminaManager.Tests.Validation;
+
+[TestClass]
+public sealed class GameEntryValidatorTests
+{
+    private static readonly DateTimeOffset RecordedAtUtc = new(
+        2026,
+        7,
+        25,
+        0,
+        0,
+        0,
+        TimeSpan.Zero);
+
+    [TestMethod]
+    public void Limits_AreExposedAsNamedConstants()
+    {
+        AssertPublicConstant(
+            nameof(GameEntryValidator.MaxStaminaValue),
+            1_000_000);
+        AssertPublicConstant(
+            nameof(GameEntryValidator.MaxRecoveryMinutes),
+            525_600);
+        AssertPublicConstant(
+            nameof(GameEntryValidator.MaxGameCount),
+            100);
+    }
+
+    [TestMethod]
+    [DataRow("")]
+    [DataRow(" ")]
+    public void Validate_RejectsBlankName(string name)
+    {
+        GameDraft draft = CreateValidDraft() with { Name = name };
+
+        ValidationResult result =
+            GameEntryValidator.Validate(draft, RecordedAtUtc);
+
+        Assert.IsFalse(result.IsValid);
+        CollectionAssert.Contains(
+            result.Errors.Keys.ToArray(),
+            nameof(GameDraft.Name));
+        StringAssert.Contains(
+            result.Errors[nameof(GameDraft.Name)].Single(),
+            "入力してください");
+    }
+
+    [TestMethod]
+    [DataRow(-1)]
+    [DataRow(1_000_001)]
+    public void Validate_RejectsCurrentStaminaOutsideAllowedRange(
+        int currentStamina)
+    {
+        GameDraft draft = CreateValidDraft() with
+        {
+            CurrentStamina = currentStamina,
+        };
+
+        ValidationResult result =
+            GameEntryValidator.Validate(draft, RecordedAtUtc);
+
+        AssertFieldError(
+            result,
+            nameof(GameDraft.CurrentStamina),
+            "0～1,000,000");
+    }
+
+    [TestMethod]
+    [DataRow(0)]
+    [DataRow(1_000_001)]
+    public void Validate_RejectsMaxStaminaOutsideAllowedRange(
+        int maxStamina)
+    {
+        GameDraft draft = CreateValidDraft() with
+        {
+            MaxStamina = maxStamina,
+        };
+
+        ValidationResult result =
+            GameEntryValidator.Validate(draft, RecordedAtUtc);
+
+        AssertFieldError(
+            result,
+            nameof(GameDraft.MaxStamina),
+            "1～1,000,000");
+    }
+
+    [TestMethod]
+    [DataRow(0)]
+    [DataRow(525_601)]
+    public void Validate_RejectsRecoveryMinutesOutsideAllowedRange(
+        int recoveryMinutes)
+    {
+        GameDraft draft = CreateValidDraft() with
+        {
+            RecoveryMinutes = recoveryMinutes,
+        };
+
+        ValidationResult result =
+            GameEntryValidator.Validate(draft, RecordedAtUtc);
+
+        AssertFieldError(
+            result,
+            nameof(GameDraft.RecoveryMinutes),
+            "1～525,600分");
+    }
+
+    [TestMethod]
+    public void Validate_AcceptsCurrentStaminaAboveMaximum()
+    {
+        GameDraft draft = CreateValidDraft() with
+        {
+            CurrentStamina = 101,
+            MaxStamina = 100,
+        };
+
+        ValidationResult result =
+            GameEntryValidator.Validate(draft, RecordedAtUtc);
+
+        Assert.IsTrue(result.IsValid);
+        Assert.IsEmpty(result.Errors);
+    }
+
+    [TestMethod]
+    [DataRow(0, 1, 1)]
+    [DataRow(1_000_000, 1_000_000, 525_600)]
+    public void Validate_AcceptsNumericBoundaryValues(
+        int currentStamina,
+        int maxStamina,
+        int recoveryMinutes)
+    {
+        GameDraft draft = CreateValidDraft() with
+        {
+            CurrentStamina = currentStamina,
+            MaxStamina = maxStamina,
+            RecoveryMinutes = recoveryMinutes,
+        };
+
+        ValidationResult result =
+            GameEntryValidator.Validate(draft, RecordedAtUtc);
+
+        Assert.IsTrue(result.IsValid);
+        Assert.IsEmpty(result.Errors);
+    }
+
+    [TestMethod]
+    public void Validate_ReturnsFieldErrorWhenFullTimeIsOutOfRange()
+    {
+        GameDraft draft = CreateValidDraft() with
+        {
+            CurrentStamina = 0,
+            MaxStamina = 2,
+            RecoveryMinutes = 1,
+        };
+        DateTimeOffset proposedRecordedAtUtc =
+            DateTimeOffset.MaxValue.AddMinutes(-1);
+
+        ValidationResult result =
+            GameEntryValidator.Validate(draft, proposedRecordedAtUtc);
+
+        Assert.IsFalse(result.IsValid);
+        CollectionAssert.Contains(
+            result.Errors.Keys.ToArray(),
+            nameof(GameDraft.MaxStamina));
+        StringAssert.Contains(
+            result.Errors[nameof(GameDraft.MaxStamina)].Single(),
+            "満タン時刻を計算できません");
+    }
+
+    [TestMethod]
+    public void Validate_DoesNotCalculateFullTimeWhenBasicFieldsAreInvalid()
+    {
+        GameDraft draft = new(
+            Name: " ",
+            CurrentStamina: -1,
+            MaxStamina: 0,
+            RecoveryMinutes: 0,
+            ImageAssetId: null);
+
+        ValidationResult result = GameEntryValidator.Validate(
+            draft,
+            DateTimeOffset.MaxValue);
+
+        Assert.IsFalse(result.IsValid);
+        Assert.HasCount(4, result.Errors);
+    }
+
+    [TestMethod]
+    public void Validate_ThrowsWhenDraftIsNull()
+    {
+        Assert.ThrowsExactly<ArgumentNullException>(
+            () => GameEntryValidator.Validate(null!, RecordedAtUtc));
+    }
+
+    [TestMethod]
+    public void Validate_ExposesErrorsAsImmutableCollections()
+    {
+        GameDraft draft = CreateValidDraft() with { Name = string.Empty };
+
+        ValidationResult result =
+            GameEntryValidator.Validate(draft, RecordedAtUtc);
+
+        Assert.IsInstanceOfType<
+            ImmutableDictionary<string, ImmutableArray<string>>>(
+                result.Errors);
+    }
+
+    private static GameDraft CreateValidDraft() => new(
+        Name: "Test game",
+        CurrentStamina: 40,
+        MaxStamina: 100,
+        RecoveryMinutes: 5,
+        ImageAssetId: null);
+
+    private static void AssertPublicConstant(string name, int expected)
+    {
+        System.Reflection.FieldInfo? field =
+            typeof(GameEntryValidator).GetField(name);
+
+        Assert.IsNotNull(field);
+        Assert.IsTrue(field.IsPublic);
+        Assert.IsTrue(field.IsLiteral);
+        Assert.AreEqual(expected, field.GetRawConstantValue());
+    }
+
+    private static void AssertFieldError(
+        ValidationResult result,
+        string fieldKey,
+        string expectedMessagePart)
+    {
+        Assert.IsFalse(result.IsValid);
+        CollectionAssert.Contains(result.Errors.Keys.ToArray(), fieldKey);
+        StringAssert.Contains(
+            result.Errors[fieldKey].Single(),
+            expectedMessagePart);
+    }
+}
