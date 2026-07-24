@@ -24,3 +24,9 @@ public sealed record DataLoadResult(
     DataEnvelope? Envelope,
     string PrimaryPath,
     string RecoveryPath);
+
+public sealed record RecoveryPromotionResult(
+    DataEnvelope Envelope,
+    string PrimaryPath,
+    string RecoveryPath,
+    string? DiagnosticBackupPath);

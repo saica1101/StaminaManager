@@ -4,6 +4,7 @@ using StaminaManager.Infrastructure.Persistence;
 using System.Collections.Immutable;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace StaminaManager.Tests.Persistence;
 
@@ -229,6 +230,263 @@ public sealed class LocalDataStoreTests
         Assert.IsFalse(File.Exists(TemporaryPath));
     }
 
+    [TestMethod]
+    public async Task SaveAsync_RemovesOnlyExactStaleTemporaryFile()
+    {
+        Directory.CreateDirectory(_rootPath);
+        await File.WriteAllTextAsync(TemporaryPath, "stale");
+        string unrelatedPath = $"{TemporaryPath}.keep";
+        await File.WriteAllTextAsync(unrelatedPath, "keep");
+
+        await _store.SaveAsync(
+            CreateEnvelope("Recovered save", AppTheme.Light),
+            CancellationToken.None);
+
+        Assert.IsTrue(File.Exists(PrimaryPath));
+        Assert.IsFalse(File.Exists(TemporaryPath));
+        Assert.IsTrue(File.Exists(unrelatedPath));
+    }
+
+    [TestMethod]
+    public async Task SaveAsync_ConcurrentCallsAreSerialized()
+    {
+        LocalDataStore secondStore = new(
+            new TestAppDataPathProvider(_rootPath));
+        Task[] saves = Enumerable.Range(0, 8)
+            .Select(index => (index % 2 == 0 ? _store : secondStore).SaveAsync(
+                CreateEnvelope($"Game {index}", AppTheme.Light),
+                CancellationToken.None))
+            .ToArray();
+
+        await Task.WhenAll(saves);
+
+        DataLoadResult result = await _store.LoadAsync(
+            CancellationToken.None);
+        Assert.AreEqual(DataLoadStatus.Primary, result.Status);
+        Assert.IsFalse(File.Exists(TemporaryPath));
+    }
+
+    [TestMethod]
+    public async Task LoadAsync_JsonOverFourMiBReturnsCorrupt()
+    {
+        await _store.SaveAsync(
+            CreateEnvelope("Size limit", AppTheme.Light),
+            CancellationToken.None);
+        byte[] json = await File.ReadAllBytesAsync(PrimaryPath);
+        int paddingLength = FourMiB + 1 - json.Length;
+        byte[] padding = new byte[paddingLength];
+        Array.Fill(padding, (byte)' ');
+        await using (FileStream stream = new(
+            PrimaryPath,
+            FileMode.Append,
+            FileAccess.Write,
+            FileShare.None))
+        {
+            await stream.WriteAsync(padding);
+        }
+
+        DataLoadResult result = await _store.LoadAsync(
+            CancellationToken.None);
+
+        Assert.AreEqual(DataLoadStatus.Corrupt, result.Status);
+        Assert.IsNull(result.Envelope);
+    }
+
+    [TestMethod]
+    public async Task LoadAsync_AllowsConcurrentAtomicSave()
+    {
+        await _store.SaveAsync(
+            CreateEnvelope("Before", AppTheme.Light),
+            CancellationToken.None);
+        int paddingLength = checked(
+            (int)(FourMiB - new FileInfo(PrimaryPath).Length));
+        await using (FileStream stream = new(
+            PrimaryPath,
+            FileMode.Append,
+            FileAccess.Write,
+            FileShare.None))
+        {
+            byte[] padding = new byte[paddingLength];
+            Array.Fill(padding, (byte)' ');
+            await stream.WriteAsync(padding);
+        }
+
+        Task<DataLoadResult> loadTask = _store.LoadAsync(
+            CancellationToken.None);
+        await _store.SaveAsync(
+            CreateEnvelope("After", AppTheme.Dark),
+            CancellationToken.None);
+
+        DataLoadResult concurrentLoad = await loadTask;
+        DataLoadResult saved = await _store.LoadAsync(CancellationToken.None);
+        Assert.AreEqual(DataLoadStatus.Primary, concurrentLoad.Status);
+        Assert.AreEqual("After", saved.Envelope!.Games[0].Name);
+    }
+
+    [TestMethod]
+    public async Task SaveAsync_JsonOverFourMiBIsRejected()
+    {
+        DataEnvelope envelope = CreateEnvelope(
+            new string('x', FourMiB),
+            AppTheme.Light);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => _store.SaveAsync(
+            envelope,
+            CancellationToken.None));
+
+        Assert.IsFalse(File.Exists(PrimaryPath));
+        Assert.IsFalse(File.Exists(TemporaryPath));
+    }
+
+    [TestMethod]
+    [DataRow(InvalidEnvelopeKind.TooManyGames)]
+    [DataRow(InvalidEnvelopeKind.DuplicateGameId)]
+    [DataRow(InvalidEnvelopeKind.InvalidSortOrder)]
+    [DataRow(InvalidEnvelopeKind.InvalidAssetId)]
+    [DataRow(InvalidEnvelopeKind.InvalidNotificationLead)]
+    [DataRow(InvalidEnvelopeKind.InvalidTheme)]
+    [DataRow(InvalidEnvelopeKind.InvalidBackdrop)]
+    [DataRow(InvalidEnvelopeKind.InvalidCloseBehavior)]
+    [DataRow(InvalidEnvelopeKind.BlankName)]
+    [DataRow(InvalidEnvelopeKind.InvalidBaseStamina)]
+    [DataRow(InvalidEnvelopeKind.InvalidMaxStamina)]
+    [DataRow(InvalidEnvelopeKind.InvalidRecoveryMinutes)]
+    [DataRow(InvalidEnvelopeKind.InvalidFullTime)]
+    [DataRow(InvalidEnvelopeKind.EmptyGameId)]
+    [DataRow(InvalidEnvelopeKind.MissingSettings)]
+    public async Task SaveAsync_SemanticallyInvalidEnvelopeIsRejected(
+        InvalidEnvelopeKind kind)
+    {
+        DataEnvelope envelope = CreateInvalidEnvelope(kind);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => _store.SaveAsync(
+            envelope,
+            CancellationToken.None));
+
+        Assert.IsFalse(File.Exists(PrimaryPath));
+    }
+
+    [TestMethod]
+    public async Task LoadAsync_SemanticallyInvalidEnvelopeReturnsCorrupt()
+    {
+        await _store.SaveAsync(
+            CreateEnvelope("Valid name", AppTheme.Light),
+            CancellationToken.None);
+        string json = await File.ReadAllTextAsync(PrimaryPath);
+        json = json.Replace(
+            "\"name\":\"Valid name\"",
+            "\"name\":\" \"",
+            StringComparison.Ordinal);
+        await File.WriteAllTextAsync(PrimaryPath, json);
+
+        DataLoadResult result = await _store.LoadAsync(
+            CancellationToken.None);
+
+        Assert.AreEqual(DataLoadStatus.Corrupt, result.Status);
+    }
+
+    [TestMethod]
+    public async Task LoadAsync_MissingRequiredSettingReturnsCorrupt()
+    {
+        JsonObject root = await SaveAndReadJsonObjectAsync();
+        _ = root["settings"]!.AsObject().Remove("notificationsEnabled");
+        await File.WriteAllTextAsync(PrimaryPath, root.ToJsonString());
+
+        DataLoadResult result = await _store.LoadAsync(
+            CancellationToken.None);
+
+        Assert.AreEqual(DataLoadStatus.Corrupt, result.Status);
+    }
+
+    [TestMethod]
+    public async Task LoadAsync_NumericEnumTokenReturnsCorrupt()
+    {
+        JsonObject root = await SaveAndReadJsonObjectAsync();
+        root["settings"]!["theme"] = 0;
+        await File.WriteAllTextAsync(PrimaryPath, root.ToJsonString());
+
+        DataLoadResult result = await _store.LoadAsync(
+            CancellationToken.None);
+
+        Assert.AreEqual(DataLoadStatus.Corrupt, result.Status);
+    }
+
+    [TestMethod]
+    public async Task LoadAsync_MissingPrimaryWithValidRecoveryReturnsRecovery()
+    {
+        await CreateRecoveryAsync();
+        File.Delete(PrimaryPath);
+
+        DataLoadResult result = await _store.LoadAsync(
+            CancellationToken.None);
+
+        Assert.AreEqual(DataLoadStatus.Recovery, result.Status);
+        Assert.AreEqual("Recovery", result.Envelope!.Games[0].Name);
+    }
+
+    [TestMethod]
+    public async Task PromoteRecoveryAsync_PreservesCorruptPrimaryAsDiagnostic()
+    {
+        await CreateRecoveryAsync();
+        byte[] corruptPrimary = Encoding.UTF8.GetBytes("corrupt primary");
+        await File.WriteAllBytesAsync(PrimaryPath, corruptPrimary);
+        byte[] recoveryBefore = await File.ReadAllBytesAsync(RecoveryPath);
+
+        RecoveryPromotionResult promotion =
+            await _store.PromoteRecoveryAsync(CancellationToken.None);
+
+        Assert.IsNotNull(promotion.DiagnosticBackupPath);
+        Assert.IsTrue(File.Exists(promotion.DiagnosticBackupPath));
+        CollectionAssert.AreEqual(
+            corruptPrimary,
+            await File.ReadAllBytesAsync(promotion.DiagnosticBackupPath));
+        CollectionAssert.AreEqual(
+            recoveryBefore,
+            await File.ReadAllBytesAsync(RecoveryPath));
+        DataLoadResult loaded = await _store.LoadAsync(
+            CancellationToken.None);
+        Assert.AreEqual(DataLoadStatus.Primary, loaded.Status);
+        Assert.AreEqual("Recovery", loaded.Envelope!.Games[0].Name);
+    }
+
+    [TestMethod]
+    public async Task PromoteRecoveryAsync_MissingPrimaryUsesAtomicMove()
+    {
+        await CreateRecoveryAsync();
+        File.Delete(PrimaryPath);
+
+        RecoveryPromotionResult promotion =
+            await _store.PromoteRecoveryAsync(CancellationToken.None);
+
+        Assert.IsNull(promotion.DiagnosticBackupPath);
+        Assert.IsTrue(File.Exists(PrimaryPath));
+        Assert.IsFalse(File.Exists(TemporaryPath));
+        DataLoadResult loaded = await _store.LoadAsync(
+            CancellationToken.None);
+        Assert.AreEqual(DataLoadStatus.Primary, loaded.Status);
+    }
+
+    [TestMethod]
+    public async Task PromoteRecoveryAsync_InvalidRecoveryPreservesPrimary()
+    {
+        Directory.CreateDirectory(_rootPath);
+        byte[] primary = Encoding.UTF8.GetBytes("primary diagnostics");
+        byte[] recovery = Encoding.UTF8.GetBytes("invalid recovery");
+        await File.WriteAllBytesAsync(PrimaryPath, primary);
+        await File.WriteAllBytesAsync(RecoveryPath, recovery);
+
+        await Assert.ThrowsAsync<InvalidDataException>(
+            () => _store.PromoteRecoveryAsync(CancellationToken.None));
+
+        CollectionAssert.AreEqual(
+            primary,
+            await File.ReadAllBytesAsync(PrimaryPath));
+        CollectionAssert.AreEqual(
+            recovery,
+            await File.ReadAllBytesAsync(RecoveryPath));
+        Assert.IsFalse(File.Exists(TemporaryPath));
+    }
+
     private string PrimaryPath => Path.Combine(_rootPath, "data.json");
 
     private string RecoveryPath =>
@@ -236,6 +494,27 @@ public sealed class LocalDataStoreTests
 
     private string TemporaryPath =>
         Path.Combine(_rootPath, "data.json.tmp");
+
+    private const int FourMiB = 4 * 1024 * 1024;
+
+    private async Task<JsonObject> SaveAndReadJsonObjectAsync()
+    {
+        await _store.SaveAsync(
+            CreateEnvelope("Required", AppTheme.Light),
+            CancellationToken.None);
+        string json = await File.ReadAllTextAsync(PrimaryPath);
+        return JsonNode.Parse(json)!.AsObject();
+    }
+
+    private async Task CreateRecoveryAsync()
+    {
+        await _store.SaveAsync(
+            CreateEnvelope("Recovery", AppTheme.Light),
+            CancellationToken.None);
+        await _store.SaveAsync(
+            CreateEnvelope("Primary", AppTheme.Dark),
+            CancellationToken.None);
+    }
 
     private static DataEnvelope CreateEnvelope(
         string gameName,
@@ -256,12 +535,132 @@ public sealed class LocalDataStoreTests
                 30,
                 0,
                 TimeSpan.Zero),
-            ImageAssetId: "asset-id",
+            ImageAssetId: "0123456789abcdef0123456789abcdef",
             SortOrder: 0);
         return new DataEnvelope(
             DataEnvelope.CurrentSchemaVersion,
             ImmutableArray.Create(game),
             AppSettings.CreateDefault(theme));
+    }
+
+    private static DataEnvelope CreateInvalidEnvelope(
+        InvalidEnvelopeKind kind)
+    {
+        DataEnvelope envelope = CreateEnvelope("Valid", AppTheme.Light);
+        GameEntry game = envelope.Games[0];
+        return kind switch
+        {
+            InvalidEnvelopeKind.TooManyGames => envelope with
+            {
+                Games = Enumerable.Range(0, 101)
+                    .Select(index => game with
+                    {
+                        Id = Guid.NewGuid(),
+                        ImageAssetId = null,
+                        SortOrder = index,
+                    })
+                    .ToImmutableArray(),
+            },
+            InvalidEnvelopeKind.DuplicateGameId => envelope with
+            {
+                Games = ImmutableArray.Create(
+                    game,
+                    game with { SortOrder = 1 }),
+            },
+            InvalidEnvelopeKind.InvalidSortOrder => envelope with
+            {
+                Games = ImmutableArray.Create(game with { SortOrder = 1 }),
+            },
+            InvalidEnvelopeKind.InvalidAssetId => envelope with
+            {
+                Games = ImmutableArray.Create(game with
+                {
+                    ImageAssetId = "../not-owned",
+                }),
+            },
+            InvalidEnvelopeKind.InvalidNotificationLead => envelope with
+            {
+                Settings = envelope.Settings with
+                {
+                    NotificationLeadMinutes = -1,
+                },
+            },
+            InvalidEnvelopeKind.InvalidTheme => envelope with
+            {
+                Settings = envelope.Settings with { Theme = (AppTheme)999 },
+            },
+            InvalidEnvelopeKind.InvalidBackdrop => envelope with
+            {
+                Settings = envelope.Settings with
+                {
+                    Backdrop = (BackdropKind)999,
+                },
+            },
+            InvalidEnvelopeKind.InvalidCloseBehavior => envelope with
+            {
+                Settings = envelope.Settings with
+                {
+                    CloseBehavior = (CloseBehavior)999,
+                },
+            },
+            InvalidEnvelopeKind.BlankName => envelope with
+            {
+                Games = ImmutableArray.Create(game with { Name = " " }),
+            },
+            InvalidEnvelopeKind.InvalidBaseStamina => envelope with
+            {
+                Games = ImmutableArray.Create(game with { BaseStamina = -1 }),
+            },
+            InvalidEnvelopeKind.InvalidMaxStamina => envelope with
+            {
+                Games = ImmutableArray.Create(game with { MaxStamina = 0 }),
+            },
+            InvalidEnvelopeKind.InvalidRecoveryMinutes => envelope with
+            {
+                Games = ImmutableArray.Create(game with
+                {
+                    RecoveryMinutes = 0,
+                }),
+            },
+            InvalidEnvelopeKind.InvalidFullTime => envelope with
+            {
+                Games = ImmutableArray.Create(game with
+                {
+                    BaseStamina = 0,
+                    MaxStamina = 2,
+                    RecoveryMinutes = 1,
+                    RecordedAtUtc = DateTimeOffset.MaxValue,
+                }),
+            },
+            InvalidEnvelopeKind.EmptyGameId => envelope with
+            {
+                Games = ImmutableArray.Create(game with { Id = Guid.Empty }),
+            },
+            InvalidEnvelopeKind.MissingSettings => envelope with
+            {
+                Settings = null!,
+            },
+            _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+        };
+    }
+
+    public enum InvalidEnvelopeKind
+    {
+        TooManyGames,
+        DuplicateGameId,
+        InvalidSortOrder,
+        InvalidAssetId,
+        InvalidNotificationLead,
+        InvalidTheme,
+        InvalidBackdrop,
+        InvalidCloseBehavior,
+        BlankName,
+        InvalidBaseStamina,
+        InvalidMaxStamina,
+        InvalidRecoveryMinutes,
+        InvalidFullTime,
+        EmptyGameId,
+        MissingSettings,
     }
 
     private sealed class TestAppDataPathProvider(string rootPath)

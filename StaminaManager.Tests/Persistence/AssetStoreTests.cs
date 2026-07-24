@@ -216,6 +216,47 @@ public sealed class AssetStoreTests
         Assert.IsFalse(File.Exists(orphan.FilePath));
     }
 
+    [TestMethod]
+    public async Task SaveAsync_DestinationIOExceptionIsNotReclassified()
+    {
+        Directory.CreateDirectory(_rootPath);
+        await File.WriteAllTextAsync(
+            Path.Combine(_rootPath, "Assets"),
+            "not a directory");
+        await using MemoryStream source = await OpenFixtureAsync(
+            GetValidFixtureName(ImageFormat.Png));
+
+        await Assert.ThrowsExactlyAsync<IOException>(() => _store.SaveAsync(
+            source,
+            "valid.png",
+            CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task DeleteOrphansAfterCommitAsync_DeletesOnlyOwnedTemps()
+    {
+        string assetsPath = Path.Combine(_rootPath, "Assets");
+        Directory.CreateDirectory(assetsPath);
+        string assetId = Guid.NewGuid().ToString("N");
+        string ownedPngTemp = Path.Combine(assetsPath, $"{assetId}.png.tmp");
+        string ownedJpegTemp = Path.Combine(assetsPath, $"{assetId}.jpg.tmp");
+        string arbitraryTemp = Path.Combine(assetsPath, "notes.tmp");
+        string unsupportedTemp = Path.Combine(assetsPath, $"{assetId}.gif.tmp");
+        await File.WriteAllTextAsync(ownedPngTemp, "partial");
+        await File.WriteAllTextAsync(ownedJpegTemp, "partial");
+        await File.WriteAllTextAsync(arbitraryTemp, "keep");
+        await File.WriteAllTextAsync(unsupportedTemp, "keep");
+
+        await _store.DeleteOrphansAfterCommitAsync(
+            new HashSet<string>(StringComparer.Ordinal),
+            CancellationToken.None);
+
+        Assert.IsFalse(File.Exists(ownedPngTemp));
+        Assert.IsFalse(File.Exists(ownedJpegTemp));
+        Assert.IsTrue(File.Exists(arbitraryTemp));
+        Assert.IsTrue(File.Exists(unsupportedTemp));
+    }
+
     private async Task<StoredAsset> SavePngAsync(string originalFileName)
     {
         await using MemoryStream source = await OpenFixtureAsync(

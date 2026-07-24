@@ -1,4 +1,5 @@
 using StaminaManager.Infrastructure.Persistence;
+using System.Runtime.InteropServices;
 using Windows.Graphics.Imaging;
 using Windows.Storage.Streams;
 
@@ -53,31 +54,32 @@ public sealed class AssetStore
 
         byte[] sourceBytes = await ReadBoundedAsync(
             source,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
         using InMemoryRandomAccessStream input = await CreateInputAsync(
             sourceBytes,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
 
         ImageFormat format;
         SoftwareBitmap bitmap;
         try
         {
-            BitmapDecoder decoder = await BitmapDecoder.CreateAsync(input);
+            BitmapDecoder decoder = await BitmapDecoder.CreateAsync(input)
+                .AsTask(cancellationToken).ConfigureAwait(false);
             format = GetFormat(decoder.DecoderInformation.CodecId);
             ValidateDimensions(decoder.PixelWidth, decoder.PixelHeight);
             BitmapAlphaMode alphaMode = format == ImageFormat.Jpeg
                 ? BitmapAlphaMode.Ignore
                 : BitmapAlphaMode.Premultiplied;
             bitmap = await decoder.GetSoftwareBitmapAsync(
-                BitmapPixelFormat.Bgra8,
-                alphaMode);
+                    BitmapPixelFormat.Bgra8,
+                    alphaMode)
+                .AsTask(cancellationToken).ConfigureAwait(false);
         }
         catch (AssetValidationException)
         {
             throw;
         }
-        catch (Exception exception) when (
-            exception is not OperationCanceledException)
+        catch (Exception exception) when (IsImagingFailure(exception))
         {
             throw new AssetValidationException(
                 "The source is not a valid PNG or JPEG image.",
@@ -90,27 +92,28 @@ public sealed class AssetStore
             try
             {
                 BitmapEncoder encoder = await BitmapEncoder.CreateAsync(
-                    format.EncoderId,
-                    encoded);
+                        format.EncoderId,
+                        encoded)
+                    .AsTask(cancellationToken).ConfigureAwait(false);
                 encoder.SetSoftwareBitmap(bitmap);
-                await encoder.FlushAsync();
-                cancellationToken.ThrowIfCancellationRequested();
-                return await SaveEncodedAsync(
-                    encoded,
-                    format,
-                    cancellationToken);
+                await encoder.FlushAsync()
+                    .AsTask(cancellationToken).ConfigureAwait(false);
             }
             catch (AssetValidationException)
             {
                 throw;
             }
-            catch (Exception exception) when (
-                exception is not OperationCanceledException)
+            catch (Exception exception) when (IsImagingFailure(exception))
             {
                 throw new AssetValidationException(
                     "The image could not be normalized.",
                     exception);
             }
+
+            return await SaveEncodedAsync(
+                encoded,
+                format,
+                cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -131,14 +134,15 @@ public sealed class AssetStore
             SearchOption.TopDirectoryOnly))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            string assetId = Path.GetFileNameWithoutExtension(path);
-            string extension = Path.GetExtension(path);
-            bool isOwnedAsset = Guid.TryParseExact(assetId, "N", out _)
-                && (extension.Equals(".png", StringComparison.OrdinalIgnoreCase)
-                    || extension.Equals(
-                        ".jpg",
-                        StringComparison.OrdinalIgnoreCase));
-            if (isOwnedAsset && !referencedAssetIds.Contains(assetId))
+            if (!TryParseOwnedAssetPath(
+                path,
+                out string? assetId,
+                out bool isTemporary))
+            {
+                continue;
+            }
+
+            if (isTemporary || !referencedAssetIds.Contains(assetId))
             {
                 File.Delete(path);
             }
@@ -162,10 +166,6 @@ public sealed class AssetStore
         try
         {
             encoded.Seek(0);
-            using DataReader reader = new(encoded.GetInputStreamAt(0));
-            _ = await reader.LoadAsync(checked((uint)encoded.Size));
-            byte[] bytes = new byte[checked((int)encoded.Size)];
-            reader.ReadBytes(bytes);
             await using (FileStream output = new(
                 temporaryPath,
                 FileMode.CreateNew,
@@ -175,8 +175,12 @@ public sealed class AssetStore
                 FileOptions.Asynchronous))
             {
                 ownsTemporaryFile = true;
-                await output.WriteAsync(bytes, cancellationToken);
-                await output.FlushAsync(cancellationToken);
+                await CopyEncodedAsync(
+                    encoded,
+                    output,
+                    cancellationToken).ConfigureAwait(false);
+                await output.FlushAsync(cancellationToken)
+                    .ConfigureAwait(false);
                 output.Flush(flushToDisk: true);
             }
 
@@ -205,7 +209,7 @@ public sealed class AssetStore
             int remainingRead = MaxSourceBytes + 1 - totalBytes;
             int bytesRead = await source.ReadAsync(
                 chunk.AsMemory(0, Math.Min(chunk.Length, remainingRead)),
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
             if (bytesRead == 0)
             {
                 return buffer.ToArray();
@@ -220,7 +224,7 @@ public sealed class AssetStore
 
             await buffer.WriteAsync(
                 chunk.AsMemory(0, bytesRead),
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -229,14 +233,54 @@ public sealed class AssetStore
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        InMemoryRandomAccessStream input = new();
-        using DataWriter writer = new(input);
-        writer.WriteBytes(bytes);
-        _ = await writer.StoreAsync();
-        writer.DetachStream();
-        input.Seek(0);
-        cancellationToken.ThrowIfCancellationRequested();
-        return input;
+        InMemoryRandomAccessStream? input = new();
+        try
+        {
+            using DataWriter writer = new(input);
+            writer.WriteBytes(bytes);
+            _ = await writer.StoreAsync()
+                .AsTask(cancellationToken).ConfigureAwait(false);
+            writer.DetachStream();
+            input.Seek(0);
+            return input;
+        }
+        catch
+        {
+            input.Dispose();
+            throw;
+        }
+    }
+
+    private static async Task CopyEncodedAsync(
+        InMemoryRandomAccessStream encoded,
+        FileStream output,
+        CancellationToken cancellationToken)
+    {
+        using DataReader reader = new(encoded.GetInputStreamAt(0));
+        byte[] buffer = new byte[CopyBufferSize];
+        ulong totalBytesRead = 0;
+        while (totalBytesRead < encoded.Size)
+        {
+            uint requested = checked((uint)Math.Min(
+                (ulong)buffer.Length,
+                encoded.Size - totalBytesRead));
+            uint loaded = await reader.LoadAsync(requested)
+                .AsTask(cancellationToken).ConfigureAwait(false);
+            if (loaded == 0)
+            {
+                throw new EndOfStreamException(
+                    "The encoded image stream ended unexpectedly.");
+            }
+
+            byte[] destination = loaded == buffer.Length
+                ? buffer
+                : new byte[loaded];
+            reader.ReadBytes(destination);
+            await output.WriteAsync(
+                destination.AsMemory(0, checked((int)loaded)),
+                cancellationToken).ConfigureAwait(false);
+            totalBytesRead += loaded;
+        }
     }
 
     private static ImageFormat GetFormat(Guid decoderId)
@@ -265,6 +309,36 @@ public sealed class AssetStore
             throw new AssetValidationException(
                 "Image dimensions must be between 1 and 4096 pixels.");
         }
+    }
+
+    private static bool IsImagingFailure(Exception exception) =>
+        exception is COMException
+            or ArgumentException
+            or InvalidOperationException;
+
+    private static bool TryParseOwnedAssetPath(
+        string path,
+        out string assetId,
+        out bool isTemporary)
+    {
+        string fileName = Path.GetFileName(path);
+        isTemporary = fileName.EndsWith(".tmp", StringComparison.Ordinal);
+        string assetFileName = isTemporary
+            ? fileName[..^".tmp".Length]
+            : fileName;
+        string extension = Path.GetExtension(assetFileName);
+        if (extension is not ".png" and not ".jpg")
+        {
+            assetId = string.Empty;
+            return false;
+        }
+
+        assetId = Path.GetFileNameWithoutExtension(assetFileName);
+        return Guid.TryParseExact(assetId, "N", out Guid parsed)
+            && string.Equals(
+                assetId,
+                parsed.ToString("N"),
+                StringComparison.Ordinal);
     }
 
     private string GetAssetsPath() => Path.Combine(

@@ -9,4 +9,7 @@ public interface ILocalDataStore
     Task SaveAsync(
         DataEnvelope envelope,
         CancellationToken cancellationToken);
+
+    Task<RecoveryPromotionResult> PromoteRecoveryAsync(
+        CancellationToken cancellationToken);
 }
