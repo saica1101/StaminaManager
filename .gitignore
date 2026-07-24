@@ -1,0 +1,13 @@
+.worktrees/
+
+# Build outputs
+bin/
+obj/
+AppPackages/
+TestResults/
+
+# IDE and local tooling
+.vs/
+*.user
+*.suo
+*.log
