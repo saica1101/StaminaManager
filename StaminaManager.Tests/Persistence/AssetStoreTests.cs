@@ -8,6 +8,7 @@ namespace StaminaManager.Tests.Persistence;
 [TestClass]
 public sealed class AssetStoreTests
 {
+    private const string FixtureDirectoryName = "TestData";
     private string _rootPath = null!;
     private AssetStore _store = null!;
 
@@ -35,10 +36,8 @@ public sealed class AssetStoreTests
     public async Task SaveAsync_ReencodesValidImageInOriginalFormat(
         ImageFormat format)
     {
-        await using MemoryStream source = await CreateImageAsync(
-            width: 1,
-            height: 1,
-            format);
+        await using MemoryStream source = await OpenFixtureAsync(
+            GetValidFixtureName(format));
 
         StoredAsset asset = await _store.SaveAsync(
             source,
@@ -59,8 +58,7 @@ public sealed class AssetStoreTests
     [TestMethod]
     public async Task SaveAsync_RejectsSvgEvenWhenNamedPng()
     {
-        await using MemoryStream source = new(
-            "<svg xmlns='http://www.w3.org/2000/svg'></svg>"u8.ToArray());
+        await using MemoryStream source = await OpenFixtureAsync("vector.svg");
 
         await Assert.ThrowsAsync<AssetValidationException>(
             () => _store.SaveAsync(
@@ -72,7 +70,8 @@ public sealed class AssetStoreTests
     [TestMethod]
     public async Task SaveAsync_RejectsTextNamedJpeg()
     {
-        await using MemoryStream source = new("not an image"u8.ToArray());
+        await using MemoryStream source = await OpenFixtureAsync(
+            "text-disguised-as-jpeg.txt");
 
         await Assert.ThrowsAsync<AssetValidationException>(
             () => _store.SaveAsync(
@@ -86,10 +85,8 @@ public sealed class AssetStoreTests
     [DataRow(ImageFormat.Jpeg)]
     public async Task SaveAsync_RejectsCorruptRasterData(ImageFormat format)
     {
-        byte[] corrupt = format == ImageFormat.Png
-            ? new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }
-            : new byte[] { 255, 216, 255, 217 };
-        await using MemoryStream source = new(corrupt);
+        await using MemoryStream source = await OpenFixtureAsync(
+            $"corrupt.{GetExtension(format)}.base64");
 
         await Assert.ThrowsAsync<AssetValidationException>(
             () => _store.SaveAsync(
@@ -101,10 +98,8 @@ public sealed class AssetStoreTests
     [TestMethod]
     public async Task SaveAsync_AllowsValidImageAtFiveMiB()
     {
-        await using MemoryStream source = await CreateImageAsync(
-            width: 1,
-            height: 1,
-            ImageFormat.Png);
+        await using MemoryStream source = await OpenFixtureAsync(
+            GetValidFixtureName(ImageFormat.Png));
         source.SetLength(AssetStore.MaxSourceBytes);
         source.Position = 0;
 
@@ -164,14 +159,10 @@ public sealed class AssetStoreTests
     [TestMethod]
     public async Task SaveAsync_UsesRandomAppOwnedNameAndIgnoresTraversal()
     {
-        await using MemoryStream firstSource = await CreateImageAsync(
-            1,
-            1,
-            ImageFormat.Png);
-        await using MemoryStream secondSource = await CreateImageAsync(
-            1,
-            1,
-            ImageFormat.Png);
+        await using MemoryStream firstSource = await OpenFixtureAsync(
+            GetValidFixtureName(ImageFormat.Png));
+        await using MemoryStream secondSource = await OpenFixtureAsync(
+            GetValidFixtureName(ImageFormat.Png));
 
         StoredAsset first = await _store.SaveAsync(
             firstSource,
@@ -227,14 +218,37 @@ public sealed class AssetStoreTests
 
     private async Task<StoredAsset> SavePngAsync(string originalFileName)
     {
-        await using MemoryStream source = await CreateImageAsync(
-            1,
-            1,
-            ImageFormat.Png);
+        await using MemoryStream source = await OpenFixtureAsync(
+            GetValidFixtureName(ImageFormat.Png));
         return await _store.SaveAsync(
             source,
             originalFileName,
             CancellationToken.None);
+    }
+
+    private static async Task<MemoryStream> OpenFixtureAsync(
+        string fixtureFileName)
+    {
+        string path = Path.Combine(
+            AppContext.BaseDirectory,
+            FixtureDirectoryName,
+            "Images",
+            fixtureFileName);
+        byte[] bytes;
+        if (path.EndsWith(".base64", StringComparison.OrdinalIgnoreCase))
+        {
+            string encoded = await File.ReadAllTextAsync(path);
+            bytes = Convert.FromBase64String(encoded);
+        }
+        else
+        {
+            bytes = await File.ReadAllBytesAsync(path);
+        }
+
+        MemoryStream result = new(capacity: bytes.Length);
+        await result.WriteAsync(bytes);
+        result.Position = 0;
+        return result;
     }
 
     private static async Task<MemoryStream> CreateImageAsync(
@@ -304,6 +318,14 @@ public sealed class AssetStoreTests
         ImageFormat.Jpeg => "image/jpeg",
         _ => throw new ArgumentOutOfRangeException(nameof(format)),
     };
+
+    private static string GetValidFixtureName(ImageFormat format) =>
+        format switch
+        {
+            ImageFormat.Png => "valid-1x1.png.base64",
+            ImageFormat.Jpeg => "valid-1x1.jpg.base64",
+            _ => throw new ArgumentOutOfRangeException(nameof(format)),
+        };
 
     public enum ImageFormat
     {
