@@ -87,4 +87,3 @@ one of: `余裕`, `注意`, `満タン間近`, `満タン`, or `自然回復停�
   and update/edit actions.
 - Avoid double-card nesting. Backdrop provides window depth; cards provide the
   single required content layer.
-
