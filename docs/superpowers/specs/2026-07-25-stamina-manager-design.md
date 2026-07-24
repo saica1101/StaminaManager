@@ -182,7 +182,7 @@ UIモードは新規UIのため `MODE 1: CREATIVE MASTER` とし、美学は
 #### Notifications
 
 - 全回復前通知のON/OFF。
-- 全回復の何分前に通知するか。0以上の整数で、0は全回復時刻を表す。
+- 全回復の何分前に通知するか。0～525,600の整数で、0は全回復時刻を表す。
 - 初期値は通知ON、全回復の15分前とする。
 - Windows通知が無効な場合は状態と `Windowsの通知設定を開く` を表示する。
 
@@ -206,7 +206,6 @@ UIモードは新規UIのため `MODE 1: CREATIVE MASTER` とし、美学は
 - `DateTimeOffset RecordedAtUtc`
 - `string? ImageAssetId`
 - `int SortOrder`
-- `string? LastNotificationCycleKey`
 
 現在時刻を `nowUtc` とする。`BaseStamina >= MaxStamina` の場合、自然回復は停止し、
 現在値は `BaseStamina` のまま維持する。それ以外は次で求める。
@@ -247,10 +246,23 @@ fullAtUtc = RecordedAtUtc + checked(remaining × RecoveryMinutes)
 - アプリ終了後も予約通知を維持する。
 - 通知クリックでアプリを起動または前面化し、Overviewで対象カードへ移動する。
 - 通知サイクルキーは `GameId / FullAtUtc ticks / leadMinutes` から決定的に生成する。
-  Windowsが予約または即時通知を受理した時点で `LastNotificationCycleKey` を保存し、
-  同じキーを二度発行しない。通知OFFで予約を解除してもキーは保持し、同じ回復
-  サイクルでONへ戻して重複通知しない。スタミナ基準値または通知分数の変更でキーが
-  変わった場合だけ新たに予約する。
+- ユーザーバックアップへ含めない端末固有の通知台帳で、サイクルごとに
+  `Scheduled / Consumed / Suppressed` を保持する。
+  - `Scheduled`: Windowsへ未来の予約を登録済み。通知時刻より前にWindowsの予約
+    一覧から消えた場合だけ再登録する。通知時刻以後に消えた場合は `Consumed` と
+    みなし、再発行しない。
+  - `Consumed`: 即時通知をWindowsが受理したか、予約が通知時刻へ到達した状態。
+    同じキーを再発行しない。
+  - `Suppressed`: 通知OFFにより予約を取り消した状態。再びONになった時点で通知時刻
+    が未来なら `Scheduled` として再登録し、すでに過ぎていれば `Consumed` として
+    通知しない。
+- 名前または画像だけの編集では、未来の `Scheduled` を取り消して同じキー・新しい
+  表示内容で直ちに再登録する。スタミナ基準値または通知分数の変更では旧予約を
+  取り消し、新しいキーを計算する。
+- 復元時は端末固有の通知台帳をバックアップから上書きしない。現在の予約をいったん
+  解除し、インポート後も同じキーの `Consumed` があれば抑止を維持する。未来の
+  `Scheduled` と新しいサイクルだけを再登録し、復元データに存在しない古い台帳は
+  定期的に削除する。
 - 終了後通知の保証対象は、MSIXインストール済み、通知許可ON、ユーザーがサインイン
   中、PCが起動・復帰状態、通知時刻にWindows通知サービスが利用可能な場合とする。
   シャットダウン、休止、Windows側の通知無効化・配信抑止中の取りこぼしには再送を
@@ -290,6 +302,8 @@ fullAtUtc = RecordedAtUtc + checked(remaining × RecoveryMinutes)
 
 - `ApplicationData.LocalFolder` のアプリ専用領域を使用する。
 - `data.json` にスキーマバージョン、ゲーム、アプリ設定を保存する。
+- `notification-state.json` に端末固有の通知台帳を保存し、ユーザーバックアップには
+  含めない。
 - ゲーム画像はランダム生成したファイル名で専用Assets領域へ保存し、JSONから
   `ImageAssetId` で参照する。
 - JSONは一時ファイルへ書き込み、flush後に置き換える。
@@ -327,7 +341,8 @@ fullAtUtc = RecordedAtUtc + checked(remaining × RecoveryMinutes)
    スナップショットを作る。
 3. `Validated / Staged / LocalCommitted / Completed` の復元ジャーナルを更新しながら、
    同一ボリューム内の置き換えでローカルデータをコミットする。
-4. `LocalCommitted` 後に通知予約とStartupTaskを派生状態として再調整する。
+4. `LocalCommitted` 後に端末固有の通知台帳を保持したまま通知予約とStartupTaskを
+   派生状態として再調整する。
 5. `Completed` 後にステージングを破棄し、直前の正常スナップショットを1世代残す。
 
 クラッシュが `LocalCommitted` より前なら旧データを維持し、それ以後なら新データを
@@ -429,6 +444,9 @@ Identifierは `win-x64` とする。依存関係は必要最小限とし、中�
 - 回復直前・直後、満タン到達、端末時計が過去へ変更された場合。
 - UTC保存、ローカル表示、夏時間境界。
 - 通知時刻の未来、経過済み、満タン済み、通知0分前。
+- 通知分数0～525,600の上下限と、時刻減算が表現範囲外になる場合。
+- 通知台帳の `Scheduled / Consumed / Suppressed` 遷移、通知OFF→ON、名前変更、
+  復元後の重複防止。
 - 入力検証、整数境界、画像制限。
 - JSON round trip、破損JSON、スキーマ移行。
 - バックアップの正常復元、未知スキーマ、Zip Slip、過大展開、ロールバック。
