@@ -18,6 +18,10 @@ public sealed partial class SettingsViewModel : ObservableObject
 {
     private const string SaveFailureMessage =
         "設定を保存できませんでした。以前の設定に戻しました。";
+    private const string NotReadyMessage =
+        "設定を読み込み中です。完了してからもう一度お試しください。";
+    private const string UnexpectedFailureMessage =
+        "設定を変更できませんでした。もう一度お試しください。";
     private readonly GameManager _gameManager;
     private readonly IThemeService _themeService;
     private readonly IBackdropService _backdropService;
@@ -46,6 +50,11 @@ public sealed partial class SettingsViewModel : ObservableObject
     }
 
     public event Action<SettingsPreparationAction>? PreparationRequested;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsLoading))]
+    [NotifyPropertyChangedFor(nameof(LoadingVisibility))]
+    public partial bool IsReady { get; private set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsDarkTheme))]
@@ -99,6 +108,12 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public bool IsDarkTheme => Theme == AppTheme.Dark;
 
+    public bool IsLoading => !IsReady;
+
+    public Visibility LoadingVisibility => IsReady
+        ? Visibility.Collapsed
+        : Visibility.Visible;
+
     public int SelectedBackdropIndex => (int)SelectedBackdrop;
 
     public int CloseBehaviorIndex => (int)CloseBehavior;
@@ -120,6 +135,11 @@ public sealed partial class SettingsViewModel : ObservableObject
         AppTheme requestedTheme,
         CancellationToken cancellationToken = default)
     {
+        if (!EnsureReady())
+        {
+            return false;
+        }
+
         await _mutationGate.WaitAsync(cancellationToken);
         try
         {
@@ -171,6 +191,11 @@ public sealed partial class SettingsViewModel : ObservableObject
         BackdropKind requestedBackdrop,
         CancellationToken cancellationToken = default)
     {
+        if (!EnsureReady())
+        {
+            return false;
+        }
+
         await _mutationGate.WaitAsync(cancellationToken);
         try
         {
@@ -227,6 +252,11 @@ public sealed partial class SettingsViewModel : ObservableObject
         CloseBehavior closeBehavior,
         CancellationToken cancellationToken = default)
     {
+        if (!EnsureReady())
+        {
+            return Task.FromResult(false);
+        }
+
         if (!Enum.IsDefined(closeBehavior))
         {
             ShowMessage(
@@ -243,15 +273,30 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public Task<bool> SetStartupEnabledAsync(
         bool isEnabled,
-        CancellationToken cancellationToken = default) => PersistAsync(
+        CancellationToken cancellationToken = default)
+    {
+        if (!EnsureReady())
+        {
+            return Task.FromResult(false);
+        }
+
+        return PersistAsync(
             settings => settings with { StartupEnabled = isEnabled },
             () => IsStartupEnabled = isEnabled,
             cancellationToken,
             "設定を保存しました。Windowsログイン時起動の適用は準備中です。");
+    }
 
     public Task<bool> SetNotificationsEnabledAsync(
         bool isEnabled,
-        CancellationToken cancellationToken = default) => PersistAsync(
+        CancellationToken cancellationToken = default)
+    {
+        if (!EnsureReady())
+        {
+            return Task.FromResult(false);
+        }
+
+        return PersistAsync(
             settings => settings with
             {
                 NotificationsEnabled = isEnabled,
@@ -259,11 +304,17 @@ public sealed partial class SettingsViewModel : ObservableObject
             () => AreNotificationsEnabled = isEnabled,
             cancellationToken,
             "設定を保存しました。Windows通知との同期は準備中です。");
+    }
 
     public Task<bool> SetNotificationLeadMinutesAsync(
         double value,
         CancellationToken cancellationToken = default)
     {
+        if (!EnsureReady())
+        {
+            return Task.FromResult(false);
+        }
+
         if (double.IsNaN(value)
             || double.IsInfinity(value)
             || value != Math.Truncate(value)
@@ -302,6 +353,24 @@ public sealed partial class SettingsViewModel : ObservableObject
         SettingsPreparationAction.OpenWindowsNotificationSettings);
 
     public void DismissInfoBar() => CloseInfoBar();
+
+    public void MarkReady()
+    {
+        IsReady = _gameManager.IsInitialized;
+        if (!IsReady)
+        {
+            ShowMessage(
+                NotReadyMessage,
+                InfoBarSeverity.Warning,
+                "設定を変更できません");
+        }
+    }
+
+    public void MarkNotReady() => IsReady = false;
+
+    internal void ReportUnexpectedFailure() => ShowMessage(
+        UnexpectedFailureMessage,
+        InfoBarSeverity.Error);
 
     public void SynchronizeFromCurrentSettings(
         ThemeResult? themeResult = null,
@@ -396,6 +465,21 @@ public sealed partial class SettingsViewModel : ObservableObject
         exception is IOException
             or UnauthorizedAccessException
             or InvalidDataException;
+
+    private bool EnsureReady()
+    {
+        if (IsReady && _gameManager.IsInitialized)
+        {
+            return true;
+        }
+
+        IsReady = false;
+        ShowMessage(
+            NotReadyMessage,
+            InfoBarSeverity.Warning,
+            "設定を変更できません");
+        return false;
+    }
 
     private void ShowMessage(
         string message,

@@ -2,7 +2,8 @@ param(
     [Parameter(Mandatory)]
     [int]$AppPid,
     [string]$OutputDirectory =
-        "$PSScriptRoot\results\task9-appearance"
+        "$PSScriptRoot\results\task9-appearance",
+    [switch]$InjectFailureAfterBackdrop
 )
 
 $ErrorActionPreference = 'Stop'
@@ -96,6 +97,33 @@ function Get-RawBackdropDiagnostic {
     throw 'ActualBackdropDiagnostic was not found in UIA Raw view.'
 }
 
+function Get-ControlValue {
+    param([Parameter(Mandatory)][string]$AutomationId)
+
+    return (
+        Invoke-WinApp ui get-value $AutomationId -a $AppPid --json |
+            ConvertFrom-Json
+    ).text
+}
+
+function Restore-InitialSettings {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ThemeValue,
+        [Parameter(Mandatory)]
+        [string]$BackdropValue)
+
+    if ((Get-ControlValue ThemeToggle) -ne $ThemeValue) {
+        Invoke-WinApp ui invoke ThemeToggle -a $AppPid | Out-Null
+    }
+
+    Invoke-WinApp ui wait-for ThemeToggle -a $AppPid `
+        --value $ThemeValue -t 3000 | Out-Null
+    Select-ComboItem BackdropSelector $BackdropValue
+    Invoke-WinApp ui wait-for BackdropSelector -a $AppPid `
+        --value $BackdropValue -t 3000 | Out-Null
+}
+
 New-Item -ItemType Directory -Force -Path $OutputDirectory |
     Out-Null
 
@@ -106,60 +134,79 @@ Invoke-WinApp ui invoke NavSettings -a $AppPid |
 Invoke-WinApp ui wait-for BackdropSelector -a $AppPid -t 5000 |
     Out-Null
 
-$initialTheme = (
-    Invoke-WinApp ui get-value ThemeToggle -a $AppPid --json |
+$initialTheme = Get-ControlValue ThemeToggle
+$initialBackdrop = Get-ControlValue BackdropSelector
+$testError = $null
+$restoreError = $null
+
+try {
+    if ($initialTheme -ne 'On') {
+        Invoke-WinApp ui invoke ThemeToggle -a $AppPid | Out-Null
+        Invoke-WinApp ui wait-for ThemeToggle -a $AppPid `
+            --value On -t 3000 | Out-Null
+    }
+
+    Assert-ActualBackdrop Mica 'Mica|SolidSurface=Collapsed'
+    Assert-ActualBackdrop Acrylic 'Acrylic|SolidSurface=Collapsed'
+    Assert-ActualBackdrop Blur 'Blur|SolidSurface=Collapsed'
+    Assert-ActualBackdrop Transparent `
+        'Transparent|SolidSurface=Collapsed'
+
+    if ($InjectFailureAfterBackdrop) {
+        throw 'Injected failure after backdrop assertions.'
+    }
+
+    Invoke-WinApp ui screenshot -a $AppPid `
+        -o (Join-Path $OutputDirectory 'transparent-dark.png') |
+        Out-Null
+
+    Invoke-WinApp ui focus NavSettings -a $AppPid | Out-Null
+    $focused = Invoke-WinApp ui get-focused -a $AppPid --json |
         ConvertFrom-Json
-).text
-if ($initialTheme -ne 'On') {
+    if ($focused.element.automationId -ne 'NavSettings') {
+        throw "Unexpected focused element: "
+            + $focused.element.automationId
+    }
+
+    Invoke-WinApp ui hover NavSettings -a $AppPid | Out-Null
+    Invoke-WinApp ui screenshot -a $AppPid `
+        -o (Join-Path $OutputDirectory 'transparent-dark-hover.png') |
+        Out-Null
+
     Invoke-WinApp ui invoke ThemeToggle -a $AppPid | Out-Null
     Invoke-WinApp ui wait-for ThemeToggle -a $AppPid `
-        --value On -t 3000 | Out-Null
+        --value Off -t 3000 | Out-Null
+    $transparentDiagnostic = Get-RawBackdropDiagnostic
+    if ($transparentDiagnostic -ne
+        'Transparent|SolidSurface=Collapsed') {
+        throw "Unexpected transparent diagnostic: "
+            + $transparentDiagnostic
+    }
+
+    Invoke-WinApp ui screenshot -a $AppPid `
+        -o (Join-Path $OutputDirectory 'transparent-light.png') |
+        Out-Null
+    Assert-ActualBackdrop Solid 'Solid|SolidSurface=Visible'
+}
+catch {
+    $testError = $_
+}
+finally {
+    try {
+        Restore-InitialSettings $initialTheme $initialBackdrop
+        Write-Host 'Task9 appearance integration restore: PASS'
+    }
+    catch {
+        $restoreError = $_
+    }
 }
 
-Assert-ActualBackdrop Mica `
-    'Microsoft.UI.Xaml.Media.MicaBackdrop|SolidSurface=Collapsed'
-Assert-ActualBackdrop Acrylic `
-    'Microsoft.UI.Xaml.Media.DesktopAcrylicBackdrop|SolidSurface=Collapsed'
-Assert-ActualBackdrop Blur `
-    'StaminaManager.Infrastructure.Windows.BlurredBackdrop|SolidSurface=Collapsed'
-Assert-ActualBackdrop Transparent `
-    'WinUIEx.TransparentTintBackdrop|SolidSurface=Collapsed'
-
-Invoke-WinApp ui screenshot -a $AppPid `
-    -o (Join-Path $OutputDirectory 'transparent-dark.png') |
-    Out-Null
-
-Invoke-WinApp ui focus NavSettings -a $AppPid | Out-Null
-$focused = Invoke-WinApp ui get-focused -a $AppPid --json |
-    ConvertFrom-Json
-if ($focused.element.automationId -ne 'NavSettings') {
-    throw "Unexpected focused element: $($focused.element.automationId)"
+if ($null -ne $restoreError) {
+    throw "Settings restoration failed: $restoreError"
 }
 
-Invoke-WinApp ui hover NavSettings -a $AppPid | Out-Null
-Invoke-WinApp ui screenshot -a $AppPid `
-    -o (Join-Path $OutputDirectory 'transparent-dark-hover.png') |
-    Out-Null
-
-Invoke-WinApp ui invoke ThemeToggle -a $AppPid | Out-Null
-Invoke-WinApp ui wait-for ThemeToggle -a $AppPid `
-    --value Off -t 3000 | Out-Null
-$transparentDiagnostic = Get-RawBackdropDiagnostic
-if ($transparentDiagnostic -ne
-    'WinUIEx.TransparentTintBackdrop|SolidSurface=Collapsed') {
-    throw "Unexpected transparent diagnostic: $transparentDiagnostic"
-}
-Invoke-WinApp ui screenshot -a $AppPid `
-    -o (Join-Path $OutputDirectory 'transparent-light.png') |
-    Out-Null
-
-Assert-ActualBackdrop Solid '<null>|SolidSurface=Visible'
-
-if ($initialTheme -eq 'On') {
-    Invoke-WinApp ui invoke ThemeToggle -a $AppPid | Out-Null
-    Invoke-WinApp ui wait-for ThemeToggle -a $AppPid `
-        --value On -t 3000 | Out-Null
+if ($null -ne $testError) {
+    throw $testError
 }
 
-Select-ComboItem BackdropSelector Mica
 Write-Host 'Task9 appearance integration: PASS'

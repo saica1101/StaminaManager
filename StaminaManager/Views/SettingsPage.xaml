@@ -39,6 +39,27 @@
                 Severity="{x:Bind ViewModel.InfoBarSeverity, Mode=OneWay}"
                 Title="{x:Bind ViewModel.InfoBarTitle, Mode=OneWay}" />
 
+            <StackPanel
+                AutomationProperties.AutomationId="SettingsLoadingStatus"
+                Orientation="Horizontal"
+                Spacing="{StaticResource Spacing12}"
+                Visibility="{x:Bind ViewModel.LoadingVisibility, Mode=OneWay}">
+                <ProgressRing
+                    x:Uid="SettingsLoadingProgressRing"
+                    Width="20"
+                    Height="20"
+                    IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}" />
+                <TextBlock
+                    x:Uid="SettingsLoadingStatusText"
+                    VerticalAlignment="Center"
+                    Style="{StaticResource AppBodyTextStyle}" />
+            </StackPanel>
+
+            <ContentControl
+                x:Name="SettingsControls"
+                HorizontalContentAlignment="Stretch"
+                IsEnabled="{x:Bind ViewModel.IsReady, Mode=OneWay}">
+                <StackPanel Spacing="{StaticResource Spacing32}">
             <StackPanel Spacing="{StaticResource Spacing12}">
                 <TextBlock
                     x:Uid="SettingsAppearanceHeading"
@@ -202,6 +223,8 @@
                     </StackPanel>
                 </Border>
             </StackPanel>
+                </StackPanel>
+            </ContentControl>
         </StackPanel>
     </ScrollViewer>
 </Page>

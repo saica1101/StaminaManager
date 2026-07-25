@@ -36,6 +36,8 @@
   <data name="GameCardAutomationNameFormat" xml:space="preserve"><value>{0}、スタミナ {1} / {2}、{3}、{4}</value></data>
   <data name="SettingsPageTitle.Text" xml:space="preserve"><value>Settings</value></data>
   <data name="SettingsPageDescription.Text" xml:space="preserve"><value>アプリの表示、通知、起動方法、データ管理を調整します。</value></data>
+  <data name="SettingsLoadingProgressRing.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>設定を読み込み中</value></data>
+  <data name="SettingsLoadingStatusText.Text" xml:space="preserve"><value>設定を読み込んでいます。完了するまで操作できません。</value></data>
   <data name="SettingsAppearanceHeading.Text" xml:space="preserve"><value>Appearance</value></data>
   <data name="ThemeToggle.Header" xml:space="preserve"><value>テーマ</value></data>
   <data name="ThemeToggle.OffContent" xml:space="preserve"><value>Light</value></data>

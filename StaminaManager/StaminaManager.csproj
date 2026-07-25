@@ -57,6 +57,9 @@
   <ItemGroup>
     <ProjectReference Include="..\StaminaManager.Core\StaminaManager.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="StaminaManager.Tests" />
+  </ItemGroup>
 
   <!--
     Microsoft.Windows.SDK.BuildTools.WinApp adds first-class support for

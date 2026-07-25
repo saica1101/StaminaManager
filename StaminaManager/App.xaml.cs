@@ -60,21 +60,25 @@ public partial class App : Microsoft.UI.Xaml.Application
             _window!.Activate();
             DataLoadResult loadResult = await _coordinator!.InitializeAsync(
                 CancellationToken.None);
-            _settingsViewModel!.SynchronizeFromCurrentSettings(
-                _coordinator.LastThemeResult,
-                _coordinator.LastBackdropResult);
             if (loadResult.Status == DataLoadStatus.Corrupt
                 || !_gameManager!.IsInitialized)
             {
+                _settingsViewModel!.MarkNotReady();
                 _overviewPage!.ShowStartupError();
                 return;
             }
+
+            _settingsViewModel!.SynchronizeFromCurrentSettings(
+                _coordinator.LastThemeResult,
+                _coordinator.LastBackdropResult);
+            _settingsViewModel.MarkReady();
 
             await _overviewViewModel!.SetLoadingAsync(false);
             await _timerCoordinator!.SetVisibleAsync(true);
         }
         catch (Exception exception)
         {
+            _settingsViewModel?.MarkNotReady();
             await HandleLaunchFailureAsync(exception);
         }
     }

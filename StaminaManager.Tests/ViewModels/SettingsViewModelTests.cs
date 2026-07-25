@@ -4,6 +4,7 @@ using StaminaManager.Core.Models;
 using StaminaManager.Core.Persistence;
 using StaminaManager.Tests.TestDoubles;
 using StaminaManager.ViewModels;
+using StaminaManager.Views;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
 
@@ -12,6 +13,83 @@ namespace StaminaManager.Tests.ViewModels;
 [TestClass]
 public sealed class SettingsViewModelTests
 {
+    [TestMethod]
+    public async Task SettingChanges_BeforeReadyAreRejectedWithoutSideEffects()
+    {
+        Context context = await Context.CreateAsync();
+        SettingsViewModel viewModel = context.CreateNotReadyViewModel();
+
+        bool[] results =
+        [
+            await viewModel.SetThemeAsync(AppTheme.Dark),
+            await viewModel.SetBackdropAsync(BackdropKind.Acrylic),
+            await viewModel.SetCloseBehaviorAsync(CloseBehavior.Exit),
+            await viewModel.SetStartupEnabledAsync(isEnabled: true),
+            await viewModel.SetNotificationsEnabledAsync(isEnabled: false),
+            await viewModel.SetNotificationLeadMinutesAsync(30),
+        ];
+
+        CollectionAssert.AreEqual(
+            new[] { false, false, false, false, false, false },
+            results);
+        Assert.IsFalse(viewModel.IsReady);
+        Assert.IsEmpty(context.ThemeService.Requests);
+        Assert.IsEmpty(context.BackdropService.Requests);
+        Assert.AreEqual(0, context.Store.SaveCount);
+        Assert.IsTrue(viewModel.IsInfoBarOpen);
+        StringAssert.Contains(viewModel.InfoBarMessage, "読み込み");
+    }
+
+    [TestMethod]
+    public async Task MarkReady_AfterManagerInitializationEnablesChanges()
+    {
+        Context context = await Context.CreateAsync();
+        SettingsViewModel viewModel = context.CreateNotReadyViewModel();
+
+        Assert.IsTrue(viewModel.IsLoading);
+        Assert.AreEqual(
+            Microsoft.UI.Xaml.Visibility.Visible,
+            viewModel.LoadingVisibility);
+
+        viewModel.MarkReady();
+        bool saved = await viewModel.SetCloseBehaviorAsync(
+            CloseBehavior.Exit);
+
+        Assert.IsTrue(viewModel.IsReady);
+        Assert.IsFalse(viewModel.IsLoading);
+        Assert.AreEqual(
+            Microsoft.UI.Xaml.Visibility.Collapsed,
+            viewModel.LoadingVisibility);
+        Assert.IsTrue(saved);
+        Assert.AreEqual(1, context.Store.SaveCount);
+    }
+
+    [TestMethod]
+    public async Task UnexpectedThemeServiceException_IsSafelyReported()
+    {
+        Context context = await Context.CreateAsync();
+        SettingsViewModel viewModel = context.CreateViewModel();
+        context.ThemeService.ApplyException =
+            new InvalidOperationException("service implementation detail");
+        int synchronizationCount = 0;
+
+        await SettingsChangeExecutor.ExecuteAsync(
+            async () =>
+            {
+                await viewModel.SetThemeAsync(AppTheme.Dark);
+            },
+            viewModel.ReportUnexpectedFailure,
+            () => synchronizationCount++);
+
+        Assert.AreEqual(1, synchronizationCount);
+        Assert.IsTrue(viewModel.IsInfoBarOpen);
+        StringAssert.Contains(viewModel.InfoBarMessage, "設定を変更");
+        Assert.IsFalse(viewModel.InfoBarMessage.Contains(
+            "service implementation detail",
+            StringComparison.Ordinal));
+        Assert.AreEqual(0, context.Store.SaveCount);
+    }
+
     [TestMethod]
     public void CreateDefault_UsesResolvedWindowsThemeAndDocumentedDefaults()
     {
@@ -283,7 +361,14 @@ public sealed class SettingsViewModelTests
                 new RecordingBackdropService());
         }
 
-        public SettingsViewModel CreateViewModel() => new(
+        public SettingsViewModel CreateViewModel()
+        {
+            SettingsViewModel viewModel = CreateNotReadyViewModel();
+            viewModel.MarkReady();
+            return viewModel;
+        }
+
+        public SettingsViewModel CreateNotReadyViewModel() => new(
             Manager,
             ThemeService,
             BackdropService);
@@ -296,11 +381,18 @@ public sealed class SettingsViewModelTests
 
         public ThemeResult? NextResult { get; set; }
 
+        public Exception? ApplyException { get; set; }
+
         public AppTheme ResolveInitialTheme() => initialTheme;
 
         public ThemeResult Apply(AppTheme requestedTheme)
         {
             Requests.Add(requestedTheme);
+            if (ApplyException is not null)
+            {
+                throw ApplyException;
+            }
+
             ThemeResult result = NextResult ?? new ThemeResult(
                 requestedTheme,
                 requestedTheme,

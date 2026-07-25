@@ -77,9 +77,18 @@ public sealed partial class MainWindow : Window
 
     internal string GetActualBackdropDiagnostic()
     {
-        string backdropType =
-            SystemBackdrop?.GetType().FullName ?? "<null>";
-        return $"{backdropType}|SolidSurface="
+        string backdrop = SystemBackdrop switch
+        {
+            MicaBackdrop => "Mica",
+            DesktopAcrylicBackdrop => "Acrylic",
+            Infrastructure.Windows.BlurredBackdrop => "Blur",
+            WinUIEx.TransparentTintBackdrop => "Transparent",
+            null when SolidBackdropSurface.Visibility
+                == Visibility.Visible => "Solid",
+            null => "None",
+            _ => "Unknown",
+        };
+        return $"{backdrop}|SolidSurface="
             + SolidBackdropSurface.Visibility;
     }
 
@@ -293,6 +302,7 @@ public sealed partial class MainWindow : Window
         _ => WindowPresenterState.Restored,
     };
 
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(nint windowHandle);
 }

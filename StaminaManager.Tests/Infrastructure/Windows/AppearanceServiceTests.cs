@@ -3,6 +3,8 @@ using Microsoft.UI.Xaml.Media;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
 using StaminaManager.Infrastructure.Windows;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using WinUIEx;
 using XamlSystemBackdrop = Microsoft.UI.Xaml.Media.SystemBackdrop;
 
@@ -11,6 +13,25 @@ namespace StaminaManager.Tests.Infrastructure.Windows;
 [TestClass]
 public sealed class AppearanceServiceTests
 {
+    [TestMethod]
+    public void MainWindow_GetDpiForWindowLoadsOnlyFromSystem32()
+    {
+        MethodInfo method = typeof(MainWindow).GetMethod(
+            "GetDpiForWindow",
+            BindingFlags.NonPublic | BindingFlags.Static)
+            ?? throw new AssertFailedException(
+                "GetDpiForWindow was not found.");
+
+        DefaultDllImportSearchPathsAttribute? attribute =
+            method.GetCustomAttribute<
+                DefaultDllImportSearchPathsAttribute>();
+
+        Assert.IsNotNull(attribute);
+        Assert.AreEqual(
+            DllImportSearchPath.System32,
+            attribute.Paths);
+    }
+
     [TestMethod]
     public void ThemeService_ResolvesWindowsThemeAndAppliesElementTheme()
     {
