@@ -13,6 +13,9 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
     private readonly IClock _clock;
     private readonly IUiDispatcher _uiDispatcher;
     private readonly ObservableCollection<GameCardViewModel> _games = [];
+    private readonly ObservableCollection<OverviewItemViewModel>
+        _overviewItems = [];
+    private readonly AddGameItemViewModel _addGameItem;
     private bool _isDisposed;
 
     [ObservableProperty]
@@ -38,10 +41,18 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
         _uiDispatcher = uiDispatcher;
         Games = new ReadOnlyObservableCollection<GameCardViewModel>(
             _games);
+        OverviewItems =
+            new ReadOnlyObservableCollection<OverviewItemViewModel>(
+                _overviewItems);
+        _addGameItem = new AddGameItemViewModel(AddGameCommand);
         _gameManager.GamesChanged += OnGamesChanged;
         if (_gameManager.IsInitialized)
         {
             SynchronizeGamesCore(_clock.UtcNow);
+        }
+        else
+        {
+            RebuildOverviewItems();
         }
     }
 
@@ -52,6 +63,9 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
     public event Action? CompactModeRequested;
 
     public ReadOnlyObservableCollection<GameCardViewModel> Games { get; }
+
+    public ReadOnlyObservableCollection<OverviewItemViewModel>
+        OverviewItems { get; }
 
     public bool HasGames => !IsLoading && _games.Count > 0;
 
@@ -147,6 +161,19 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
             _games.Add(card);
         }
 
+        RebuildOverviewItems();
+
         OnPropertyChanged(nameof(HasGames));
+    }
+
+    private void RebuildOverviewItems()
+    {
+        _overviewItems.Clear();
+        foreach (GameCardViewModel game in _games)
+        {
+            _overviewItems.Add(game);
+        }
+
+        _overviewItems.Add(_addGameItem);
     }
 }

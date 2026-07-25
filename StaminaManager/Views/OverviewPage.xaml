@@ -3,58 +3,160 @@
     x:Class="StaminaManager.Views.OverviewPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:StaminaManager.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:StaminaManager.Views"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:viewModels="using:StaminaManager.ViewModels"
     Background="Transparent"
     mc:Ignorable="d">
+
+    <Page.Resources>
+        <DataTemplate
+            x:Key="GameCardTemplate"
+            x:DataType="viewModels:GameCardViewModel">
+            <controls:GameCardControl ViewModel="{x:Bind Mode=OneWay}" />
+        </DataTemplate>
+
+        <DataTemplate
+            x:Key="AddGameTemplate"
+            x:DataType="viewModels:AddGameItemViewModel">
+            <Button
+                x:Uid="AddGameCardButton"
+                AutomationProperties.AutomationId="AddGameCard"
+                Command="{x:Bind AddGameCommand, Mode=OneWay}"
+                Style="{StaticResource AppAddGameCardButtonStyle}">
+                <StackPanel
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Spacing="12">
+                    <FontIcon
+                        AutomationProperties.AccessibilityView="Raw"
+                        FontSize="32"
+                        Glyph="&#xE710;" />
+                    <TextBlock
+                        x:Uid="AddGameCardTitle"
+                        HorizontalAlignment="Center"
+                        Style="{StaticResource AppCardTitleTextStyle}"
+                        TextAlignment="Center" />
+                    <TextBlock
+                        x:Uid="AddGameCardDescription"
+                        MaxWidth="220"
+                        HorizontalAlignment="Center"
+                        Style="{StaticResource AppSecondaryTextStyle}"
+                        TextAlignment="Center" />
+                </StackPanel>
+            </Button>
+        </DataTemplate>
+
+        <local:OverviewItemTemplateSelector
+            x:Key="OverviewItemTemplateSelector"
+            AddGameTemplate="{StaticResource AddGameTemplate}"
+            GameTemplate="{StaticResource GameCardTemplate}" />
+    </Page.Resources>
 
     <Grid Padding="{StaticResource PagePadding}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <StackPanel Spacing="{StaticResource Spacing8}">
+        <Grid ColumnSpacing="{StaticResource Spacing12}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Spacing="{StaticResource Spacing8}">
+                <TextBlock
+                    x:Uid="OverviewPageTitle"
+                    Style="{StaticResource AppPageTitleTextStyle}" />
+                <TextBlock
+                    x:Uid="OverviewPageDescription"
+                    MaxWidth="720"
+                    HorizontalAlignment="Left"
+                    Style="{StaticResource AppBodyTextStyle}" />
+            </StackPanel>
+
+            <Button
+                x:Uid="CompactModeButton"
+                Grid.Column="1"
+                AutomationProperties.AutomationId="CompactModeButton"
+                Command="{x:Bind ViewModel.EnterCompactModeCommand, Mode=OneWay}"
+                IsEnabled="False"
+                Style="{StaticResource AppCompactModeButtonStyle}" />
+        </Grid>
+
+        <StackPanel
+            Grid.Row="1"
+            Margin="0,16,0,0"
+            Spacing="{StaticResource Spacing8}">
+            <InfoBar
+                x:Name="StartupErrorInfoBar"
+                x:Uid="OverviewStartupErrorInfoBar"
+                AutomationProperties.AutomationId="OverviewStartupErrorInfoBar"
+                IsClosable="False"
+                IsOpen="False"
+                Severity="Error" />
+            <InfoBar
+                x:Name="OverviewInfoBar"
+                x:Uid="OverviewInfoBar"
+                AutomationProperties.AutomationId="OverviewInfoBar"
+                IsClosable="False"
+                IsOpen="{x:Bind ViewModel.HasError, Mode=OneWay}"
+                Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+                Severity="Error" />
+        </StackPanel>
+
+        <StackPanel
+            Grid.Row="2"
+            Margin="0,16,0,0"
+            Orientation="Horizontal"
+            Spacing="{StaticResource Spacing8}"
+            Visibility="{x:Bind local:OverviewPage.BoolToVisibility(ViewModel.IsLoading), Mode=OneWay}">
+            <ProgressRing
+                x:Uid="OverviewLoadingProgressRing"
+                Width="20"
+                Height="20"
+                IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}" />
             <TextBlock
-                x:Uid="OverviewPageTitle"
-                Style="{StaticResource AppPageTitleTextStyle}" />
-            <TextBlock
-                x:Uid="OverviewPageDescription"
-                MaxWidth="720"
-                HorizontalAlignment="Left"
+                x:Uid="OverviewLoadingText"
+                VerticalAlignment="Center"
                 Style="{StaticResource AppBodyTextStyle}" />
         </StackPanel>
 
-        <InfoBar
-            x:Name="StartupErrorInfoBar"
-            x:Uid="OverviewStartupErrorInfoBar"
-            Grid.Row="1"
-            Margin="0,16,0,0"
-            IsClosable="False"
-            IsOpen="False"
-            Severity="Error" />
-
-        <Border
-            Grid.Row="2"
-            Margin="0,24,0,0"
-            Padding="{StaticResource SurfacePadding}"
-            Background="{ThemeResource CardSurfaceBrush}"
-            BorderBrush="{ThemeResource CardStrokeBrush}"
-            BorderThickness="1"
-            CornerRadius="{StaticResource CardCornerRadius}">
-            <StackPanel
-                HorizontalAlignment="Left"
-                VerticalAlignment="Top"
-                Spacing="{StaticResource Spacing8}">
-                <TextBlock
-                    x:Uid="OverviewPlaceholderTitle"
-                    Style="{StaticResource AppCardTitleTextStyle}" />
-                <TextBlock
-                    x:Uid="OverviewPlaceholderDescription"
-                    MaxWidth="640"
-                    Style="{StaticResource AppBodyTextStyle}" />
-            </StackPanel>
-        </Border>
+        <ScrollViewer
+            x:Name="OverviewScrollViewer"
+            Grid.Row="3"
+            Margin="0,20,0,0"
+            HorizontalContentAlignment="Stretch"
+            HorizontalScrollBarVisibility="Disabled"
+            HorizontalScrollMode="Disabled"
+            VerticalScrollBarVisibility="Auto"
+            VerticalScrollMode="Auto">
+            <ItemsRepeater
+                x:Name="OverviewItems"
+                x:Uid="OverviewItems"
+                AutomationProperties.AccessibilityView="Content"
+                AutomationProperties.AutomationId="OverviewItems"
+                ItemTemplate="{StaticResource OverviewItemTemplateSelector}"
+                ItemsSource="{x:Bind ViewModel.OverviewItems, Mode=OneWay}"
+                SizeChanged="OverviewItems_SizeChanged">
+                <ItemsRepeater.Layout>
+                    <UniformGridLayout
+                        x:Name="OverviewUniformGridLayout"
+                        ItemsJustification="Start"
+                        ItemsStretch="Fill"
+                        MaximumRowsOrColumns="3"
+                        MinColumnSpacing="12"
+                        MinItemHeight="292"
+                        MinItemWidth="272"
+                        MinRowSpacing="12"
+                        Orientation="Vertical" />
+                </ItemsRepeater.Layout>
+            </ItemsRepeater>
+        </ScrollViewer>
     </Grid>
 </Page>

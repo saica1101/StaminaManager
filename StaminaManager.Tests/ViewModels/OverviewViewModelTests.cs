@@ -22,6 +22,63 @@ public sealed class OverviewViewModelTests
         TimeSpan.Zero);
 
     [TestMethod]
+    public async Task OverviewItems_EmptyCollectionStartsWithAddGameItem()
+    {
+        FakeClock clock = new(NowUtc);
+        ViewModelDataStore store = new();
+        GameManager manager = new(
+            store,
+            clock,
+            AppSettings.CreateDefault(AppTheme.Light));
+        await manager.InitializeAsync(
+            manager.CurrentData,
+            CancellationToken.None);
+        using OverviewViewModel viewModel = new(
+            manager,
+            clock,
+            new RecordingUiDispatcher());
+
+        Assert.HasCount(1, viewModel.OverviewItems);
+        Assert.IsInstanceOfType<AddGameItemViewModel>(
+            viewModel.OverviewItems[0]);
+    }
+
+    [TestMethod]
+    public async Task OverviewItems_AppendsAddGameItemAfterRegisteredGames()
+    {
+        FakeClock clock = new(NowUtc);
+        ViewModelDataStore store = new();
+        GameManager manager = new(
+            store,
+            clock,
+            AppSettings.CreateDefault(AppTheme.Light));
+        await manager.InitializeAsync(
+            manager.CurrentData,
+            CancellationToken.None);
+        using OverviewViewModel viewModel = new(
+            manager,
+            clock,
+            new RecordingUiDispatcher());
+
+        await manager.AddAsync(
+            new GameDraft("First", 40, 100, 5, null),
+            CancellationToken.None);
+        await manager.AddAsync(
+            new GameDraft("Second", 50, 100, 5, null),
+            CancellationToken.None);
+
+        Assert.HasCount(3, viewModel.OverviewItems);
+        CollectionAssert.AreEqual(
+            new[] { "First", "Second" },
+            viewModel.OverviewItems
+                .OfType<GameCardViewModel>()
+                .Select(item => item.Name)
+                .ToArray());
+        Assert.IsInstanceOfType<AddGameItemViewModel>(
+            viewModel.OverviewItems[^1]);
+    }
+
+    [TestMethod]
     public async Task GameChanges_UpdateCollectionOnUiDispatcher()
     {
         FakeClock clock = new(NowUtc);

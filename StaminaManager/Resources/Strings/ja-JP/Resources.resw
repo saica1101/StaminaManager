@@ -16,10 +16,24 @@
   <data name="ShellContentHost.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>メイン コンテンツ</value></data>
   <data name="OverviewPageTitle.Text" xml:space="preserve"><value>Overview</value></data>
   <data name="OverviewPageDescription.Text" xml:space="preserve"><value>登録したゲームのスタミナ回復状況を、ひと目で確認できます。</value></data>
-  <data name="OverviewPlaceholderTitle.Text" xml:space="preserve"><value>回復状況を表示する準備ができました</value></data>
-  <data name="OverviewPlaceholderDescription.Text" xml:space="preserve"><value>ゲームカードと円形メーターは次の実装段階でここに追加されます。</value></data>
   <data name="OverviewStartupErrorInfoBar.Title" xml:space="preserve"><value>データを読み込めませんでした</value></data>
   <data name="OverviewStartupErrorInfoBar.Message" xml:space="preserve"><value>安全のため登録と編集を無効にしています。元のデータは変更されていません。</value></data>
+  <data name="OverviewInfoBar.Title" xml:space="preserve"><value>操作を完了できませんでした</value></data>
+  <data name="OverviewLoadingProgressRing.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>ゲーム情報を読み込み中</value></data>
+  <data name="OverviewLoadingText.Text" xml:space="preserve"><value>ゲーム情報を読み込んでいます</value></data>
+  <data name="OverviewItems.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>登録ゲームと追加操作</value></data>
+  <data name="AddGameCardButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>ゲームを追加</value></data>
+  <data name="AddGameCardTitle.Text" xml:space="preserve"><value>ゲームを追加</value></data>
+  <data name="AddGameCardDescription.Text" xml:space="preserve"><value>ゲーム名とスタミナの回復ルールを登録します。</value></data>
+  <data name="StaminaStatusSafe" xml:space="preserve"><value>余裕</value></data>
+  <data name="StaminaStatusAttention" xml:space="preserve"><value>注意</value></data>
+  <data name="StaminaStatusNearFull" xml:space="preserve"><value>満タン間近</value></data>
+  <data name="StaminaStatusFull" xml:space="preserve"><value>満タン</value></data>
+  <data name="StaminaStatusOverCap" xml:space="preserve"><value>自然回復停止中</value></data>
+  <data name="RemainingTimeFull" xml:space="preserve"><value>満タン</value></data>
+  <data name="RemainingTimeHoursFormat" xml:space="preserve"><value>満タンまで {0:00}:{1:00}</value></data>
+  <data name="RemainingTimeDaysFormat" xml:space="preserve"><value>満タンまで {0}日 {1:00}:{2:00}</value></data>
+  <data name="GameCardAutomationNameFormat" xml:space="preserve"><value>{0}、スタミナ {1} / {2}、{3}、{4}</value></data>
   <data name="SettingsPageTitle.Text" xml:space="preserve"><value>Settings</value></data>
   <data name="SettingsPageDescription.Text" xml:space="preserve"><value>アプリの表示、通知、起動方法、データ管理を調整します。</value></data>
   <data name="SettingsPlaceholderTitle.Text" xml:space="preserve"><value>設定項目は準備中です</value></data>

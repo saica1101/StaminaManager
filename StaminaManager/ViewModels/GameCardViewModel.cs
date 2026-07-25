@@ -5,7 +5,7 @@ using StaminaManager.Core.Models;
 
 namespace StaminaManager.ViewModels;
 
-public sealed partial class GameCardViewModel : ObservableObject
+public sealed partial class GameCardViewModel : OverviewItemViewModel
 {
     private readonly Action<Guid>? _editRequested;
     private GameEntry _entry;

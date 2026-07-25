@@ -34,19 +34,12 @@
                 Tag="Settings" />
         </NavigationView.MenuItems>
 
-        <NavigationView.PaneFooter>
-            <Button
-                x:Uid="CompactModeButton"
-                AutomationProperties.AutomationId="CompactModeButton"
-                Command="{x:Bind ViewModel.EnterCompactModeCommand, Mode=OneWay}"
-                IsEnabled="False"
-                Style="{StaticResource AppCompactModeButtonStyle}" />
-        </NavigationView.PaneFooter>
-
         <ContentControl
             x:Uid="ShellContentHost"
             AutomationProperties.AccessibilityView="Content"
-            AutomationProperties.AutomationId="ShellContentFrame">
+            AutomationProperties.AutomationId="ShellContentFrame"
+            HorizontalContentAlignment="Stretch"
+            VerticalContentAlignment="Stretch">
             <Frame
                 x:Name="ShellContentFrame"
                 IsNavigationStackEnabled="False" />
