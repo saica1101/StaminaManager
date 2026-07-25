@@ -1,4 +1,7 @@
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
+using System.Runtime.InteropServices;
+using Windows.Graphics;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -12,8 +15,13 @@ namespace StaminaManager;
 /// </summary>
 public sealed partial class MainWindow : Window
 {
-    public MainWindow()
+    private const int InitialWidthEpx = 1120;
+    private const int InitialHeightEpx = 760;
+    private const double DefaultDpi = 96d;
+
+    public MainWindow(MainPage mainPage)
     {
+        ArgumentNullException.ThrowIfNull(mainPage);
         InitializeComponent();
 
         ExtendsContentIntoTitleBar = true;
@@ -21,7 +29,20 @@ public sealed partial class MainWindow : Window
 
         AppWindow.SetIcon("Assets/AppIcon.ico");
 
-        // Navigate the root frame to the main page on startup.
-        RootFrame.Navigate(typeof(MainPage));
+        RootFrame.Content = mainPage;
+        ResizeForCurrentDpi();
     }
+
+    private void ResizeForCurrentDpi()
+    {
+        nint windowHandle = Win32Interop.GetWindowFromWindowId(AppWindow.Id);
+        uint dpi = GetDpiForWindow(windowHandle);
+        double scale = dpi == 0 ? 1d : dpi / DefaultDpi;
+        AppWindow.Resize(new SizeInt32(
+            checked((int)Math.Round(InitialWidthEpx * scale)),
+            checked((int)Math.Round(InitialHeightEpx * scale))));
+    }
+
+    [DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(nint windowHandle);
 }

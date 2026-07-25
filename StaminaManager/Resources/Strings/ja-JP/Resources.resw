@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+  <data name="MainWindow.Title" xml:space="preserve"><value>Stamina Manager</value></data>
+  <data name="AppTitleBar.Title" xml:space="preserve"><value>Stamina Manager</value></data>
+  <data name="ShellNavigation.PaneTitle" xml:space="preserve"><value>スタミナ管理</value></data>
+  <data name="NavOverview.Content" xml:space="preserve"><value>Overview</value></data>
+  <data name="NavSettings.Content" xml:space="preserve"><value>Settings</value></data>
+  <data name="CompactModeButton.Content" xml:space="preserve"><value>コンパクト表示（準備中）</value></data>
+  <data name="ShellContentHost.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>メイン コンテンツ</value></data>
+  <data name="OverviewPageTitle.Text" xml:space="preserve"><value>Overview</value></data>
+  <data name="OverviewPageDescription.Text" xml:space="preserve"><value>登録したゲームのスタミナ回復状況を、ひと目で確認できます。</value></data>
+  <data name="OverviewPlaceholderTitle.Text" xml:space="preserve"><value>回復状況を表示する準備ができました</value></data>
+  <data name="OverviewPlaceholderDescription.Text" xml:space="preserve"><value>ゲームカードと円形メーターは次の実装段階でここに追加されます。</value></data>
+  <data name="OverviewLoadingText.Text" xml:space="preserve"><value>保存データを読み込んでいます…</value></data>
+  <data name="OverviewStartupErrorInfoBar.Title" xml:space="preserve"><value>データを読み込めませんでした</value></data>
+  <data name="OverviewStartupErrorInfoBar.Message" xml:space="preserve"><value>安全のため登録と編集を無効にしています。元のデータは変更されていません。</value></data>
+  <data name="SettingsPageTitle.Text" xml:space="preserve"><value>Settings</value></data>
+  <data name="SettingsPageDescription.Text" xml:space="preserve"><value>アプリの表示、通知、起動方法、データ管理を調整します。</value></data>
+  <data name="SettingsPlaceholderTitle.Text" xml:space="preserve"><value>設定項目は準備中です</value></data>
+  <data name="SettingsPlaceholderDescription.Text" xml:space="preserve"><value>テーマ、バックドロップ、通知などの設定は後続の実装段階で追加されます。</value></data>
+</root>
