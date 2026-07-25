@@ -2,6 +2,7 @@ using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.ApplicationModel.Resources;
+using StaminaManager.Core.Calculations;
 using StaminaManager.Core.Models;
 using System.Runtime.InteropServices;
 using Windows.Graphics;
@@ -26,11 +27,14 @@ public sealed partial class MainWindow : Window
     private const int CompactHeightEpx = 520;
     private const int CompactMinimumWidthEpx = 360;
     private const int CompactMinimumHeightEpx = 480;
-    private const double DefaultDpi = 96d;
+    private const uint DefaultDpi = 96;
     private const string AppTitleResourceId = "AppTitle";
     private const string FallbackAppTitle = "Stamina Manager";
-    private PointInt32? _normalPosition;
-    private SizeInt32? _normalSize;
+    private WindowBounds _restoredBounds;
+    private bool _shouldMaximizeOnReturn;
+    private bool _isTransitioningDisplayMode;
+    private bool _isApplyingMinimumSize;
+    private uint _lastDpi;
     private AppDisplayMode _displayMode = AppDisplayMode.Standard;
 
     public MainWindow(MainPage mainPage)
@@ -47,10 +51,13 @@ public sealed partial class MainWindow : Window
         AppWindow.SetIcon("Assets/AppIcon.ico");
 
         RootFrame.Content = mainPage;
-        ResizeForCurrentDpi();
+        _lastDpi = GetCurrentDpi();
+        ResizeEffective(InitialWidthEpx, InitialHeightEpx);
+        _restoredBounds = GetCurrentBounds();
         SetMinimumSize(
             StandardMinimumWidthEpx,
             StandardMinimumHeightEpx);
+        AppWindow.Changed += OnAppWindowChanged;
         mainPage.DisplayModeChanged += SetDisplayMode;
     }
 
@@ -76,16 +83,6 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void ResizeForCurrentDpi()
-    {
-        nint windowHandle = Win32Interop.GetWindowFromWindowId(AppWindow.Id);
-        uint dpi = GetDpiForWindow(windowHandle);
-        double scale = dpi == 0 ? 1d : dpi / DefaultDpi;
-        AppWindow.Resize(new SizeInt32(
-            checked((int)Math.Round(InitialWidthEpx * scale)),
-            checked((int)Math.Round(InitialHeightEpx * scale))));
-    }
-
     private void SetDisplayMode(AppDisplayMode displayMode)
     {
         if (_displayMode == displayMode)
@@ -93,33 +90,116 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        if (displayMode == AppDisplayMode.Compact)
+        if (AppWindow.Presenter is not OverlappedPresenter presenter)
         {
-            _normalPosition = AppWindow.Position;
-            _normalSize = AppWindow.Size;
+            return;
+        }
+
+        _isTransitioningDisplayMode = true;
+        try
+        {
+            if (displayMode == AppDisplayMode.Compact)
+            {
+                EnterCompactMode(presenter);
+            }
+            else
+            {
+                ReturnToStandardMode(presenter);
+            }
+        }
+        finally
+        {
+            _isTransitioningDisplayMode = false;
+        }
+    }
+
+    private void EnterCompactMode(OverlappedPresenter presenter)
+    {
+        WindowDisplayModeSnapshot snapshot =
+            WindowDisplayModePolicy.CaptureSnapshot(
+                ToWindowPresenterState(presenter.State),
+                GetCurrentBounds(),
+                _restoredBounds);
+        _restoredBounds = snapshot.RestoredBounds;
+        _shouldMaximizeOnReturn = snapshot.ShouldMaximizeOnReturn;
+        _displayMode = AppDisplayMode.Compact;
+
+        if (presenter.State != OverlappedPresenterState.Restored)
+        {
+            presenter.Restore();
+        }
+
+        SetMinimumSize(
+            CompactMinimumWidthEpx,
+            CompactMinimumHeightEpx);
+        ResizeEffective(CompactWidthEpx, CompactHeightEpx);
+    }
+
+    private void ReturnToStandardMode(OverlappedPresenter presenter)
+    {
+        SetMinimumSize(
+            StandardMinimumWidthEpx,
+            StandardMinimumHeightEpx);
+        if (presenter.State != OverlappedPresenterState.Restored)
+        {
+            presenter.Restore();
+        }
+
+        AppWindow.MoveAndResize(ToRect(_restoredBounds));
+        if (_shouldMaximizeOnReturn)
+        {
+            presenter.Maximize();
+        }
+
+        _displayMode = AppDisplayMode.Standard;
+    }
+
+    private void OnAppWindowChanged(
+        AppWindow sender,
+        AppWindowChangedEventArgs args)
+    {
+        uint currentDpi = GetCurrentDpi();
+        if (currentDpi != _lastDpi)
+        {
+            _lastDpi = currentDpi;
+            ApplyMinimumSizeForCurrentMode();
+        }
+
+        if ((!args.DidPositionChange && !args.DidSizeChange)
+            || sender.Presenter is not OverlappedPresenter presenter)
+        {
+            return;
+        }
+
+        WindowPresenterState presenterState =
+            ToWindowPresenterState(presenter.State);
+        if (WindowDisplayModePolicy.ShouldCaptureRestoredBounds(
+            _displayMode,
+            _isTransitioningDisplayMode,
+            presenterState))
+        {
+            _restoredBounds = GetCurrentBounds();
+        }
+    }
+
+    private void ApplyMinimumSizeForCurrentMode()
+    {
+        if (_isApplyingMinimumSize)
+        {
+            return;
+        }
+
+        if (_displayMode == AppDisplayMode.Compact)
+        {
             SetMinimumSize(
                 CompactMinimumWidthEpx,
                 CompactMinimumHeightEpx);
-            ResizeEffective(CompactWidthEpx, CompactHeightEpx);
-        }
-        else
-        {
-            SetMinimumSize(
-                StandardMinimumWidthEpx,
-                StandardMinimumHeightEpx);
-            PointInt32 position = _normalPosition
-                ?? AppWindow.Position;
-            SizeInt32 size = _normalSize ?? new SizeInt32(
-                ScaleEffective(InitialWidthEpx),
-                ScaleEffective(InitialHeightEpx));
-            AppWindow.MoveAndResize(new RectInt32(
-                position.X,
-                position.Y,
-                size.Width,
-                size.Height));
+            return;
         }
 
-        _displayMode = displayMode;
+        SetMinimumSize(
+            StandardMinimumWidthEpx,
+            StandardMinimumHeightEpx);
     }
 
     private void SetMinimumSize(int widthEpx, int heightEpx)
@@ -129,8 +209,16 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        presenter.PreferredMinimumWidth = ScaleEffective(widthEpx);
-        presenter.PreferredMinimumHeight = ScaleEffective(heightEpx);
+        _isApplyingMinimumSize = true;
+        try
+        {
+            presenter.PreferredMinimumWidth = ScaleEffective(widthEpx);
+            presenter.PreferredMinimumHeight = ScaleEffective(heightEpx);
+        }
+        finally
+        {
+            _isApplyingMinimumSize = false;
+        }
     }
 
     private void ResizeEffective(int widthEpx, int heightEpx) =>
@@ -140,11 +228,39 @@ public sealed partial class MainWindow : Window
 
     private int ScaleEffective(int value)
     {
+        return WindowDisplayModePolicy.ScaleEffectiveToPhysical(
+            value,
+            GetCurrentDpi());
+    }
+
+    private uint GetCurrentDpi()
+    {
         nint windowHandle = Win32Interop.GetWindowFromWindowId(AppWindow.Id);
         uint dpi = GetDpiForWindow(windowHandle);
-        double scale = dpi == 0 ? 1d : dpi / DefaultDpi;
-        return checked((int)Math.Round(value * scale));
+        return dpi == 0 ? DefaultDpi : dpi;
     }
+
+    private WindowBounds GetCurrentBounds() => new(
+        AppWindow.Position.X,
+        AppWindow.Position.Y,
+        AppWindow.Size.Width,
+        AppWindow.Size.Height);
+
+    private static RectInt32 ToRect(WindowBounds bounds) => new(
+        bounds.X,
+        bounds.Y,
+        bounds.Width,
+        bounds.Height);
+
+    private static WindowPresenterState ToWindowPresenterState(
+        OverlappedPresenterState state) => state switch
+    {
+        OverlappedPresenterState.Maximized =>
+            WindowPresenterState.Maximized,
+        OverlappedPresenterState.Minimized =>
+            WindowPresenterState.Minimized,
+        _ => WindowPresenterState.Restored,
+    };
 
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(nint windowHandle);
