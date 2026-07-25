@@ -16,6 +16,7 @@ public sealed class GameManager
     private readonly IClock _clock;
     private readonly SemaphoreSlim _mutationGate = new(1, 1);
     private DataEnvelope _data;
+    private volatile bool _isInitialized;
 
     public GameManager(
         ILocalDataStore dataStore,
@@ -38,6 +39,8 @@ public sealed class GameManager
 
     public Exception? LastNotificationError { get; private set; }
 
+    public bool IsInitialized => _isInitialized;
+
     public ImmutableArray<GameEntry> Games => _data.Games;
 
     public DataEnvelope CurrentData => _data;
@@ -51,9 +54,16 @@ public sealed class GameManager
             .ConfigureAwait(false);
         try
         {
+            if (_isInitialized)
+            {
+                throw new InvalidOperationException(
+                    "ゲーム管理は既に初期化されています。");
+            }
+
             ImmutableArray<GameEntry> normalized =
                 NormalizeOrder(data.Games);
             _data = data with { Games = normalized };
+            _isInitialized = true;
         }
         finally
         {
@@ -73,6 +83,7 @@ public sealed class GameManager
             .ConfigureAwait(false);
         try
         {
+            EnsureInitialized();
             if (_data.Games.Length >= GameEntryValidator.MaxGameCount)
             {
                 throw new InvalidOperationException(GameLimitMessage);
@@ -119,6 +130,7 @@ public sealed class GameManager
             .ConfigureAwait(false);
         try
         {
+            EnsureInitialized();
             int index = FindIndex(gameId);
             if (index < 0)
             {
@@ -166,6 +178,7 @@ public sealed class GameManager
             .ConfigureAwait(false);
         try
         {
+            EnsureInitialized();
             int index = FindIndex(gameId);
             if (index < 0)
             {
@@ -203,6 +216,7 @@ public sealed class GameManager
             .ConfigureAwait(false);
         try
         {
+            EnsureInitialized();
             result = await _dataStore.PromoteRecoveryAsync(
                 cancellationToken).ConfigureAwait(false);
             _data = result.Envelope with
@@ -231,6 +245,15 @@ public sealed class GameManager
             throw new ArgumentException(
                 "ゲームの入力値が正しくありません。",
                 nameof(draft));
+        }
+    }
+
+    private void EnsureInitialized()
+    {
+        if (!_isInitialized)
+        {
+            throw new InvalidOperationException(
+                "ゲーム管理の初期化が完了していません。");
         }
     }
 

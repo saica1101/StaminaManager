@@ -24,15 +24,20 @@ public sealed class AppCoordinator
 {
     private readonly ILocalDataStore _dataStore;
     private readonly GameManager _gameManager;
+    private readonly IUiDispatcher _uiDispatcher;
+    private readonly SemaphoreSlim _initializationGate = new(1, 1);
 
     public AppCoordinator(
         ILocalDataStore dataStore,
-        GameManager gameManager)
+        GameManager gameManager,
+        IUiDispatcher uiDispatcher)
     {
         ArgumentNullException.ThrowIfNull(dataStore);
         ArgumentNullException.ThrowIfNull(gameManager);
+        ArgumentNullException.ThrowIfNull(uiDispatcher);
         _dataStore = dataStore;
         _gameManager = gameManager;
+        _uiDispatcher = uiDispatcher;
     }
 
     public event EventHandler<AppNavigationRequest>? NavigationRequested;
@@ -44,21 +49,58 @@ public sealed class AppCoordinator
     public async Task<DataLoadResult> InitializeAsync(
         CancellationToken cancellationToken)
     {
-        DataLoadResult result = await _dataStore.LoadAsync(
-            cancellationToken).ConfigureAwait(false);
-        if (result.Envelope is not null)
-        {
-            await _gameManager.InitializeAsync(
-                result.Envelope,
-                cancellationToken).ConfigureAwait(false);
-        }
-
-        LastLoadResult = result;
-        RestoreMode();
-        await ReconcileDerivedStateAsync(cancellationToken)
+        await _initializationGate.WaitAsync(cancellationToken)
             .ConfigureAwait(false);
-        IsInitialized = true;
-        return result;
+        try
+        {
+            if (IsInitialized)
+            {
+                throw new InvalidOperationException(
+                    "アプリケーションは既に初期化されています。");
+            }
+
+            DataLoadResult result;
+            if (!_gameManager.IsInitialized)
+            {
+                result = await _dataStore.LoadAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                DataEnvelope? initialData = result.Envelope;
+                if (result.Status == DataLoadStatus.Empty)
+                {
+                    initialData = _gameManager.CurrentData;
+                }
+
+                if (initialData is not null)
+                {
+                    await _gameManager.InitializeAsync(
+                        initialData,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                else if (result.Status != DataLoadStatus.Corrupt)
+                {
+                    throw new InvalidDataException(
+                        "読み込み結果にアプリデータがありません。");
+                }
+
+                LastLoadResult = result;
+            }
+            else
+            {
+                result = LastLoadResult ?? throw new InvalidOperationException(
+                    "初期化状態を復元できません。");
+            }
+
+            await RestoreModeAsync(cancellationToken)
+                .ConfigureAwait(false);
+            await ReconcileDerivedStateAsync(cancellationToken)
+                .ConfigureAwait(false);
+            IsInitialized = true;
+            return result;
+        }
+        finally
+        {
+            _initializationGate.Release();
+        }
     }
 
     public async Task<RecoveryPromotionResult> PromoteRecoveryAsync(
@@ -83,25 +125,24 @@ public sealed class AppCoordinator
         return result;
     }
 
-    public void RouteActivation(Guid? gameId)
-    {
-        NavigationRequested?.Invoke(
-            this,
+    public Task RouteActivationAsync(
+        Guid? gameId,
+        CancellationToken cancellationToken = default) =>
+        RaiseNavigationAsync(
             new AppNavigationRequest(
                 AppPage.Overview,
                 AppDisplayMode.Standard,
-                gameId));
-    }
+                gameId),
+            cancellationToken);
 
-    public void RestoreMode()
-    {
-        NavigationRequested?.Invoke(
-            this,
+    public Task RestoreModeAsync(
+        CancellationToken cancellationToken = default) =>
+        RaiseNavigationAsync(
             new AppNavigationRequest(
                 AppPage.Overview,
                 AppDisplayMode.Standard,
-                GameId: null));
-    }
+                GameId: null),
+            cancellationToken);
 
     public Task ReconcileDerivedStateAsync(
         CancellationToken cancellationToken)
@@ -109,4 +150,11 @@ public sealed class AppCoordinator
         cancellationToken.ThrowIfCancellationRequested();
         return Task.CompletedTask;
     }
+
+    private Task RaiseNavigationAsync(
+        AppNavigationRequest request,
+        CancellationToken cancellationToken) =>
+        _uiDispatcher.InvokeAsync(
+            () => NavigationRequested?.Invoke(this, request),
+            cancellationToken);
 }

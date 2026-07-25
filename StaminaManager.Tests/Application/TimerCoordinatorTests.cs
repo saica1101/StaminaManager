@@ -153,6 +153,7 @@ public sealed class TimerCoordinatorTests
         RecordingUiDispatcher dispatcher = new();
         bool shouldFail = true;
         int refreshCount = 0;
+        bool failureRaisedOnDispatcher = false;
         await using TimerCoordinator coordinator = new(
             clock,
             ticks,
@@ -165,9 +166,12 @@ public sealed class TimerCoordinatorTests
                     throw new InvalidOperationException("refresh failure");
                 }
             });
+        coordinator.RefreshFailed += (_, _) =>
+            failureRaisedOnDispatcher = dispatcher.IsExecuting;
 
         await Assert.ThrowsExactlyAsync<InvalidOperationException>(
             () => coordinator.SetVisibleAsync(true));
+        Assert.IsTrue(failureRaisedOnDispatcher);
         shouldFail = false;
 
         await coordinator.SetVisibleAsync(true);

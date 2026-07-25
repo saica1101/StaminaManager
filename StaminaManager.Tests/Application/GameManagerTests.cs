@@ -222,28 +222,59 @@ public sealed class GameManagerTests
     }
 
     [TestMethod]
-    public async Task InitializeAsync_WaitsForInFlightMutation()
+    public async Task OperationsBeforeInitializationAreRejected()
     {
-        RecordingDataStore store = new() { ShouldBlockSave = true };
+        RecordingDataStore store = new()
+        {
+            PromotionResult = new RecoveryPromotionResult(
+                CreateEnvelope(),
+                "primary",
+                "recovery",
+                DiagnosticBackupPath: null),
+        };
+        GameManager manager = CreateUninitializedManager(store);
         GameEntry original = CreateEntry(Guid.NewGuid(), "Original", 0);
-        GameManager manager = await CreateManagerAsync(store, original);
-        DataEnvelope replacement = CreateEnvelope(
-            CreateEntry(Guid.NewGuid(), "Loaded", 0));
-        Task<GameEntry> addTask = manager.AddAsync(
-            CreateDraft("In flight"),
-            CancellationToken.None);
-        await store.SaveStarted;
 
-        Task initializeTask = manager.InitializeAsync(
-            replacement,
-            CancellationToken.None);
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(
+            () => manager.AddAsync(
+                CreateDraft("Not ready"),
+                CancellationToken.None));
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(
+            () => manager.EditAsync(
+                original.Id,
+                CreateDraft("Original"),
+                CreateDraft("Edited"),
+                CancellationToken.None));
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(
+            () => manager.DeleteAsync(
+                original.Id,
+                CancellationToken.None));
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(
+            () => manager.PromoteRecoveryAsync(CancellationToken.None));
 
-        Assert.IsFalse(initializeTask.IsCompleted);
-        Assert.AreEqual("Original", manager.Games[0].Name);
-        store.ReleaseSave();
-        await addTask;
-        await initializeTask;
-        Assert.AreEqual("Loaded", manager.Games.Single().Name);
+        Assert.IsFalse(manager.IsInitialized);
+        Assert.AreEqual(0, store.SaveCount);
+        Assert.AreEqual(0, store.PromoteCount);
+    }
+
+    [TestMethod]
+    public async Task InitializeAsync_SecondCallPreservesSavedState()
+    {
+        RecordingDataStore store = new();
+        GameManager manager = await CreateManagerAsync(store);
+        await manager.AddAsync(
+            CreateDraft("Saved"),
+            CancellationToken.None);
+        DataEnvelope saved = store.LastSaved!;
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(
+            () => manager.InitializeAsync(
+                CreateEnvelope(
+                    CreateEntry(Guid.NewGuid(), "Replacement", 0)),
+                CancellationToken.None));
+
+        Assert.AreEqual(saved, manager.CurrentData);
+        Assert.AreEqual(saved, store.LastSaved);
     }
 
     [TestMethod]
@@ -272,6 +303,12 @@ public sealed class GameManagerTests
         await promoteTask;
         Assert.AreEqual(1, store.PromoteCount);
         Assert.AreEqual("Recovered", manager.Games.Single().Name);
+        CollectionAssert.AreEqual(
+            manager.Games,
+            store.LastSaved!.Games);
+        Assert.AreEqual(
+            manager.CurrentData.Settings,
+            store.LastSaved.Settings);
     }
 
     private static async Task<GameManager> CreateManagerAsync(
@@ -279,15 +316,19 @@ public sealed class GameManagerTests
         params GameEntry[] games)
     {
         FakeClock clock = new(NowUtc);
-        GameManager manager = new(
-            store,
-            clock,
-            AppSettings.CreateDefault(AppTheme.Light));
+        GameManager manager = CreateUninitializedManager(store, clock);
         await manager.InitializeAsync(
             CreateEnvelope(games),
             CancellationToken.None);
         return manager;
     }
+
+    private static GameManager CreateUninitializedManager(
+        RecordingDataStore store,
+        FakeClock? clock = null) => new(
+            store,
+            clock ?? new FakeClock(NowUtc),
+            AppSettings.CreateDefault(AppTheme.Light));
 
     private static DataEnvelope CreateEnvelope(
         params GameEntry[] games) => new(
@@ -365,8 +406,10 @@ public sealed class GameManagerTests
         {
             cancellationToken.ThrowIfCancellationRequested();
             PromoteCount++;
-            return Task.FromResult(
-                PromotionResult ?? throw new NotSupportedException());
+            RecoveryPromotionResult result =
+                PromotionResult ?? throw new NotSupportedException();
+            LastSaved = result.Envelope;
+            return Task.FromResult(result);
         }
 
         public void ReleaseSave() => _continueSave.TrySetResult();

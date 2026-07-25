@@ -3,6 +3,7 @@ using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
 using StaminaManager.Core.Persistence;
 using StaminaManager.Tests.TestDoubles;
+using StaminaManager.ViewModels;
 using System.Collections.Immutable;
 
 namespace StaminaManager.Tests.Application;
@@ -24,14 +25,21 @@ public sealed class AppCoordinatorTests
     {
         CoordinatorDataStore store = new(CreateLoadResult("Loaded"));
         GameManager manager = CreateManager(store);
-        AppCoordinator coordinator = new(store, manager);
+        RecordingUiDispatcher dispatcher = new();
+        AppCoordinator coordinator = new(store, manager, dispatcher);
         using CancellationTokenSource cancellation = new();
-        coordinator.NavigationRequested += (_, _) => cancellation.Cancel();
+        EventHandler<AppNavigationRequest> cancelDuringNavigation = (_, _) =>
+            cancellation.Cancel();
+        coordinator.NavigationRequested += cancelDuringNavigation;
 
         await Assert.ThrowsExactlyAsync<OperationCanceledException>(
             () => coordinator.InitializeAsync(cancellation.Token));
 
         Assert.IsFalse(coordinator.IsInitialized);
+        coordinator.NavigationRequested -= cancelDuringNavigation;
+        await coordinator.InitializeAsync(CancellationToken.None);
+        Assert.IsTrue(coordinator.IsInitialized);
+        Assert.AreEqual(1, store.LoadCount);
     }
 
     [TestMethod]
@@ -42,7 +50,10 @@ public sealed class AppCoordinatorTests
             PromotionResult = CreatePromotionResult("Recovered"),
         };
         GameManager manager = CreateManager(store);
-        AppCoordinator coordinator = new(store, manager);
+        AppCoordinator coordinator = new(
+            store,
+            manager,
+            new RecordingUiDispatcher());
 
         await Assert.ThrowsExactlyAsync<InvalidOperationException>(
             () => coordinator.PromoteRecoveryAsync(
@@ -59,13 +70,102 @@ public sealed class AppCoordinatorTests
             PromotionResult = CreatePromotionResult("Recovered"),
         };
         GameManager manager = CreateManager(store);
-        AppCoordinator coordinator = new(store, manager);
+        AppCoordinator coordinator = new(
+            store,
+            manager,
+            new RecordingUiDispatcher());
         await coordinator.InitializeAsync(CancellationToken.None);
 
         await coordinator.PromoteRecoveryAsync(CancellationToken.None);
 
         Assert.AreEqual(1, store.PromoteCount);
         Assert.AreEqual("Recovered", manager.Games.Single().Name);
+    }
+
+    [TestMethod]
+    public async Task InitializeAsync_EmptyLoadInitializesEmptyGameManager()
+    {
+        CoordinatorDataStore store = new(new DataLoadResult(
+            DataLoadStatus.Empty,
+            Envelope: null,
+            "primary",
+            "recovery"));
+        GameManager manager = CreateManager(store);
+        AppCoordinator coordinator = new(
+            store,
+            manager,
+            new RecordingUiDispatcher());
+
+        await coordinator.InitializeAsync(CancellationToken.None);
+
+        Assert.IsTrue(manager.IsInitialized);
+        Assert.IsEmpty(manager.Games);
+    }
+
+    [TestMethod]
+    public async Task InitializeAsync_SuccessfulSecondCallIsRejected()
+    {
+        CoordinatorDataStore store = new(CreateLoadResult("Loaded"));
+        GameManager manager = CreateManager(store);
+        AppCoordinator coordinator = new(
+            store,
+            manager,
+            new RecordingUiDispatcher());
+        await coordinator.InitializeAsync(CancellationToken.None);
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(
+            () => coordinator.InitializeAsync(CancellationToken.None));
+
+        Assert.AreEqual(1, store.LoadCount);
+    }
+
+    [TestMethod]
+    public async Task InitializeAsync_ConcurrentSecondCallIsRejected()
+    {
+        CoordinatorDataStore store = new(CreateLoadResult("Loaded"))
+        {
+            ShouldBlockLoad = true,
+        };
+        GameManager manager = CreateManager(store);
+        AppCoordinator coordinator = new(
+            store,
+            manager,
+            new RecordingUiDispatcher());
+        Task<DataLoadResult> first = coordinator.InitializeAsync(
+            CancellationToken.None);
+        await store.LoadStarted;
+        Task<DataLoadResult> second = coordinator.InitializeAsync(
+            CancellationToken.None);
+
+        store.ReleaseLoad();
+        await first;
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(
+            () => second);
+
+        Assert.AreEqual(1, store.LoadCount);
+    }
+
+    [TestMethod]
+    public async Task RouteActivationAsync_RaisesNavigationOnUiDispatcher()
+    {
+        CoordinatorDataStore store = new(CreateLoadResult("Loaded"));
+        GameManager manager = CreateManager(store);
+        RecordingUiDispatcher dispatcher = new();
+        AppCoordinator coordinator = new(store, manager, dispatcher);
+        ShellViewModel shell = new();
+        bool raisedOnDispatcher = false;
+        coordinator.NavigationRequested += (_, request) =>
+        {
+            raisedOnDispatcher = dispatcher.IsExecuting;
+            shell.ApplyNavigationRequest(request);
+        };
+        Guid gameId = Guid.NewGuid();
+
+        await Task.Run(() => coordinator.RouteActivationAsync(gameId));
+
+        Assert.IsTrue(raisedOnDispatcher);
+        Assert.AreEqual(gameId, shell.SelectedGameId);
+        Assert.AreEqual(AppPage.Overview, shell.CurrentPage);
     }
 
     private static GameManager CreateManager(ILocalDataStore store) => new(
@@ -102,13 +202,33 @@ public sealed class AppCoordinatorTests
     private sealed class CoordinatorDataStore(DataLoadResult loadResult)
         : ILocalDataStore
     {
+        private readonly TaskCompletionSource _loadStarted = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _continueLoad = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
         public RecoveryPromotionResult? PromotionResult { get; init; }
 
         public int PromoteCount { get; private set; }
 
-        public Task<DataLoadResult> LoadAsync(
-            CancellationToken cancellationToken) =>
-            Task.FromResult(loadResult);
+        public int LoadCount { get; private set; }
+
+        public bool ShouldBlockLoad { get; init; }
+
+        public Task LoadStarted => _loadStarted.Task;
+
+        public async Task<DataLoadResult> LoadAsync(
+            CancellationToken cancellationToken)
+        {
+            LoadCount++;
+            if (ShouldBlockLoad)
+            {
+                _loadStarted.TrySetResult();
+                await _continueLoad.Task.WaitAsync(cancellationToken);
+            }
+
+            return loadResult;
+        }
 
         public Task SaveAsync(
             DataEnvelope envelope,
@@ -122,5 +242,7 @@ public sealed class AppCoordinatorTests
             return Task.FromResult(
                 PromotionResult ?? throw new NotSupportedException());
         }
+
+        public void ReleaseLoad() => _continueLoad.TrySetResult();
     }
 }

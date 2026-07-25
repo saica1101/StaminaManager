@@ -53,6 +53,8 @@ public sealed class TimerCoordinator : IAsyncDisposable
 
     public Exception? LastError { get; private set; }
 
+    public event EventHandler<Exception>? RefreshFailed;
+
     public async Task SetVisibleAsync(bool isVisible)
     {
         if (!isVisible)
@@ -81,7 +83,7 @@ public sealed class TimerCoordinator : IAsyncDisposable
             }
             catch (Exception exception)
             {
-                LastError = exception;
+                await ReportFailureAsync(exception).ConfigureAwait(false);
                 throw;
             }
 
@@ -178,7 +180,7 @@ public sealed class TimerCoordinator : IAsyncDisposable
         }
         catch (Exception exception)
         {
-            LastError = exception;
+            await ReportFailureAsync(exception).ConfigureAwait(false);
         }
     }
 
@@ -186,6 +188,23 @@ public sealed class TimerCoordinator : IAsyncDisposable
         _uiDispatcher.InvokeAsync(
             () => _refresh(_clock.UtcNow.ToUniversalTime()),
             cancellationToken);
+
+    private async Task ReportFailureAsync(Exception exception)
+    {
+        LastError = exception;
+        try
+        {
+            await _uiDispatcher.InvokeAsync(
+                () => RefreshFailed?.Invoke(this, exception),
+                CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception notificationException)
+        {
+            LastError = new AggregateException(
+                exception,
+                notificationException);
+        }
+    }
 
     private static async Task AwaitStoppedLoopAsync(
         Task? task,

@@ -19,7 +19,7 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(HasGames))]
     [NotifyCanExecuteChangedFor(nameof(AddGameCommand))]
     [NotifyCanExecuteChangedFor(nameof(EnterCompactModeCommand))]
-    public partial bool IsLoading { get; private set; }
+    public partial bool IsLoading { get; private set; } = true;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasError))]
@@ -39,10 +39,10 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
         Games = new ReadOnlyObservableCollection<GameCardViewModel>(
             _games);
         _gameManager.GamesChanged += OnGamesChanged;
-        _uiDispatcher.InvokeAsync(
-            () => SynchronizeGamesCore(_clock.UtcNow))
-            .GetAwaiter()
-            .GetResult();
+        if (_gameManager.IsInitialized)
+        {
+            SynchronizeGamesCore(_clock.UtcNow);
+        }
     }
 
     public event Action? AddGameRequested;
@@ -57,12 +57,8 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
 
     public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
 
-    public void Refresh(DateTimeOffset nowUtc)
-    {
-        _uiDispatcher.InvokeAsync(() => RefreshCore(nowUtc))
-            .GetAwaiter()
-            .GetResult();
-    }
+    public void RefreshOnUiThread(DateTimeOffset nowUtc) =>
+        RefreshCore(nowUtc);
 
     public Task SetLoadingAsync(
         bool isLoading,

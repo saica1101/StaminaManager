@@ -74,14 +74,16 @@ public sealed class OverviewViewModelTests
             }
         };
 
-        await viewModel.SetLoadingAsync(true);
-
-        Assert.IsTrue(propertyChangedOnDispatcher);
+        Assert.IsTrue(viewModel.IsLoading);
         Assert.IsFalse(viewModel.AddGameCommand.CanExecute(null));
         Assert.IsFalse(viewModel.EnterCompactModeCommand.CanExecute(null));
 
         await viewModel.SetLoadingAsync(false);
+        Assert.IsTrue(propertyChangedOnDispatcher);
         Assert.IsTrue(viewModel.AddGameCommand.CanExecute(null));
+
+        await viewModel.SetLoadingAsync(true);
+        Assert.IsFalse(viewModel.AddGameCommand.CanExecute(null));
     }
 
     [TestMethod]
@@ -106,6 +108,63 @@ public sealed class OverviewViewModelTests
             "データを保存できませんでした。もう一度お試しください。",
             viewModel.ErrorMessage);
         Assert.DoesNotContain("private", viewModel.ErrorMessage!);
+    }
+
+    [TestMethod]
+    public async Task Constructor_DoesNotSynchronouslyWaitForDispatcher()
+    {
+        FakeClock clock = new(NowUtc);
+        ViewModelDataStore store = new();
+        GameManager manager = new(
+            store,
+            clock,
+            AppSettings.CreateDefault(AppTheme.Light));
+        await manager.InitializeAsync(
+            manager.CurrentData,
+            CancellationToken.None);
+        AlwaysQueuedUiDispatcher dispatcher = new();
+
+        Task<OverviewViewModel> constructionTask = Task.Run(
+            () => new OverviewViewModel(manager, clock, dispatcher));
+        Task winner = await Task.WhenAny(
+            constructionTask,
+            dispatcher.InvocationQueued);
+        if (!constructionTask.IsCompleted)
+        {
+            dispatcher.DrainOne();
+        }
+
+        using OverviewViewModel viewModel = await constructionTask;
+        Assert.AreSame(constructionTask, winner);
+    }
+
+    [TestMethod]
+    public async Task Refresh_DoesNotRedispatchOrSynchronouslyWait()
+    {
+        FakeClock clock = new(NowUtc);
+        ViewModelDataStore store = new();
+        GameManager manager = new(
+            store,
+            clock,
+            AppSettings.CreateDefault(AppTheme.Light));
+        await manager.InitializeAsync(
+            manager.CurrentData,
+            CancellationToken.None);
+        await manager.AddAsync(
+            new GameDraft("Game", 40, 100, 5, null),
+            CancellationToken.None);
+        RecordingUiDispatcher dispatcher = new();
+        using OverviewViewModel viewModel = new(
+            manager,
+            clock,
+            dispatcher);
+        int invocationCountBeforeRefresh = dispatcher.InvocationCount;
+
+        viewModel.RefreshOnUiThread(NowUtc.AddMinutes(5));
+
+        Assert.AreEqual(
+            invocationCountBeforeRefresh,
+            dispatcher.InvocationCount);
     }
 
     private sealed class ViewModelDataStore : ILocalDataStore
