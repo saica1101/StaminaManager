@@ -1,6 +1,7 @@
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.Windows.ApplicationModel.Resources;
 using StaminaManager.Core.Calculations;
@@ -60,6 +61,7 @@ public sealed partial class MainWindow : Window
             StandardMinimumHeightEpx);
         AppWindow.Changed += OnAppWindowChanged;
         mainPage.DisplayModeChanged += SetDisplayMode;
+        UpdateBackdropDiagnostic();
     }
 
     internal void SetBackdrop(
@@ -70,6 +72,24 @@ public sealed partial class MainWindow : Window
         SolidBackdropSurface.Visibility = isSolidSurface
             ? Visibility.Visible
             : Visibility.Collapsed;
+        UpdateBackdropDiagnostic();
+    }
+
+    internal string GetActualBackdropDiagnostic()
+    {
+        string backdropType =
+            SystemBackdrop?.GetType().FullName ?? "<null>";
+        return $"{backdropType}|SolidSurface="
+            + SolidBackdropSurface.Visibility;
+    }
+
+    private void UpdateBackdropDiagnostic()
+    {
+        string diagnostic = GetActualBackdropDiagnostic();
+        ActualBackdropDiagnostic.Text = diagnostic;
+        AutomationProperties.SetName(
+            ActualBackdropDiagnostic,
+            diagnostic);
     }
 
     private static string ResolveAppTitle()

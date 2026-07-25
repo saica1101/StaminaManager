@@ -18,6 +18,23 @@
         OpenPaneLength="220"
         PaneDisplayMode="Auto"
         SelectionChanged="ShellNavigation_SelectionChanged">
+        <NavigationView.Resources>
+            <StaticResource x:Key="NavigationViewItemBackgroundPointerOver" ResourceKey="NavigationItemInteractionSurfaceBrush" />
+            <StaticResource x:Key="NavigationViewItemBackgroundPressed" ResourceKey="NavigationItemPressedSurfaceBrush" />
+            <StaticResource x:Key="NavigationViewItemBackgroundCheckedPointerOver" ResourceKey="NavigationItemInteractionSurfaceBrush" />
+            <StaticResource x:Key="NavigationViewItemBackgroundCheckedPressed" ResourceKey="NavigationItemPressedSurfaceBrush" />
+            <StaticResource x:Key="NavigationViewItemBackgroundSelected" ResourceKey="NavigationItemInteractionSurfaceBrush" />
+            <StaticResource x:Key="NavigationViewItemBackgroundSelectedPointerOver" ResourceKey="NavigationItemInteractionSurfaceBrush" />
+            <StaticResource x:Key="NavigationViewItemBackgroundSelectedPressed" ResourceKey="NavigationItemPressedSurfaceBrush" />
+            <StaticResource x:Key="NavigationViewItemForegroundPointerOver" ResourceKey="NavigationItemInteractionTextBrush" />
+            <StaticResource x:Key="NavigationViewItemForegroundPressed" ResourceKey="NavigationItemInteractionTextBrush" />
+            <StaticResource x:Key="NavigationViewItemForegroundChecked" ResourceKey="NavigationItemInteractionTextBrush" />
+            <StaticResource x:Key="NavigationViewItemForegroundCheckedPointerOver" ResourceKey="NavigationItemInteractionTextBrush" />
+            <StaticResource x:Key="NavigationViewItemForegroundCheckedPressed" ResourceKey="NavigationItemInteractionTextBrush" />
+            <StaticResource x:Key="NavigationViewItemForegroundSelected" ResourceKey="NavigationItemInteractionTextBrush" />
+            <StaticResource x:Key="NavigationViewItemForegroundSelectedPointerOver" ResourceKey="NavigationItemInteractionTextBrush" />
+            <StaticResource x:Key="NavigationViewItemForegroundSelectedPressed" ResourceKey="NavigationItemInteractionTextBrush" />
+        </NavigationView.Resources>
         <NavigationView.MenuItems>
             <NavigationViewItem
                 x:Name="OverviewNavigationItem"

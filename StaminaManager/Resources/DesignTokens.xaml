@@ -15,6 +15,9 @@
             <SolidColorBrush x:Key="SecondaryTextBrush" Color="#FF5D5D5D" />
             <SolidColorBrush x:Key="CardStrokeBrush" Color="#1F000000" />
             <SolidColorBrush x:Key="NeutralTrackBrush" Color="#1F000000" />
+            <StaticResource x:Key="NavigationItemInteractionSurfaceBrush" ResourceKey="CardSurfaceBrush" />
+            <StaticResource x:Key="NavigationItemPressedSurfaceBrush" ResourceKey="AppSurfaceBrush" />
+            <StaticResource x:Key="NavigationItemInteractionTextBrush" ResourceKey="PrimaryTextBrush" />
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
             <StaticResource x:Key="AccentBrush" ResourceKey="AccentFillColorDefaultBrush" />
@@ -27,6 +30,9 @@
             <SolidColorBrush x:Key="SecondaryTextBrush" Color="#FFCFCFCF" />
             <SolidColorBrush x:Key="CardStrokeBrush" Color="#2FFFFFFF" />
             <SolidColorBrush x:Key="NeutralTrackBrush" Color="#2FFFFFFF" />
+            <StaticResource x:Key="NavigationItemInteractionSurfaceBrush" ResourceKey="CardSurfaceBrush" />
+            <StaticResource x:Key="NavigationItemPressedSurfaceBrush" ResourceKey="AppSurfaceBrush" />
+            <StaticResource x:Key="NavigationItemInteractionTextBrush" ResourceKey="PrimaryTextBrush" />
         </ResourceDictionary>
         <ResourceDictionary x:Key="HighContrast">
             <StaticResource x:Key="AccentBrush" ResourceKey="SystemColorHighlightColorBrush" />
@@ -39,6 +45,9 @@
             <StaticResource x:Key="SecondaryTextBrush" ResourceKey="SystemColorGrayTextColorBrush" />
             <StaticResource x:Key="CardStrokeBrush" ResourceKey="SystemColorWindowTextColorBrush" />
             <StaticResource x:Key="NeutralTrackBrush" ResourceKey="SystemColorWindowTextColorBrush" />
+            <StaticResource x:Key="NavigationItemInteractionSurfaceBrush" ResourceKey="SystemColorHighlightColorBrush" />
+            <StaticResource x:Key="NavigationItemPressedSurfaceBrush" ResourceKey="SystemColorHighlightColorBrush" />
+            <StaticResource x:Key="NavigationItemInteractionTextBrush" ResourceKey="SystemColorHighlightTextColorBrush" />
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 
