@@ -1,4 +1,5 @@
 using StaminaManager.Infrastructure.Persistence;
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using Windows.Graphics.Imaging;
 using Windows.Storage.Streams;
@@ -30,12 +31,20 @@ public sealed class AssetStore
 
     private const string AssetsDirectoryName = "Assets";
     private const int CopyBufferSize = 80 * 1024;
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim>
+        OperationGates = new(StringComparer.OrdinalIgnoreCase);
+    private readonly SemaphoreSlim _operationGate;
     private readonly IAppDataPathProvider _pathProvider;
 
     public AssetStore(IAppDataPathProvider pathProvider)
     {
         ArgumentNullException.ThrowIfNull(pathProvider);
         _pathProvider = pathProvider;
+        string assetsPath = Path.TrimEndingDirectorySeparator(
+            Path.GetFullPath(GetAssetsPath()));
+        _operationGate = OperationGates.GetOrAdd(
+            assetsPath,
+            static _ => new SemaphoreSlim(1, 1));
     }
 
     public async Task<StoredAsset> SaveAsync(
@@ -52,6 +61,23 @@ public sealed class AssetStore
                 nameof(source));
         }
 
+        await _operationGate.WaitAsync(cancellationToken)
+            .ConfigureAwait(false);
+        try
+        {
+            return await SaveCoreAsync(source, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            _operationGate.Release();
+        }
+    }
+
+    private async Task<StoredAsset> SaveCoreAsync(
+        Stream source,
+        CancellationToken cancellationToken)
+    {
         byte[] sourceBytes = await ReadBoundedAsync(
             source,
             cancellationToken).ConfigureAwait(false);
@@ -117,38 +143,45 @@ public sealed class AssetStore
         }
     }
 
-    public Task DeleteOrphansAfterCommitAsync(
+    public async Task DeleteOrphansAfterCommitAsync(
         IReadOnlySet<string> referencedAssetIds,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(referencedAssetIds);
-        string assetsPath = GetAssetsPath();
-        if (!Directory.Exists(assetsPath))
+        await _operationGate.WaitAsync(cancellationToken)
+            .ConfigureAwait(false);
+        try
         {
-            return Task.CompletedTask;
-        }
-
-        foreach (string path in Directory.EnumerateFiles(
-            assetsPath,
-            "*",
-            SearchOption.TopDirectoryOnly))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (!TryParseOwnedAssetPath(
-                path,
-                out string? assetId,
-                out bool isTemporary))
+            string assetsPath = GetAssetsPath();
+            if (!Directory.Exists(assetsPath))
             {
-                continue;
+                return;
             }
 
-            if (isTemporary || !referencedAssetIds.Contains(assetId))
+            foreach (string path in Directory.EnumerateFiles(
+                assetsPath,
+                "*",
+                SearchOption.TopDirectoryOnly))
             {
-                File.Delete(path);
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!TryParseOwnedAssetPath(
+                    path,
+                    out string? assetId,
+                    out bool isTemporary))
+                {
+                    continue;
+                }
+
+                if (isTemporary || !referencedAssetIds.Contains(assetId))
+                {
+                    File.Delete(path);
+                }
             }
         }
-
-        return Task.CompletedTask;
+        finally
+        {
+            _operationGate.Release();
+        }
     }
 
     private async Task<StoredAsset> SaveEncodedAsync(

@@ -450,6 +450,25 @@ public sealed class LocalDataStoreTests
     }
 
     [TestMethod]
+    public async Task PromoteRecoveryAsync_ValidPrimaryIsRejectedAndPreserved()
+    {
+        await CreateRecoveryAsync();
+        byte[] primaryBefore = await File.ReadAllBytesAsync(PrimaryPath);
+        byte[] recoveryBefore = await File.ReadAllBytesAsync(RecoveryPath);
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(
+            () => _store.PromoteRecoveryAsync(CancellationToken.None));
+
+        CollectionAssert.AreEqual(
+            primaryBefore,
+            await File.ReadAllBytesAsync(PrimaryPath));
+        CollectionAssert.AreEqual(
+            recoveryBefore,
+            await File.ReadAllBytesAsync(RecoveryPath));
+        Assert.IsFalse(File.Exists(TemporaryPath));
+    }
+
+    [TestMethod]
     public async Task PromoteRecoveryAsync_MissingPrimaryUsesAtomicMove()
     {
         await CreateRecoveryAsync();

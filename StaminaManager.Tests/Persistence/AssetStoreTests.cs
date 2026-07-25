@@ -257,6 +257,46 @@ public sealed class AssetStoreTests
         Assert.IsTrue(File.Exists(unsupportedTemp));
     }
 
+    [TestMethod]
+    public async Task DeleteOrphansAfterCommitAsync_WaitsForSharedRootSave()
+    {
+        AssetStore secondStore = new(
+            new TestAppDataPathProvider(_rootPath));
+        MemoryStream fixture = await OpenFixtureAsync(
+            GetValidFixtureName(ImageFormat.Png));
+        await using PausingReadStream source = new(fixture);
+        Task<StoredAsset> saveTask = _store.SaveAsync(
+            source,
+            "concurrent.png",
+            CancellationToken.None);
+        await source.ReadStarted;
+        string assetsPath = Path.Combine(_rootPath, "Assets");
+        Directory.CreateDirectory(assetsPath);
+        string temporaryPath = Path.Combine(
+            assetsPath,
+            $"{Guid.NewGuid():N}.png.tmp");
+        await File.WriteAllTextAsync(temporaryPath, "in progress");
+
+        Task cleanupTask = secondStore.DeleteOrphansAfterCommitAsync(
+            new HashSet<string>(StringComparer.Ordinal),
+            CancellationToken.None);
+        try
+        {
+            Assert.IsFalse(
+                cleanupTask.IsCompleted,
+                "Cleanup must wait while a save owns the shared asset gate.");
+            Assert.IsTrue(File.Exists(temporaryPath));
+        }
+        finally
+        {
+            source.Resume();
+            _ = await saveTask;
+            await cleanupTask;
+        }
+
+        Assert.IsFalse(File.Exists(temporaryPath));
+    }
+
     private async Task<StoredAsset> SavePngAsync(string originalFileName)
     {
         await using MemoryStream source = await OpenFixtureAsync(
@@ -372,6 +412,65 @@ public sealed class AssetStoreTests
     {
         Png,
         Jpeg,
+    }
+
+    private sealed class PausingReadStream(Stream inner) : Stream
+    {
+        private readonly TaskCompletionSource<bool> _readStarted = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<bool> _resume = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task ReadStarted => _readStarted.Task;
+
+        public override bool CanRead => inner.CanRead;
+
+        public override bool CanSeek => inner.CanSeek;
+
+        public override bool CanWrite => false;
+
+        public override long Length => inner.Length;
+
+        public override long Position
+        {
+            get => inner.Position;
+            set => inner.Position = value;
+        }
+
+        public void Resume() => _resume.TrySetResult(true);
+
+        public override void Flush() => inner.Flush();
+
+        public override int Read(byte[] buffer, int offset, int count) =>
+            throw new NotSupportedException();
+
+        public override async ValueTask<int> ReadAsync(
+            Memory<byte> buffer,
+            CancellationToken cancellationToken = default)
+        {
+            _readStarted.TrySetResult(true);
+            await _resume.Task.WaitAsync(cancellationToken);
+            return await inner.ReadAsync(buffer, cancellationToken);
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) =>
+            inner.Seek(offset, origin);
+
+        public override void SetLength(long value) =>
+            throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) =>
+            throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                inner.Dispose();
+            }
+
+            base.Dispose(disposing);
+        }
     }
 
     private sealed class TestAppDataPathProvider(string rootPath)

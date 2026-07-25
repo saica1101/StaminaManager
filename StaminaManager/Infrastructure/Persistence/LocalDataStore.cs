@@ -152,6 +152,15 @@ public sealed class LocalDataStore : ILocalDataStore
             DeleteStaleTemporaryFile(temporaryPath);
             string primaryPath = GetPath(PrimaryFileName);
             string recoveryPath = GetPath(RecoveryFileName);
+            if (File.Exists(primaryPath)
+                && await TryReadValidEnvelopeAsync(
+                    primaryPath,
+                    cancellationToken).ConfigureAwait(false) is not null)
+            {
+                throw new InvalidOperationException(
+                    "A valid primary data file cannot be replaced by recovery.");
+            }
+
             DataEnvelope? recovery = File.Exists(recoveryPath)
                 ? await TryReadValidEnvelopeAsync(
                     recoveryPath,
