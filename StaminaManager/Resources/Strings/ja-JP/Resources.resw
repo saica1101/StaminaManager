@@ -46,7 +46,6 @@
   <data name="GameEditorElapsedInfoBar.Title" xml:space="preserve"><value>自然回復が進んでいます</value></data>
   <data name="GameEditorErrorInfoBar.Title" xml:space="preserve"><value>操作を完了できませんでした</value></data>
   <data name="GameEditorDeleteButton.Content" xml:space="preserve"><value>削除</value></data>
-  <data name="GameEditorSaveButton.Content" xml:space="preserve"><value>保存</value></data>
   <data name="DeleteConfirmButton.Content" xml:space="preserve"><value>削除</value></data>
   <data name="DeleteBackButton.Content" xml:space="preserve"><value>戻る</value></data>
   <data name="CompactGameSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>表示するゲーム</value></data>

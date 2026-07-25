@@ -133,6 +133,68 @@ public sealed class GameManagerTests
     }
 
     [TestMethod]
+    public async Task DeleteAsync_SelectedGameSavesFallbackWithGamesOnce()
+    {
+        RecordingDataStore store = new();
+        GameEntry first = CreateEntry(Guid.NewGuid(), "First", 0);
+        GameEntry selected = CreateEntry(Guid.NewGuid(), "Selected", 1);
+        AppSettings settings = AppSettings.CreateDefault(AppTheme.Light) with
+        {
+            SelectedCompactGameId = selected.Id,
+        };
+        GameManager manager = await CreateManagerAsync(
+            store,
+            settings,
+            first,
+            selected);
+
+        bool deleted = await manager.DeleteAsync(
+            selected.Id,
+            CancellationToken.None);
+
+        Assert.IsTrue(deleted);
+        Assert.AreEqual(1, store.SaveCount);
+        Assert.AreEqual(first.Id, store.LastSaved!.Games.Single().Id);
+        Assert.AreEqual(
+            first.Id,
+            store.LastSaved.Settings.SelectedCompactGameId);
+        Assert.AreEqual(store.LastSaved, manager.CurrentData);
+    }
+
+    [TestMethod]
+    public async Task DeleteAsync_FallbackSaveFailurePublishesNeitherChange()
+    {
+        RecordingDataStore store = new()
+        {
+            SaveException = new IOException("simulated failure"),
+        };
+        GameEntry first = CreateEntry(Guid.NewGuid(), "First", 0);
+        GameEntry selected = CreateEntry(Guid.NewGuid(), "Selected", 1);
+        AppSettings settings = AppSettings.CreateDefault(AppTheme.Light) with
+        {
+            SelectedCompactGameId = selected.Id,
+        };
+        GameManager manager = await CreateManagerAsync(
+            store,
+            settings,
+            first,
+            selected);
+        DataEnvelope publishedBeforeDelete = manager.CurrentData;
+
+        await Assert.ThrowsExactlyAsync<IOException>(
+            () => manager.DeleteAsync(
+                selected.Id,
+                CancellationToken.None));
+
+        Assert.AreEqual(1, store.SaveCount);
+        Assert.AreEqual(first.Id, store.LastAttempted!.Games.Single().Id);
+        Assert.AreEqual(
+            first.Id,
+            store.LastAttempted.Settings.SelectedCompactGameId);
+        Assert.AreEqual(publishedBeforeDelete, manager.CurrentData);
+    }
+
+    [TestMethod]
     public async Task DeleteAsync_MissingGameDoesNotPersist()
     {
         RecordingDataStore store = new();
@@ -344,6 +406,19 @@ public sealed class GameManagerTests
         return manager;
     }
 
+    private static async Task<GameManager> CreateManagerAsync(
+        RecordingDataStore store,
+        AppSettings settings,
+        params GameEntry[] games)
+    {
+        FakeClock clock = new(NowUtc);
+        GameManager manager = CreateUninitializedManager(store, clock);
+        await manager.InitializeAsync(
+            CreateEnvelope(settings, games),
+            CancellationToken.None);
+        return manager;
+    }
+
     private static GameManager CreateUninitializedManager(
         RecordingDataStore store,
         FakeClock? clock = null) => new(
@@ -353,9 +428,16 @@ public sealed class GameManagerTests
 
     private static DataEnvelope CreateEnvelope(
         params GameEntry[] games) => new(
-            DataEnvelope.CurrentSchemaVersion,
-            games.ToImmutableArray(),
-            AppSettings.CreateDefault(AppTheme.Light));
+        DataEnvelope.CurrentSchemaVersion,
+        games.ToImmutableArray(),
+        AppSettings.CreateDefault(AppTheme.Light));
+
+    private static DataEnvelope CreateEnvelope(
+        AppSettings settings,
+        params GameEntry[] games) => new(
+        DataEnvelope.CurrentSchemaVersion,
+        games.ToImmutableArray(),
+        settings);
 
     private static GameDraft CreateDraft(string name) => new(
         name,
@@ -386,6 +468,8 @@ public sealed class GameManagerTests
 
         public DataEnvelope? LastSaved { get; private set; }
 
+        public DataEnvelope? LastAttempted { get; private set; }
+
         public int SaveCount { get; private set; }
 
         public Exception? SaveException { get; init; }
@@ -408,6 +492,7 @@ public sealed class GameManagerTests
         {
             cancellationToken.ThrowIfCancellationRequested();
             SaveCount++;
+            LastAttempted = envelope;
             if (ShouldBlockSave)
             {
                 _saveStarted.TrySetResult();

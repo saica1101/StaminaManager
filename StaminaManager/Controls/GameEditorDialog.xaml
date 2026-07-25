@@ -127,10 +127,10 @@
                             Visibility="{x:Bind local:GameEditorDialog.BoolToVisibility(ViewModel.CanDelete), Mode=OneWay}" />
                         <Button
                             x:Name="GameEditorSaveButton"
-                            x:Uid="GameEditorSaveButton"
                             Grid.Column="1"
                             AutomationProperties.AutomationId="GameEditorSaveButton"
                             Click="GameEditorSaveButton_Click"
+                            Content="{x:Bind ViewModel.ActionText, Mode=OneTime}"
                             IsEnabled="{x:Bind ViewModel.CanSave, Mode=OneWay}"
                             Style="{StaticResource AccentButtonStyle}" />
                     </Grid>

@@ -227,26 +227,12 @@ public sealed partial class CompactViewModel : ObservableObject, IDisposable
     private async Task OnGamesChanged(
         CancellationToken cancellationToken)
     {
-        Guid? previousId = SelectedGame?.Id;
-        Guid? fallbackId = null;
+        Guid? selectedGameId = _gameManager.CurrentData.Settings
+            .SelectedCompactGameId;
         await _uiDispatcher.InvokeAsync(
-                () =>
-                {
-                    SynchronizeGamesCore(previousId);
-                    fallbackId = SelectedGame?.Id;
-                },
+                () => SynchronizeGamesCore(selectedGameId),
                 cancellationToken)
             .ConfigureAwait(false);
-
-        if (_coordinator.IsInitialized
-            && _gameManager.CurrentData.Settings.SelectedCompactGameId
-                != fallbackId)
-        {
-            await _coordinator.SelectCompactGameAsync(
-                    fallbackId,
-                    cancellationToken)
-                .ConfigureAwait(false);
-        }
     }
 
     private void SynchronizeGamesCore(Guid? preferredGameId)

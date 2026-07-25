@@ -45,6 +45,18 @@ public sealed class GameEditorViewModelTests
     }
 
     [TestMethod]
+    public async Task ActionText_UsesAddForNewAndSaveForEdit()
+    {
+        (GameEditorViewModel addViewModel, _, _) =
+            await CreateForAddAsync();
+        (GameEditorViewModel editViewModel, _, _) =
+            await CreateForEditAsync(CreateEntry());
+
+        Assert.AreEqual("追加", addViewModel.ActionText);
+        Assert.AreEqual("保存", editViewModel.ActionText);
+    }
+
+    [TestMethod]
     public async Task MetadataOnlyEdit_PreservesBaseAndRecordedTime()
     {
         GameEntry original = CreateEntry();

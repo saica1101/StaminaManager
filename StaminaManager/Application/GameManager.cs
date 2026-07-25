@@ -187,9 +187,21 @@ public sealed class GameManager
 
             ImmutableArray<GameEntry> remaining =
                 _data.Games.RemoveAt(index);
+            ImmutableArray<GameEntry> normalized =
+                NormalizeOrder(remaining);
+            AppSettings settings =
+                _data.Settings.SelectedCompactGameId == gameId
+                    ? _data.Settings with
+                    {
+                        SelectedCompactGameId = normalized.IsEmpty
+                            ? null
+                            : normalized[0].Id,
+                    }
+                    : _data.Settings;
             DataEnvelope candidate = _data with
             {
-                Games = NormalizeOrder(remaining),
+                Games = normalized,
+                Settings = settings,
             };
             await SaveAndPublishAsync(candidate, cancellationToken)
                 .ConfigureAwait(false);

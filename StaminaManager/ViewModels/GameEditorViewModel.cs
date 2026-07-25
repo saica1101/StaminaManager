@@ -121,6 +121,8 @@ public sealed partial class GameEditorViewModel : ObservableObject
         ? "ゲームを追加"
         : "ゲームを編集";
 
+    public string ActionText => IsNew ? "追加" : "保存";
+
     public GameEntry? OriginalEntry => _originalEntry;
 
     public void ShowGeneralError(string message)

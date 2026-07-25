@@ -32,11 +32,12 @@ public sealed class CompactViewModelTests
     {
         GameEntry first = CreateEntry("First", 0);
         GameEntry selected = CreateEntry("Selected", 1);
-        Context context = await CreateAsync(first, selected);
-        using CompactViewModel viewModel = context.CreateViewModel();
-        await viewModel.SelectGameAsync(
+        Context context = await CreateAsyncWithSelection(
             selected.Id,
-            CancellationToken.None);
+            first,
+            selected);
+        using CompactViewModel viewModel = context.CreateViewModel();
+        int saveCountBeforeDelete = context.Store.SaveCount;
 
         await context.Manager.DeleteAsync(
             selected.Id,
@@ -47,6 +48,9 @@ public sealed class CompactViewModelTests
         Assert.AreEqual(
             first.Id,
             context.Manager.CurrentData.Settings.SelectedCompactGameId);
+        Assert.AreEqual(
+            saveCountBeforeDelete + 1,
+            context.Store.SaveCount);
     }
 
     [TestMethod]
@@ -98,12 +102,18 @@ public sealed class CompactViewModelTests
     }
 
     private static async Task<Context> CreateAsync(
+        params GameEntry[] games) => await CreateAsyncWithSelection(
+            games.FirstOrDefault()?.Id,
+            games);
+
+    private static async Task<Context> CreateAsyncWithSelection(
+        Guid? selectedGameId,
         params GameEntry[] games)
     {
         AppSettings settings = AppSettings.CreateDefault(AppTheme.Light) with
         {
             LastDisplayMode = AppDisplayMode.Standard,
-            SelectedCompactGameId = games.FirstOrDefault()?.Id,
+            SelectedCompactGameId = selectedGameId,
         };
         DataEnvelope envelope = new(
             DataEnvelope.CurrentSchemaVersion,
@@ -148,6 +158,8 @@ public sealed class CompactViewModelTests
     {
         public Exception? SaveException { get; set; }
 
+        public int SaveCount { get; private set; }
+
         public Task<DataLoadResult> LoadAsync(
             CancellationToken cancellationToken) => Task.FromResult(
                 new DataLoadResult(
@@ -161,6 +173,7 @@ public sealed class CompactViewModelTests
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            SaveCount++;
             return SaveException is null
                 ? Task.CompletedTask
                 : Task.FromException(SaveException);
