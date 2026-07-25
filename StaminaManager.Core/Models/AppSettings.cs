@@ -6,7 +6,9 @@ public sealed record AppSettings(
     bool NotificationsEnabled,
     int NotificationLeadMinutes,
     CloseBehavior CloseBehavior,
-    bool StartupEnabled)
+    bool StartupEnabled,
+    AppDisplayMode LastDisplayMode = AppDisplayMode.Standard,
+    Guid? SelectedCompactGameId = null)
 {
     public static AppSettings CreateDefault(AppTheme initialTheme) => new(
         initialTheme,
@@ -14,7 +16,9 @@ public sealed record AppSettings(
         NotificationsEnabled: true,
         NotificationLeadMinutes: 15,
         CloseBehavior.MinimizeToTray,
-        StartupEnabled: false);
+        StartupEnabled: false,
+        AppDisplayMode.Standard,
+        SelectedCompactGameId: null);
 }
 
 public enum AppTheme

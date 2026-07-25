@@ -8,3 +8,9 @@ public enum StaminaStatus
     Full,
     OverCap,
 }
+
+public enum AppDisplayMode
+{
+    Standard,
+    Compact,
+}

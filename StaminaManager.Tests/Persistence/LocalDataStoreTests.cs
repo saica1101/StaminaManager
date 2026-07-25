@@ -39,6 +39,14 @@ public sealed class LocalDataStoreTests
             "First game",
             AppTheme.Dark,
             new DateTimeOffset(2026, 7, 25, 12, 30, 0, TimeSpan.Zero));
+        expected = expected with
+        {
+            Settings = expected.Settings with
+            {
+                LastDisplayMode = AppDisplayMode.Compact,
+                SelectedCompactGameId = expected.Games[0].Id,
+            },
+        };
 
         await _store.SaveAsync(expected, CancellationToken.None);
         DataLoadResult result = await _store.LoadAsync(
@@ -84,6 +92,12 @@ public sealed class LocalDataStoreTests
         Assert.AreEqual(
             "MinimizeToTray",
             settings.GetProperty("closeBehavior").GetString());
+        Assert.AreEqual(
+            "Standard",
+            settings.GetProperty("lastDisplayMode").GetString());
+        Assert.AreEqual(
+            JsonValueKind.Null,
+            settings.GetProperty("selectedCompactGameId").ValueKind);
         Assert.IsFalse(json.Contains("SchemaVersion", StringComparison.Ordinal));
         Assert.IsLessThan(
             json.IndexOf("\"games\"", StringComparison.Ordinal),

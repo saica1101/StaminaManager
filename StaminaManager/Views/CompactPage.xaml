@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="StaminaManager.Views.CompactPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:StaminaManager.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:StaminaManager.Views"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    Background="Transparent"
+    mc:Ignorable="d">
+
+    <Grid Padding="{StaticResource PagePadding}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid MaxWidth="520" HorizontalAlignment="Stretch" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ComboBox
+                x:Name="CompactGameSelector"
+                x:Uid="CompactGameSelector"
+                AutomationProperties.AutomationId="CompactGameSelector"
+                DisplayMemberPath="Name"
+                Header="表示するゲーム"
+                HorizontalAlignment="Stretch"
+                ItemsSource="{x:Bind ViewModel.Games, Mode=OneWay}"
+                SelectionChanged="CompactGameSelector_SelectionChanged" />
+            <Button
+                x:Name="ReturnOverviewButton"
+                x:Uid="ReturnOverviewButton"
+                Grid.Column="1"
+                VerticalAlignment="Bottom"
+                AutomationProperties.AutomationId="ReturnOverviewButton"
+                Command="{x:Bind ViewModel.ReturnOverviewCommand, Mode=OneWay}">
+                <FontIcon
+                    AutomationProperties.AccessibilityView="Raw"
+                    Glyph="&#xE72B;" />
+            </Button>
+        </Grid>
+
+        <ScrollViewer
+            Grid.Row="1"
+            HorizontalContentAlignment="Center"
+            HorizontalScrollBarVisibility="Disabled"
+            VerticalScrollBarVisibility="Auto">
+            <Grid
+                MaxWidth="420"
+                Margin="0,8"
+                HorizontalAlignment="Center">
+                <StackPanel
+                    HorizontalAlignment="Stretch"
+                    Spacing="{StaticResource Spacing12}"
+                    Visibility="{x:Bind local:CompactPage.BoolToVisibility(ViewModel.HasSelectedGame), Mode=OneWay}">
+                    <TextBlock
+                        HorizontalAlignment="Center"
+                        MaxLines="2"
+                        Style="{StaticResource AppPageTitleTextStyle}"
+                        Text="{x:Bind ViewModel.SelectedName, Mode=OneWay}"
+                        TextAlignment="Center"
+                        TextTrimming="CharacterEllipsis" />
+                    <controls:StaminaRing
+                        Width="144"
+                        Height="144"
+                        HorizontalAlignment="Center"
+                        AutomationProperties.Name="{x:Bind RingAutomationName, Mode=OneWay}"
+                        Current="{x:Bind ViewModel.SelectedCurrent, Mode=OneWay}"
+                        GameName="{x:Bind ViewModel.SelectedName, Mode=OneWay}"
+                        Maximum="{x:Bind ViewModel.SelectedMaximum, Mode=OneWay}"
+                        Ratio="{x:Bind ViewModel.SelectedProgress, Mode=OneWay}"
+                        StatusBrush="{x:Bind StatusBrush, Mode=OneWay}"
+                        StatusText="{x:Bind ViewModel.SelectedStatusText, Mode=OneWay}" />
+                    <StackPanel HorizontalAlignment="Center" Spacing="6">
+                        <StackPanel
+                            HorizontalAlignment="Center"
+                            Orientation="Horizontal"
+                            Spacing="8">
+                            <Ellipse
+                                Width="10"
+                                Height="10"
+                                VerticalAlignment="Center"
+                                Fill="{x:Bind StatusBrush, Mode=OneWay}" />
+                            <TextBlock
+                                FontFamily="{StaticResource AppFontFamily}"
+                                FontSize="16"
+                                FontWeight="SemiBold"
+                                Foreground="{ThemeResource PrimaryTextBrush}"
+                                Text="{x:Bind ViewModel.SelectedStatusText, Mode=OneWay}" />
+                        </StackPanel>
+                        <TextBlock
+                            HorizontalAlignment="Center"
+                            Style="{StaticResource AppBodyTextStyle}"
+                            Text="{x:Bind ViewModel.SelectedRemainingText, Mode=OneWay}" />
+                    </StackPanel>
+                    <InfoBar
+                        x:Uid="CompactErrorInfoBar"
+                        IsClosable="False"
+                        IsOpen="{x:Bind local:CompactPage.HasText(ViewModel.ErrorMessage), Mode=OneWay}"
+                        Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+                        Severity="Error" />
+                </StackPanel>
+
+                <Border
+                    MinHeight="280"
+                    Padding="24"
+                    Background="{ThemeResource CardSurfaceBrush}"
+                    BorderBrush="{ThemeResource CardStrokeBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource CardCornerRadius}"
+                    Visibility="{x:Bind local:CompactPage.BoolToVisibility(ViewModel.IsEmpty), Mode=OneWay}">
+                    <StackPanel
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="12">
+                        <FontIcon
+                            AutomationProperties.AccessibilityView="Raw"
+                            FontSize="36"
+                            Foreground="{ThemeResource SecondaryTextBrush}"
+                            Glyph="&#xE7FC;" />
+                        <TextBlock
+                            HorizontalAlignment="Center"
+                            Style="{StaticResource AppCardTitleTextStyle}"
+                            Text="登録されたゲームはありません"
+                            TextAlignment="Center" />
+                        <TextBlock
+                            MaxWidth="300"
+                            HorizontalAlignment="Center"
+                            Style="{StaticResource AppSecondaryTextStyle}"
+                            Text="ゲームを追加すると、ここでスタミナをすばやく確認できます。"
+                            TextAlignment="Center" />
+                        <Button
+                            AutomationProperties.AutomationId="CompactAddGameButton"
+                            AutomationProperties.Name="ゲームを追加"
+                            Command="{x:Bind ViewModel.AddGameCommand, Mode=OneWay}"
+                            Content="ゲームを追加"
+                            Style="{StaticResource AccentButtonStyle}" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </ScrollViewer>
+
+        <StackPanel
+            Grid.Row="2"
+            MaxWidth="520"
+            HorizontalAlignment="Stretch"
+            Spacing="{StaticResource Spacing8}"
+            Visibility="{x:Bind local:CompactPage.BoolToVisibility(ViewModel.HasSelectedGame), Mode=OneWay}">
+            <Button
+                x:Name="CompactUpdateButton"
+                x:Uid="CompactUpdateButton"
+                AutomationProperties.AutomationId="CompactUpdateButton"
+                Command="{x:Bind ViewModel.UpdateCurrentCommand, Mode=OneWay}"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center"
+                Style="{StaticResource AccentButtonStyle}" />
+            <Button
+                x:Name="CompactEditButton"
+                x:Uid="CompactEditButton"
+                AutomationProperties.AutomationId="CompactEditButton"
+                Command="{x:Bind ViewModel.EditGameCommand, Mode=OneWay}"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center" />
+        </StackPanel>
+    </Grid>
+</Page>

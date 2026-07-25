@@ -1,5 +1,10 @@
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml;
 using StaminaManager.Application;
+using StaminaManager.Controls;
+using StaminaManager.Core.Abstractions;
+using StaminaManager.Core.Models;
+using StaminaManager.Infrastructure.Storage;
 using StaminaManager.ViewModels;
 using StaminaManager.Views;
 using System.ComponentModel;
@@ -10,26 +15,59 @@ public sealed partial class MainPage : Page
 {
     private readonly OverviewPage _overviewPage;
     private readonly SettingsPage _settingsPage;
+    private readonly CompactPage _compactPage;
+    private readonly AppCoordinator _coordinator;
+    private readonly GameManager _gameManager;
+    private readonly IClock _clock;
+    private readonly AssetStore _assetStore;
     private bool _isSynchronizingSelection;
+    private bool _isDialogOpen;
 
     public MainPage(
         ShellViewModel viewModel,
         OverviewPage overviewPage,
-        SettingsPage settingsPage)
+        SettingsPage settingsPage,
+        CompactPage compactPage,
+        AppCoordinator coordinator,
+        GameManager gameManager,
+        IClock clock,
+        AssetStore assetStore)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
         ArgumentNullException.ThrowIfNull(overviewPage);
         ArgumentNullException.ThrowIfNull(settingsPage);
+        ArgumentNullException.ThrowIfNull(compactPage);
+        ArgumentNullException.ThrowIfNull(coordinator);
+        ArgumentNullException.ThrowIfNull(gameManager);
+        ArgumentNullException.ThrowIfNull(clock);
+        ArgumentNullException.ThrowIfNull(assetStore);
 
         ViewModel = viewModel;
         _overviewPage = overviewPage;
         _settingsPage = settingsPage;
+        _compactPage = compactPage;
+        _coordinator = coordinator;
+        _gameManager = gameManager;
+        _clock = clock;
+        _assetStore = assetStore;
         InitializeComponent();
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+        _overviewPage.ViewModel.AddGameRequested += OnAddGameRequested;
+        _overviewPage.ViewModel.EditGameRequested += OnEditGameRequested;
+        _overviewPage.ViewModel.CompactModeRequested +=
+            OnCompactModeRequested;
+        _compactPage.ViewModel.AddGameRequested += OnAddGameRequested;
+        _compactPage.ViewModel.EditGameRequested +=
+            OnCompactEditGameRequested;
+        _compactPage.ViewModel.ReturnOverviewRequested +=
+            OnReturnOverviewRequested;
         ApplyNavigation(ViewModel.CurrentPage);
+        ApplyDisplayMode(ViewModel.DisplayMode);
     }
 
     public ShellViewModel ViewModel { get; }
+
+    public event Action<AppDisplayMode>? DisplayModeChanged;
 
     private void ShellNavigation_SelectionChanged(
         NavigationView sender,
@@ -60,6 +98,16 @@ public sealed partial class MainPage : Page
         {
             ApplyNavigation(ViewModel.CurrentPage);
         }
+
+        else if (args.PropertyName == nameof(ShellViewModel.DisplayMode))
+        {
+            ApplyDisplayMode(ViewModel.DisplayMode);
+        }
+        else if (args.PropertyName == nameof(ShellViewModel.SelectedGameId)
+            && ViewModel.DisplayMode == AppDisplayMode.Compact)
+        {
+            _compactPage.ApplySelectedGame(ViewModel.SelectedGameId);
+        }
     }
 
     private void ApplyNavigation(AppPage page)
@@ -84,6 +132,115 @@ public sealed partial class MainPage : Page
         finally
         {
             _isSynchronizingSelection = false;
+        }
+    }
+
+    private void ApplyDisplayMode(AppDisplayMode displayMode)
+    {
+        bool isCompact = displayMode == AppDisplayMode.Compact;
+        ShellNavigation.Visibility = isCompact
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        CompactContentHost.Visibility = isCompact
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        CompactContentHost.Content = isCompact ? _compactPage : null;
+        if (isCompact)
+        {
+            _compactPage.ApplySelectedGame(ViewModel.SelectedGameId);
+        }
+
+        DisplayModeChanged?.Invoke(displayMode);
+    }
+
+    private void OnAddGameRequested() =>
+        _ = ShowGameEditorAsync(gameId: null, focusCurrent: false);
+
+    private void OnEditGameRequested(Guid gameId) =>
+        _ = ShowGameEditorAsync(gameId, focusCurrent: false);
+
+    private void OnCompactEditGameRequested(
+        Guid gameId,
+        bool focusCurrent) =>
+        _ = ShowGameEditorAsync(gameId, focusCurrent);
+
+    private async void OnCompactModeRequested()
+    {
+        try
+        {
+            await _coordinator.ChangeDisplayModeAsync(
+                AppDisplayMode.Compact,
+                _gameManager.CurrentData.Settings.SelectedCompactGameId,
+                CancellationToken.None);
+        }
+        catch (Exception exception) when (
+            exception is IOException
+                or UnauthorizedAccessException
+                or InvalidOperationException)
+        {
+            await _overviewPage.ViewModel.ShowErrorAsync(exception);
+        }
+    }
+
+    private async void OnReturnOverviewRequested()
+    {
+        try
+        {
+            await _coordinator.ChangeDisplayModeAsync(
+                AppDisplayMode.Standard,
+                _compactPage.ViewModel.SelectedGame?.Id,
+                CancellationToken.None);
+        }
+        catch (Exception exception) when (
+            exception is IOException
+                or UnauthorizedAccessException
+                or InvalidOperationException)
+        {
+            _compactPage.ViewModel.ShowError(
+                "Overviewへ戻る設定を保存できませんでした。もう一度お試しください。");
+        }
+    }
+
+    private async Task ShowGameEditorAsync(
+        Guid? gameId,
+        bool focusCurrent)
+    {
+        if (_isDialogOpen || XamlRoot is null)
+        {
+            return;
+        }
+
+        GameEntry? entry = gameId is Guid id
+            ? _gameManager.Games.FirstOrDefault(game => game.Id == id)
+            : null;
+        if (gameId is not null && entry is null)
+        {
+            await _overviewPage.ViewModel.ShowErrorAsync(
+                new KeyNotFoundException());
+            return;
+        }
+
+        _isDialogOpen = true;
+        try
+        {
+            GameEditorViewModel editor = new(
+                _gameManager,
+                _clock,
+                entry);
+            GameEditorDialog dialog = new(
+                editor,
+                _assetStore,
+                _gameManager,
+                ((App)Microsoft.UI.Xaml.Application.Current)
+                    .MainWindowHandle);
+            _ = await dialog.ShowAsync(
+                XamlRoot,
+                focusCurrent,
+                CancellationToken.None);
+        }
+        finally
+        {
+            _isDialogOpen = false;
         }
     }
 }

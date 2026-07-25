@@ -264,6 +264,8 @@ public sealed class LocalDataStore : ILocalDataStore
         if (!Enum.IsDefined(settings.Theme)
             || !Enum.IsDefined(settings.Backdrop)
             || !Enum.IsDefined(settings.CloseBehavior)
+            || !Enum.IsDefined(settings.LastDisplayMode)
+            || settings.SelectedCompactGameId == Guid.Empty
             || settings.NotificationLeadMinutes is < 0
                 or > GameEntryValidator.MaxRecoveryMinutes)
         {

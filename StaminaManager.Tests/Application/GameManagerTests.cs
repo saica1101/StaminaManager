@@ -149,6 +149,27 @@ public sealed class GameManagerTests
     }
 
     [TestMethod]
+    public async Task UpdateSettingsAsync_SaveFailureKeepsPublishedSettings()
+    {
+        RecordingDataStore store = new()
+        {
+            SaveException = new IOException("simulated failure"),
+        };
+        GameManager manager = await CreateManagerAsync(store);
+        AppSettings original = manager.CurrentData.Settings;
+
+        await Assert.ThrowsExactlyAsync<IOException>(
+            () => manager.UpdateSettingsAsync(
+                settings => settings with
+                {
+                    LastDisplayMode = AppDisplayMode.Compact,
+                },
+                CancellationToken.None));
+
+        Assert.AreEqual(original, manager.CurrentData.Settings);
+    }
+
+    [TestMethod]
     public async Task AddAsync_RejectsTheHundredAndFirstGame()
     {
         RecordingDataStore store = new();

@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentDialog
+    x:Class="StaminaManager.Controls.GameEditorDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:StaminaManager.Controls"
+    xmlns:viewModels="using:StaminaManager.ViewModels"
+    CloseButtonText="キャンセル"
+    CloseButtonClick="Dialog_CloseButtonClick"
+    DefaultButton="None"
+    Title="{x:Bind ViewModel.DialogTitle, Mode=OneTime}">
+
+    <Grid MinWidth="320" MaxWidth="520">
+        <ScrollViewer
+            HorizontalScrollBarVisibility="Disabled"
+            VerticalScrollBarVisibility="Auto">
+            <Grid Padding="0,4,0,0">
+                <StackPanel
+                    Spacing="{StaticResource Spacing16}"
+                    Visibility="{x:Bind local:GameEditorDialog.BoolToVisibility(ViewModel.IsEditing), Mode=OneWay}">
+                    <TextBox
+                        x:Name="GameNameInput"
+                        x:Uid="GameNameInput"
+                        AutomationProperties.AutomationId="GameNameInput"
+                        Header="ゲーム名"
+                        MaxLength="200"
+                        Text="{x:Bind ViewModel.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBlock
+                        Margin="0,-12,0,0"
+                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                        Text="{x:Bind ViewModel.NameError, Mode=OneWay}"
+                        Visibility="{x:Bind local:GameEditorDialog.TextToVisibility(ViewModel.NameError), Mode=OneWay}" />
+
+                    <NumberBox
+                        x:Name="CurrentStaminaInput"
+                        x:Uid="CurrentStaminaInput"
+                        AutomationProperties.AutomationId="CurrentStaminaInput"
+                        Header="現在のスタミナ"
+                        Maximum="1000000"
+                        Minimum="0"
+                        SpinButtonPlacementMode="Compact"
+                        ValidationMode="Disabled"
+                        Value="{x:Bind ViewModel.CurrentStamina, Mode=TwoWay}" />
+                    <TextBlock
+                        Margin="0,-12,0,0"
+                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                        Text="{x:Bind ViewModel.CurrentStaminaError, Mode=OneWay}"
+                        Visibility="{x:Bind local:GameEditorDialog.TextToVisibility(ViewModel.CurrentStaminaError), Mode=OneWay}" />
+
+                    <NumberBox
+                        x:Name="MaxStaminaInput"
+                        x:Uid="MaxStaminaInput"
+                        AutomationProperties.AutomationId="MaxStaminaInput"
+                        Header="スタミナの最大値"
+                        Maximum="1000000"
+                        Minimum="1"
+                        SpinButtonPlacementMode="Compact"
+                        ValidationMode="Disabled"
+                        Value="{x:Bind ViewModel.MaxStamina, Mode=TwoWay}" />
+                    <TextBlock
+                        Margin="0,-12,0,0"
+                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                        Text="{x:Bind ViewModel.MaxStaminaError, Mode=OneWay}"
+                        Visibility="{x:Bind local:GameEditorDialog.TextToVisibility(ViewModel.MaxStaminaError), Mode=OneWay}" />
+
+                    <NumberBox
+                        x:Name="RecoveryMinutesInput"
+                        x:Uid="RecoveryMinutesInput"
+                        AutomationProperties.AutomationId="RecoveryMinutesInput"
+                        Header="スタミナが1回復する時間（分）"
+                        Maximum="525600"
+                        Minimum="1"
+                        SpinButtonPlacementMode="Compact"
+                        ValidationMode="Disabled"
+                        Value="{x:Bind ViewModel.RecoveryMinutes, Mode=TwoWay}" />
+                    <TextBlock
+                        Margin="0,-12,0,0"
+                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                        Text="{x:Bind ViewModel.RecoveryMinutesError, Mode=OneWay}"
+                        Visibility="{x:Bind local:GameEditorDialog.TextToVisibility(ViewModel.RecoveryMinutesError), Mode=OneWay}" />
+
+                    <StackPanel Spacing="{StaticResource Spacing8}">
+                        <TextBlock
+                            Style="{StaticResource AppBodyTextStyle}"
+                            Text="ゲーム画像（任意）" />
+                        <Button
+                            x:Name="ChooseGameImageButton"
+                            x:Uid="ChooseGameImageButton"
+                            AutomationProperties.AutomationId="ChooseGameImageButton"
+                            Click="ChooseGameImageButton_Click">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon
+                                    AutomationProperties.AccessibilityView="Raw"
+                                    Glyph="&#xE8B9;" />
+                                <TextBlock Text="画像を選択" />
+                            </StackPanel>
+                        </Button>
+                        <TextBlock
+                            x:Name="SelectedImageText"
+                            Style="{StaticResource AppSecondaryTextStyle}"
+                            Text="PNGまたはJPEG、5MB以下、4096×4096以下" />
+                    </StackPanel>
+
+                    <InfoBar
+                        x:Uid="GameEditorElapsedInfoBar"
+                        IsClosable="False"
+                        IsOpen="{x:Bind ViewModel.HasElapsedWarning, Mode=OneWay}"
+                        Message="{x:Bind ViewModel.ElapsedWarning, Mode=OneWay}"
+                        Severity="Warning" />
+                    <InfoBar
+                        x:Uid="GameEditorErrorInfoBar"
+                        IsClosable="False"
+                        IsOpen="{x:Bind local:GameEditorDialog.HasText(ViewModel.GeneralError), Mode=OneWay}"
+                        Message="{x:Bind ViewModel.GeneralError, Mode=OneWay}"
+                        Severity="Error" />
+
+                    <Grid ColumnSpacing="{StaticResource Spacing8}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Button
+                            x:Name="GameEditorDeleteButton"
+                            x:Uid="GameEditorDeleteButton"
+                            AutomationProperties.AutomationId="GameEditorDeleteButton"
+                            Command="{x:Bind ViewModel.RequestDeleteCommand, Mode=OneWay}"
+                            Visibility="{x:Bind local:GameEditorDialog.BoolToVisibility(ViewModel.CanDelete), Mode=OneWay}" />
+                        <Button
+                            x:Name="GameEditorSaveButton"
+                            x:Uid="GameEditorSaveButton"
+                            Grid.Column="1"
+                            AutomationProperties.AutomationId="GameEditorSaveButton"
+                            Click="GameEditorSaveButton_Click"
+                            IsEnabled="{x:Bind ViewModel.CanSave, Mode=OneWay}"
+                            Style="{StaticResource AccentButtonStyle}" />
+                    </Grid>
+                </StackPanel>
+
+                <StackPanel
+                    Spacing="{StaticResource Spacing16}"
+                    Visibility="{x:Bind local:GameEditorDialog.BoolToVisibility(ViewModel.State, viewModels:GameEditorState.DeleteConfirmation), Mode=OneWay}">
+                    <FontIcon
+                        HorizontalAlignment="Left"
+                        AutomationProperties.AccessibilityView="Raw"
+                        FontSize="32"
+                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                        Glyph="&#xE74D;" />
+                    <TextBlock
+                        Style="{StaticResource AppCardTitleTextStyle}"
+                        Text="このゲームを削除しますか？" />
+                    <TextBlock
+                        Style="{StaticResource AppBodyTextStyle}"
+                        Text="{x:Bind ViewModel.Name, Mode=OneWay}" />
+                    <TextBlock
+                        Style="{StaticResource AppSecondaryTextStyle}"
+                        Text="この操作は元に戻せません。戻ると、編集中の入力内容を保持したまま編集画面へ戻ります。" />
+                    <InfoBar
+                        IsClosable="False"
+                        IsOpen="{x:Bind local:GameEditorDialog.HasText(ViewModel.GeneralError), Mode=OneWay}"
+                        Message="{x:Bind ViewModel.GeneralError, Mode=OneWay}"
+                        Severity="Error" />
+                    <StackPanel
+                        HorizontalAlignment="Right"
+                        Orientation="Horizontal"
+                        Spacing="{StaticResource Spacing8}">
+                        <Button
+                            x:Name="DeleteConfirmButton"
+                            x:Uid="DeleteConfirmButton"
+                            AutomationProperties.AutomationId="DeleteConfirmButton"
+                            Click="DeleteConfirmButton_Click" />
+                        <Button
+                            x:Name="DeleteBackButton"
+                            x:Uid="DeleteBackButton"
+                            AutomationProperties.AutomationId="DeleteBackButton"
+                            Command="{x:Bind ViewModel.BackToEditingCommand, Mode=OneWay}" />
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </ScrollViewer>
+    </Grid>
+</ContentDialog>

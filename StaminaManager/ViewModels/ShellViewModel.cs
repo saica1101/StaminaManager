@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using StaminaManager.Application;
+using StaminaManager.Core.Models;
 
 namespace StaminaManager.ViewModels;
 

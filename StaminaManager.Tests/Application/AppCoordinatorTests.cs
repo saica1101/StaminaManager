@@ -168,6 +168,118 @@ public sealed class AppCoordinatorTests
         Assert.AreEqual(AppPage.Overview, shell.CurrentPage);
     }
 
+    [TestMethod]
+    public async Task InitializeAsync_RestoresSavedCompactModeAfterDataLoad()
+    {
+        Guid savedGameId = Guid.NewGuid();
+        AppSettings settings = AppSettings.CreateDefault(AppTheme.Light) with
+        {
+            LastDisplayMode = AppDisplayMode.Compact,
+            SelectedCompactGameId = savedGameId,
+        };
+        CoordinatorDataStore store = new(new DataLoadResult(
+            DataLoadStatus.Primary,
+            CreateEnvelope(settings, CreateEntry(savedGameId, "Saved", 0)),
+            "primary",
+            "recovery"));
+        GameManager manager = CreateManager(store);
+        AppCoordinator coordinator = new(
+            store,
+            manager,
+            new RecordingUiDispatcher());
+        AppNavigationRequest? request = null;
+        coordinator.NavigationRequested += (_, value) => request = value;
+
+        await coordinator.InitializeAsync(CancellationToken.None);
+
+        Assert.IsNotNull(request);
+        Assert.AreEqual(AppDisplayMode.Compact, request.DisplayMode);
+        Assert.AreEqual(savedGameId, request.GameId);
+    }
+
+    [TestMethod]
+    public async Task InitializeAsync_MissingCompactSelectionFallsBackToFirstGame()
+    {
+        GameEntry first = CreateEntry(Guid.NewGuid(), "First", 0);
+        AppSettings settings = AppSettings.CreateDefault(AppTheme.Light) with
+        {
+            LastDisplayMode = AppDisplayMode.Compact,
+            SelectedCompactGameId = Guid.NewGuid(),
+        };
+        CoordinatorDataStore store = new(new DataLoadResult(
+            DataLoadStatus.Primary,
+            CreateEnvelope(settings, first),
+            "primary",
+            "recovery"));
+        GameManager manager = CreateManager(store);
+        AppCoordinator coordinator = new(
+            store,
+            manager,
+            new RecordingUiDispatcher());
+        AppNavigationRequest? request = null;
+        coordinator.NavigationRequested += (_, value) => request = value;
+
+        await coordinator.InitializeAsync(CancellationToken.None);
+
+        Assert.AreEqual(AppDisplayMode.Compact, request!.DisplayMode);
+        Assert.AreEqual(first.Id, request.GameId);
+    }
+
+    [TestMethod]
+    public async Task ChangeDisplayModeAsync_PersistsBeforeNavigation()
+    {
+        CoordinatorDataStore store = new(CreateLoadResult("Loaded"));
+        GameManager manager = CreateManager(store);
+        AppCoordinator coordinator = new(
+            store,
+            manager,
+            new RecordingUiDispatcher());
+        await coordinator.InitializeAsync(CancellationToken.None);
+        AppNavigationRequest? request = null;
+        coordinator.NavigationRequested += (_, value) => request = value;
+
+        await coordinator.ChangeDisplayModeAsync(
+            AppDisplayMode.Compact,
+            manager.Games[0].Id,
+            CancellationToken.None);
+
+        Assert.AreEqual(
+            AppDisplayMode.Compact,
+            manager.CurrentData.Settings.LastDisplayMode);
+        Assert.AreEqual(manager.Games[0].Id, request!.GameId);
+    }
+
+    [TestMethod]
+    public async Task SelectCompactGameAsync_PreservesCurrentDisplayMode()
+    {
+        GameEntry first = CreateEntry(Guid.NewGuid(), "First", 0);
+        GameEntry second = CreateEntry(Guid.NewGuid(), "Second", 1);
+        AppSettings settings = AppSettings.CreateDefault(AppTheme.Light);
+        CoordinatorDataStore store = new(new DataLoadResult(
+            DataLoadStatus.Primary,
+            CreateEnvelope(settings, first, second),
+            "primary",
+            "recovery"));
+        GameManager manager = CreateManager(store);
+        AppCoordinator coordinator = new(
+            store,
+            manager,
+            new RecordingUiDispatcher());
+        await coordinator.InitializeAsync(CancellationToken.None);
+        AppNavigationRequest? request = null;
+        coordinator.NavigationRequested += (_, value) => request = value;
+
+        await coordinator.SelectCompactGameAsync(
+            second.Id,
+            CancellationToken.None);
+
+        Assert.AreEqual(
+            AppDisplayMode.Standard,
+            manager.CurrentData.Settings.LastDisplayMode);
+        Assert.AreEqual(AppDisplayMode.Standard, request!.DisplayMode);
+        Assert.AreEqual(second.Id, request.GameId);
+    }
+
     private static GameManager CreateManager(ILocalDataStore store) => new(
         store,
         new FakeClock(NowUtc),
@@ -199,6 +311,26 @@ public sealed class AppCoordinatorTests
             SortOrder: 0)),
         AppSettings.CreateDefault(AppTheme.Light));
 
+    private static DataEnvelope CreateEnvelope(
+        AppSettings settings,
+        params GameEntry[] games) => new(
+        DataEnvelope.CurrentSchemaVersion,
+        games.ToImmutableArray(),
+        settings);
+
+    private static GameEntry CreateEntry(
+        Guid id,
+        string name,
+        int sortOrder) => new(
+        id,
+        name,
+        BaseStamina: 40,
+        MaxStamina: 100,
+        RecoveryMinutes: 5,
+        RecordedAtUtc: NowUtc,
+        ImageAssetId: null,
+        sortOrder);
+
     private sealed class CoordinatorDataStore(DataLoadResult loadResult)
         : ILocalDataStore
     {
@@ -214,6 +346,8 @@ public sealed class AppCoordinatorTests
         public int LoadCount { get; private set; }
 
         public bool ShouldBlockLoad { get; init; }
+
+        public Exception? SaveException { get; set; }
 
         public Task LoadStarted => _loadStarted.Task;
 
@@ -233,7 +367,9 @@ public sealed class AppCoordinatorTests
         public Task SaveAsync(
             DataEnvelope envelope,
             CancellationToken cancellationToken) =>
-            Task.CompletedTask;
+            SaveException is null
+                ? Task.CompletedTask
+                : Task.FromException(SaveException);
 
         public Task<RecoveryPromotionResult> PromoteRecoveryAsync(
             CancellationToken cancellationToken)

@@ -85,7 +85,6 @@
                 Grid.Column="1"
                 AutomationProperties.AutomationId="CompactModeButton"
                 Command="{x:Bind ViewModel.EnterCompactModeCommand, Mode=OneWay}"
-                IsEnabled="False"
                 Style="{StaticResource AppCompactModeButtonStyle}" />
         </Grid>
 

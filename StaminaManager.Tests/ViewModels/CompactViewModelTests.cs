@@ -1,0 +1,173 @@
+using StaminaManager.Application;
+using StaminaManager.Core.Abstractions;
+using StaminaManager.Core.Models;
+using StaminaManager.Core.Persistence;
+using StaminaManager.Core.Validation;
+using StaminaManager.Tests.TestDoubles;
+using StaminaManager.ViewModels;
+using System.Collections.Immutable;
+
+namespace StaminaManager.Tests.ViewModels;
+
+[TestClass]
+public sealed class CompactViewModelTests
+{
+    private static readonly DateTimeOffset NowUtc = new(
+        2026, 7, 25, 12, 0, 0, TimeSpan.Zero);
+
+    [TestMethod]
+    public async Task EmptyGames_ShowsEmptyAddState()
+    {
+        Context context = await CreateAsync();
+        using CompactViewModel viewModel = context.CreateViewModel();
+
+        Assert.IsTrue(viewModel.IsEmpty);
+        Assert.IsFalse(viewModel.HasSelectedGame);
+        Assert.IsNull(viewModel.SelectedGame);
+        Assert.IsTrue(viewModel.AddGameCommand.CanExecute(null));
+    }
+
+    [TestMethod]
+    public async Task DeletedSelectedGame_FallsBackToFirstRegisteredGame()
+    {
+        GameEntry first = CreateEntry("First", 0);
+        GameEntry selected = CreateEntry("Selected", 1);
+        Context context = await CreateAsync(first, selected);
+        using CompactViewModel viewModel = context.CreateViewModel();
+        await viewModel.SelectGameAsync(
+            selected.Id,
+            CancellationToken.None);
+
+        await context.Manager.DeleteAsync(
+            selected.Id,
+            CancellationToken.None);
+
+        Assert.IsNotNull(viewModel.SelectedGame);
+        Assert.AreEqual(first.Id, viewModel.SelectedGame.Id);
+        Assert.AreEqual(
+            first.Id,
+            context.Manager.CurrentData.Settings.SelectedCompactGameId);
+    }
+
+    [TestMethod]
+    public async Task SelectionPersistenceFailure_DoesNotChangeSelection()
+    {
+        GameEntry first = CreateEntry("First", 0);
+        GameEntry second = CreateEntry("Second", 1);
+        Context context = await CreateAsync(first, second);
+        using CompactViewModel viewModel = context.CreateViewModel();
+        context.Store.SaveException = new IOException("failure");
+
+        await Assert.ThrowsExactlyAsync<IOException>(
+            () => viewModel.SelectGameAsync(
+                second.Id,
+                CancellationToken.None));
+
+        Assert.AreEqual(first.Id, viewModel.SelectedGame!.Id);
+        Assert.AreEqual(
+            first.Id,
+            context.Manager.CurrentData.Settings.SelectedCompactGameId);
+    }
+
+    [TestMethod]
+    public async Task EditingSelectedGame_RaisesSelectionChangedForControlResync()
+    {
+        GameEntry game = CreateEntry("Original", 0);
+        Context context = await CreateAsync(game);
+        using CompactViewModel viewModel = context.CreateViewModel();
+        List<string?> changedProperties = [];
+        viewModel.PropertyChanged += (_, args) =>
+            changedProperties.Add(args.PropertyName);
+        GameDraft original = new(
+            game.Name,
+            game.BaseStamina,
+            game.MaxStamina,
+            game.RecoveryMinutes,
+            game.ImageAssetId);
+
+        await context.Manager.EditAsync(
+            game.Id,
+            original,
+            original with { Name = "Renamed" },
+            CancellationToken.None);
+
+        CollectionAssert.Contains(
+            changedProperties,
+            nameof(CompactViewModel.SelectedGame));
+        Assert.AreEqual("Renamed", viewModel.SelectedGame!.Name);
+    }
+
+    private static async Task<Context> CreateAsync(
+        params GameEntry[] games)
+    {
+        AppSettings settings = AppSettings.CreateDefault(AppTheme.Light) with
+        {
+            LastDisplayMode = AppDisplayMode.Standard,
+            SelectedCompactGameId = games.FirstOrDefault()?.Id,
+        };
+        DataEnvelope envelope = new(
+            DataEnvelope.CurrentSchemaVersion,
+            games.ToImmutableArray(),
+            settings);
+        MemoryDataStore store = new(envelope);
+        FakeClock clock = new(NowUtc);
+        GameManager manager = new(store, clock, settings);
+        AppCoordinator coordinator = new(
+            store,
+            manager,
+            new RecordingUiDispatcher());
+        await coordinator.InitializeAsync(CancellationToken.None);
+        return new Context(store, manager, coordinator, clock);
+    }
+
+    private static GameEntry CreateEntry(string name, int sortOrder) => new(
+        Guid.NewGuid(),
+        name,
+        BaseStamina: 40,
+        MaxStamina: 100,
+        RecoveryMinutes: 5,
+        RecordedAtUtc: NowUtc,
+        ImageAssetId: null,
+        sortOrder);
+
+    private sealed record Context(
+        MemoryDataStore Store,
+        GameManager Manager,
+        AppCoordinator Coordinator,
+        FakeClock Clock)
+    {
+        public CompactViewModel CreateViewModel() => new(
+            Manager,
+            Clock,
+            Coordinator,
+            new RecordingUiDispatcher());
+    }
+
+    private sealed class MemoryDataStore(DataEnvelope envelope)
+        : ILocalDataStore
+    {
+        public Exception? SaveException { get; set; }
+
+        public Task<DataLoadResult> LoadAsync(
+            CancellationToken cancellationToken) => Task.FromResult(
+                new DataLoadResult(
+            DataLoadStatus.Primary,
+            envelope,
+            "primary",
+            "recovery"));
+
+        public Task SaveAsync(
+            DataEnvelope value,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return SaveException is null
+                ? Task.CompletedTask
+                : Task.FromException(SaveException);
+        }
+
+        public Task<RecoveryPromotionResult> PromoteRecoveryAsync(
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+}

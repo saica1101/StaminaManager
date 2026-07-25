@@ -9,6 +9,7 @@ using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
 using StaminaManager.Core.Persistence;
 using StaminaManager.Infrastructure.Persistence;
+using StaminaManager.Infrastructure.Storage;
 using StaminaManager.Infrastructure.Windows;
 using StaminaManager.ViewModels;
 using StaminaManager.Views;
@@ -23,6 +24,7 @@ public partial class App : Microsoft.UI.Xaml.Application
     private AppCoordinator? _coordinator;
     private GameManager? _gameManager;
     private OverviewViewModel? _overviewViewModel;
+    private CompactViewModel? _compactViewModel;
     private OverviewPage? _overviewPage;
     private ShellViewModel? _shellViewModel;
     private TimerCoordinator? _timerCoordinator;
@@ -32,6 +34,10 @@ public partial class App : Microsoft.UI.Xaml.Application
     {
         InitializeComponent();
     }
+
+    public nint MainWindowHandle => _window is null
+        ? 0
+        : WinRT.Interop.WindowNative.GetWindowHandle(_window);
 
     protected override async void OnLaunched(
         Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
@@ -227,6 +233,7 @@ public partial class App : Microsoft.UI.Xaml.Application
         IClock clock = new SystemClock();
         IAppDataPathProvider pathProvider = new AppDataPathProvider();
         ILocalDataStore dataStore = new LocalDataStore(pathProvider);
+        AssetStore assetStore = new(pathProvider);
         AppSettings initialSettings = AppSettings.CreateDefault(
             RequestedTheme == ApplicationTheme.Dark
                 ? AppTheme.Dark
@@ -238,26 +245,42 @@ public partial class App : Microsoft.UI.Xaml.Application
             _gameManager,
             clock,
             uiDispatcher);
-        _timerCoordinator = new TimerCoordinator(
-            clock,
-            new SystemTickSource(),
-            uiDispatcher,
-            _overviewViewModel.RefreshOnUiThread);
         _coordinator = new AppCoordinator(
             dataStore,
             _gameManager,
             uiDispatcher);
         _coordinator.NavigationRequested += OnNavigationRequested;
+        _compactViewModel = new CompactViewModel(
+            _gameManager,
+            clock,
+            _coordinator,
+            uiDispatcher);
+        _timerCoordinator = new TimerCoordinator(
+            clock,
+            new SystemTickSource(),
+            uiDispatcher,
+            nowUtc =>
+            {
+                _overviewViewModel.RefreshOnUiThread(nowUtc);
+                _compactViewModel.RefreshOnUiThread(nowUtc);
+            });
 
         _startupStage = "OverviewPage";
         _overviewPage = new OverviewPage(_overviewViewModel);
         _startupStage = "SettingsPage";
         SettingsPage settingsPage = new();
+        _startupStage = "CompactPage";
+        CompactPage compactPage = new(_compactViewModel);
         _startupStage = "MainPage";
         MainPage mainPage = new(
             _shellViewModel,
             _overviewPage,
-            settingsPage);
+            settingsPage,
+            compactPage,
+            _coordinator,
+            _gameManager,
+            clock,
+            assetStore);
         _startupStage = "MainWindow";
         _window = new MainWindow(mainPage);
         _startupStage = "Composed";

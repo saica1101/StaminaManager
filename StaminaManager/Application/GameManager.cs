@@ -208,6 +208,37 @@ public sealed class GameManager
         return deleted;
     }
 
+    public async Task<AppSettings> UpdateSettingsAsync(
+        Func<AppSettings, AppSettings> update,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(update);
+        AppSettings updated;
+        await _mutationGate.WaitAsync(cancellationToken)
+            .ConfigureAwait(false);
+        try
+        {
+            EnsureInitialized();
+            updated = update(_data.Settings)
+                ?? throw new InvalidOperationException(
+                    "設定の更新結果がありません。");
+            if (updated == _data.Settings)
+            {
+                return updated;
+            }
+
+            DataEnvelope candidate = _data with { Settings = updated };
+            await SaveAndPublishAsync(candidate, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            _mutationGate.Release();
+        }
+
+        return updated;
+    }
+
     public async Task<RecoveryPromotionResult> PromoteRecoveryAsync(
         CancellationToken cancellationToken)
     {

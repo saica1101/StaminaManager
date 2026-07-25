@@ -7,8 +7,9 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <NavigationView
-        x:Name="ShellNavigation"
+    <Grid>
+        <NavigationView
+            x:Name="ShellNavigation"
         x:Uid="ShellNavigation"
         Background="Transparent"
         IsBackButtonVisible="Collapsed"
@@ -43,6 +44,14 @@
             <Frame
                 x:Name="ShellContentFrame"
                 IsNavigationStackEnabled="False" />
-        </ContentControl>
-    </NavigationView>
+            </ContentControl>
+        </NavigationView>
+
+        <ContentControl
+            x:Name="CompactContentHost"
+            AutomationProperties.AutomationId="CompactContentHost"
+            HorizontalContentAlignment="Stretch"
+            VerticalContentAlignment="Stretch"
+            Visibility="Collapsed" />
+    </Grid>
 </Page>

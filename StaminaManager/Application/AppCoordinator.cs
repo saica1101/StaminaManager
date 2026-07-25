@@ -1,4 +1,5 @@
 using StaminaManager.Core.Abstractions;
+using StaminaManager.Core.Models;
 using StaminaManager.Core.Persistence;
 
 namespace StaminaManager.Application;
@@ -7,12 +8,6 @@ public enum AppPage
 {
     Overview,
     Settings,
-}
-
-public enum AppDisplayMode
-{
-    Standard,
-    Compact,
 }
 
 public sealed record AppNavigationRequest(
@@ -135,14 +130,82 @@ public sealed class AppCoordinator
                 gameId),
             cancellationToken);
 
-    public Task RestoreModeAsync(
-        CancellationToken cancellationToken = default) =>
-        RaiseNavigationAsync(
-            new AppNavigationRequest(
-                AppPage.Overview,
-                AppDisplayMode.Standard,
-                GameId: null),
-            cancellationToken);
+    public async Task RestoreModeAsync(
+        CancellationToken cancellationToken = default)
+    {
+        AppSettings settings = _gameManager.CurrentData.Settings;
+        Guid? selectedGameId = ResolveCompactGameId(
+            settings.SelectedCompactGameId);
+        if (settings.SelectedCompactGameId != selectedGameId)
+        {
+            settings = await _gameManager.UpdateSettingsAsync(
+                    current => current with
+                    {
+                        SelectedCompactGameId = selectedGameId,
+                    },
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        await RaiseNavigationAsync(
+                new AppNavigationRequest(
+                    AppPage.Overview,
+                    settings.LastDisplayMode,
+                    selectedGameId),
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public async Task ChangeDisplayModeAsync(
+        AppDisplayMode displayMode,
+        Guid? requestedGameId,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureInitialized();
+        Guid? selectedGameId = displayMode == AppDisplayMode.Compact
+            ? ResolveCompactGameId(requestedGameId)
+            : ResolveCompactGameId(
+                _gameManager.CurrentData.Settings.SelectedCompactGameId);
+        AppSettings settings = await _gameManager.UpdateSettingsAsync(
+                current => current with
+                {
+                    LastDisplayMode = displayMode,
+                    SelectedCompactGameId = selectedGameId,
+                },
+                cancellationToken)
+            .ConfigureAwait(false);
+        await RaiseNavigationAsync(
+                new AppNavigationRequest(
+                    AppPage.Overview,
+                    settings.LastDisplayMode,
+                    displayMode == AppDisplayMode.Compact
+                        ? selectedGameId
+                        : requestedGameId),
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public async Task SelectCompactGameAsync(
+        Guid? requestedGameId,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureInitialized();
+        Guid? selectedGameId = ResolveCompactGameId(requestedGameId);
+        AppSettings settings = await _gameManager.UpdateSettingsAsync(
+                current => current with
+                {
+                    SelectedCompactGameId = selectedGameId,
+                },
+                cancellationToken)
+            .ConfigureAwait(false);
+        await RaiseNavigationAsync(
+                new AppNavigationRequest(
+                    AppPage.Overview,
+                    settings.LastDisplayMode,
+                    selectedGameId),
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
 
     public Task ReconcileDerivedStateAsync(
         CancellationToken cancellationToken)
@@ -157,4 +220,26 @@ public sealed class AppCoordinator
         _uiDispatcher.InvokeAsync(
             () => NavigationRequested?.Invoke(this, request),
             cancellationToken);
+
+    private Guid? ResolveCompactGameId(Guid? requestedGameId)
+    {
+        if (requestedGameId is Guid id
+            && _gameManager.Games.Any(game => game.Id == id))
+        {
+            return id;
+        }
+
+        return _gameManager.Games.IsEmpty
+            ? null
+            : _gameManager.Games[0].Id;
+    }
+
+    private void EnsureInitialized()
+    {
+        if (!IsInitialized)
+        {
+            throw new InvalidOperationException(
+                "初期化が完了するまで表示モードを変更できません。");
+        }
+    }
 }

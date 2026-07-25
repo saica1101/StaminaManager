@@ -28,6 +28,8 @@ internal sealed partial class JsonSerializationContext
         options.Converters.Add(new StrictStringEnumConverter<AppTheme>());
         options.Converters.Add(new StrictStringEnumConverter<BackdropKind>());
         options.Converters.Add(new StrictStringEnumConverter<CloseBehavior>());
+        options.Converters.Add(
+            new StrictStringEnumConverter<AppDisplayMode>());
         return options;
     }
 }

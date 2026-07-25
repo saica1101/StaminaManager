@@ -12,7 +12,7 @@
   <data name="ShellNavigation.PaneTitle" xml:space="preserve"><value>スタミナ管理</value></data>
   <data name="NavOverview.Content" xml:space="preserve"><value>Overview</value></data>
   <data name="NavSettings.Content" xml:space="preserve"><value>Settings</value></data>
-  <data name="CompactModeButton.Content" xml:space="preserve"><value>コンパクト表示（準備中）</value></data>
+  <data name="CompactModeButton.Content" xml:space="preserve"><value>コンパクト表示</value></data>
   <data name="ShellContentHost.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>メイン コンテンツ</value></data>
   <data name="OverviewPageTitle.Text" xml:space="preserve"><value>Overview</value></data>
   <data name="OverviewPageDescription.Text" xml:space="preserve"><value>登録したゲームのスタミナ回復状況を、ひと目で確認できます。</value></data>
@@ -38,4 +38,21 @@
   <data name="SettingsPageDescription.Text" xml:space="preserve"><value>アプリの表示、通知、起動方法、データ管理を調整します。</value></data>
   <data name="SettingsPlaceholderTitle.Text" xml:space="preserve"><value>設定項目は準備中です</value></data>
   <data name="SettingsPlaceholderDescription.Text" xml:space="preserve"><value>テーマ、バックドロップ、通知などの設定は後続の実装段階で追加されます。</value></data>
+  <data name="GameNameInput.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>ゲーム名</value></data>
+  <data name="CurrentStaminaInput.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>現在のスタミナ</value></data>
+  <data name="MaxStaminaInput.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>スタミナの最大値</value></data>
+  <data name="RecoveryMinutesInput.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>スタミナが1回復する時間（分）</value></data>
+  <data name="ChooseGameImageButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>ゲーム画像を選択</value></data>
+  <data name="GameEditorElapsedInfoBar.Title" xml:space="preserve"><value>自然回復が進んでいます</value></data>
+  <data name="GameEditorErrorInfoBar.Title" xml:space="preserve"><value>操作を完了できませんでした</value></data>
+  <data name="GameEditorDeleteButton.Content" xml:space="preserve"><value>削除</value></data>
+  <data name="GameEditorSaveButton.Content" xml:space="preserve"><value>保存</value></data>
+  <data name="DeleteConfirmButton.Content" xml:space="preserve"><value>削除</value></data>
+  <data name="DeleteBackButton.Content" xml:space="preserve"><value>戻る</value></data>
+  <data name="CompactGameSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>表示するゲーム</value></data>
+  <data name="ReturnOverviewButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Overviewへ戻る</value></data>
+  <data name="ReturnOverviewButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Overviewへ戻る</value></data>
+  <data name="CompactErrorInfoBar.Title" xml:space="preserve"><value>操作を完了できませんでした</value></data>
+  <data name="CompactUpdateButton.Content" xml:space="preserve"><value>現在値を更新</value></data>
+  <data name="CompactEditButton.Content" xml:space="preserve"><value>ゲームを編集</value></data>
 </root>
