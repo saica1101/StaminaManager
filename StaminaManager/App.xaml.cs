@@ -25,6 +25,7 @@ public partial class App : Microsoft.UI.Xaml.Application
     private GameManager? _gameManager;
     private OverviewViewModel? _overviewViewModel;
     private CompactViewModel? _compactViewModel;
+    private SettingsViewModel? _settingsViewModel;
     private OverviewPage? _overviewPage;
     private ShellViewModel? _shellViewModel;
     private TimerCoordinator? _timerCoordinator;
@@ -59,6 +60,9 @@ public partial class App : Microsoft.UI.Xaml.Application
             _window!.Activate();
             DataLoadResult loadResult = await _coordinator!.InitializeAsync(
                 CancellationToken.None);
+            _settingsViewModel!.SynchronizeFromCurrentSettings(
+                _coordinator.LastThemeResult,
+                _coordinator.LastBackdropResult);
             if (loadResult.Status == DataLoadStatus.Corrupt
                 || !_gameManager!.IsInitialized)
             {
@@ -234,10 +238,16 @@ public partial class App : Microsoft.UI.Xaml.Application
         IAppDataPathProvider pathProvider = new AppDataPathProvider();
         ILocalDataStore dataStore = new LocalDataStore(pathProvider);
         AssetStore assetStore = new(pathProvider);
+        IThemeService themeService = new ThemeService(
+            new FrameworkElementThemeTarget(
+                () => _window?.Content as FrameworkElement),
+            () => RequestedTheme);
+        IBackdropService backdropService = new BackdropService(
+            new MainWindowBackdropTarget(() => _window),
+            new WindowsBackdropEnvironment(
+                () => _window?.AppWindow.Id));
         AppSettings initialSettings = AppSettings.CreateDefault(
-            RequestedTheme == ApplicationTheme.Dark
-                ? AppTheme.Dark
-                : AppTheme.Light);
+            themeService.ResolveInitialTheme());
 
         _gameManager = new GameManager(dataStore, clock, initialSettings);
         _shellViewModel = new ShellViewModel();
@@ -248,7 +258,9 @@ public partial class App : Microsoft.UI.Xaml.Application
         _coordinator = new AppCoordinator(
             dataStore,
             _gameManager,
-            uiDispatcher);
+            uiDispatcher,
+            themeService,
+            backdropService);
         _coordinator.NavigationRequested += OnNavigationRequested;
         _compactViewModel = new CompactViewModel(
             _gameManager,
@@ -264,11 +276,15 @@ public partial class App : Microsoft.UI.Xaml.Application
                 _overviewViewModel.RefreshOnUiThread(nowUtc);
                 _compactViewModel.RefreshOnUiThread(nowUtc);
             });
+        _settingsViewModel = new SettingsViewModel(
+            _gameManager,
+            themeService,
+            backdropService);
 
         _startupStage = "OverviewPage";
         _overviewPage = new OverviewPage(_overviewViewModel);
         _startupStage = "SettingsPage";
-        SettingsPage settingsPage = new();
+        SettingsPage settingsPage = new(_settingsViewModel);
         _startupStage = "CompactPage";
         CompactPage compactPage = new(_compactViewModel);
         _startupStage = "MainPage";

@@ -280,6 +280,55 @@ public sealed class AppCoordinatorTests
         Assert.AreEqual(second.Id, request.GameId);
     }
 
+    [TestMethod]
+    public async Task InitializeAsync_BackdropFallbackKeepsSavedPreference()
+    {
+        AppSettings settings = AppSettings.CreateDefault(AppTheme.Dark) with
+        {
+            Backdrop = BackdropKind.Transparent,
+        };
+        CoordinatorDataStore store = new(new DataLoadResult(
+            DataLoadStatus.Primary,
+            CreateEnvelope(settings),
+            "primary",
+            "recovery"));
+        GameManager manager = CreateManager(store);
+        RecordingUiDispatcher dispatcher = new();
+        RecordingThemeService themeService = new(
+            () => dispatcher.IsExecuting);
+        RecordingBackdropService backdropService = new()
+        {
+            NextResult = new BackdropResult(
+                BackdropKind.Transparent,
+                BackdropKind.Solid,
+                BackdropFallbackReason.TransparencyDisabled,
+                "透明効果が無効です。"),
+        };
+        AppCoordinator coordinator = new(
+            store,
+            manager,
+            dispatcher,
+            themeService,
+            backdropService);
+
+        await coordinator.InitializeAsync(CancellationToken.None);
+
+        CollectionAssert.AreEqual(
+            new[] { AppTheme.Dark },
+            themeService.Requests);
+        CollectionAssert.AreEqual(
+            new[] { BackdropKind.Transparent },
+            backdropService.Requests);
+        Assert.AreEqual(
+            BackdropKind.Transparent,
+            manager.CurrentData.Settings.Backdrop);
+        Assert.AreEqual(
+            BackdropKind.Solid,
+            coordinator.LastBackdropResult!.ActualBackdrop);
+        Assert.AreEqual(0, store.SaveCount);
+        Assert.IsTrue(themeService.WasAppliedOnUiDispatcher);
+    }
+
     private static GameManager CreateManager(ILocalDataStore store) => new(
         store,
         new FakeClock(NowUtc),
@@ -345,6 +394,8 @@ public sealed class AppCoordinatorTests
 
         public int LoadCount { get; private set; }
 
+        public int SaveCount { get; private set; }
+
         public bool ShouldBlockLoad { get; init; }
 
         public Exception? SaveException { get; set; }
@@ -366,10 +417,13 @@ public sealed class AppCoordinatorTests
 
         public Task SaveAsync(
             DataEnvelope envelope,
-            CancellationToken cancellationToken) =>
-            SaveException is null
+            CancellationToken cancellationToken)
+        {
+            SaveCount++;
+            return SaveException is null
                 ? Task.CompletedTask
                 : Task.FromException(SaveException);
+        }
 
         public Task<RecoveryPromotionResult> PromoteRecoveryAsync(
             CancellationToken cancellationToken)
@@ -380,5 +434,43 @@ public sealed class AppCoordinatorTests
         }
 
         public void ReleaseLoad() => _continueLoad.TrySetResult();
+    }
+
+    private sealed class RecordingThemeService(
+        Func<bool> isOnUiDispatcher) : IThemeService
+    {
+        public List<AppTheme> Requests { get; } = [];
+
+        public bool WasAppliedOnUiDispatcher { get; private set; }
+
+        public AppTheme ResolveInitialTheme() => AppTheme.Light;
+
+        public ThemeResult Apply(AppTheme requestedTheme)
+        {
+            WasAppliedOnUiDispatcher = isOnUiDispatcher();
+            Requests.Add(requestedTheme);
+            return new ThemeResult(
+                requestedTheme,
+                requestedTheme,
+                IsApplied: true,
+                ErrorMessage: null);
+        }
+    }
+
+    private sealed class RecordingBackdropService : IBackdropService
+    {
+        public List<BackdropKind> Requests { get; } = [];
+
+        public BackdropResult? NextResult { get; init; }
+
+        public BackdropResult Apply(BackdropKind requestedBackdrop)
+        {
+            Requests.Add(requestedBackdrop);
+            return NextResult ?? new BackdropResult(
+                requestedBackdrop,
+                requestedBackdrop,
+                BackdropFallbackReason.None,
+                ErrorMessage: null);
+        }
     }
 }

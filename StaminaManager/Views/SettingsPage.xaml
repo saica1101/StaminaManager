@@ -8,43 +8,200 @@
     Background="Transparent"
     mc:Ignorable="d">
 
-    <Grid Padding="{StaticResource PagePadding}">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-
-        <StackPanel Spacing="{StaticResource Spacing8}">
-            <TextBlock
-                x:Uid="SettingsPageTitle"
-                Style="{StaticResource AppPageTitleTextStyle}" />
-            <TextBlock
-                x:Uid="SettingsPageDescription"
-                MaxWidth="720"
-                HorizontalAlignment="Left"
-                Style="{StaticResource AppBodyTextStyle}" />
-        </StackPanel>
-
-        <Border
-            Grid.Row="1"
-            Margin="0,24,0,0"
-            Padding="{StaticResource SurfacePadding}"
-            Background="{ThemeResource CardSurfaceBrush}"
-            BorderBrush="{ThemeResource CardStrokeBrush}"
-            BorderThickness="1"
-            CornerRadius="{StaticResource CardCornerRadius}">
-            <StackPanel
-                HorizontalAlignment="Left"
-                VerticalAlignment="Top"
-                Spacing="{StaticResource Spacing8}">
+    <ScrollViewer
+        HorizontalScrollBarVisibility="Disabled"
+        HorizontalScrollMode="Disabled"
+        VerticalScrollBarVisibility="Auto"
+        VerticalScrollMode="Auto">
+        <StackPanel
+            MaxWidth="840"
+            Padding="20,20,20,32"
+            HorizontalAlignment="Stretch"
+            Spacing="{StaticResource Spacing32}">
+            <StackPanel Spacing="{StaticResource Spacing8}">
                 <TextBlock
-                    x:Uid="SettingsPlaceholderTitle"
-                    Style="{StaticResource AppCardTitleTextStyle}" />
+                    x:Uid="SettingsPageTitle"
+                    Style="{StaticResource AppPageTitleTextStyle}" />
                 <TextBlock
-                    x:Uid="SettingsPlaceholderDescription"
-                    MaxWidth="640"
+                    x:Uid="SettingsPageDescription"
+                    MaxWidth="720"
+                    HorizontalAlignment="Left"
                     Style="{StaticResource AppBodyTextStyle}" />
             </StackPanel>
-        </Border>
-    </Grid>
+
+            <InfoBar
+                x:Name="SettingsInfoBar"
+                AutomationProperties.AutomationId="SettingsInfoBar"
+                IsClosable="True"
+                Closed="SettingsInfoBar_Closed"
+                IsOpen="{x:Bind ViewModel.IsInfoBarOpen, Mode=OneWay}"
+                Message="{x:Bind ViewModel.InfoBarMessage, Mode=OneWay}"
+                Severity="{x:Bind ViewModel.InfoBarSeverity, Mode=OneWay}"
+                Title="{x:Bind ViewModel.InfoBarTitle, Mode=OneWay}" />
+
+            <StackPanel Spacing="{StaticResource Spacing12}">
+                <TextBlock
+                    x:Uid="SettingsAppearanceHeading"
+                    Style="{StaticResource AppCardTitleTextStyle}" />
+                <Border
+                    Padding="{StaticResource SurfacePadding}"
+                    Background="{ThemeResource CardSurfaceBrush}"
+                    BorderBrush="{ThemeResource CardStrokeBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource CardCornerRadius}">
+                    <StackPanel Spacing="{StaticResource Spacing24}">
+                        <ToggleSwitch
+                            x:Name="ThemeToggle"
+                            x:Uid="ThemeToggle"
+                            AutomationProperties.AutomationId="ThemeToggle"
+                            HorizontalAlignment="Left"
+                            IsOn="{x:Bind ViewModel.IsDarkTheme, Mode=OneWay}" />
+
+                        <Rectangle
+                            Height="1"
+                            Fill="{ThemeResource CardStrokeBrush}" />
+
+                        <ComboBox
+                            x:Name="BackdropSelector"
+                            x:Uid="BackdropSelector"
+                            AutomationProperties.AutomationId="BackdropSelector"
+                            MinWidth="220"
+                            HorizontalAlignment="Left"
+                            SelectedIndex="{x:Bind ViewModel.SelectedBackdropIndex, Mode=OneWay}">
+                            <ComboBoxItem x:Uid="BackdropMicaItem" />
+                            <ComboBoxItem x:Uid="BackdropAcrylicItem" />
+                            <ComboBoxItem x:Uid="BackdropBlurItem" />
+                            <ComboBoxItem x:Uid="BackdropTransparentItem" />
+                            <ComboBoxItem x:Uid="BackdropSolidItem" />
+                        </ComboBox>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <StackPanel Spacing="{StaticResource Spacing12}">
+                <TextBlock
+                    x:Uid="SettingsGeneralHeading"
+                    Style="{StaticResource AppCardTitleTextStyle}" />
+                <Border
+                    Padding="{StaticResource SurfacePadding}"
+                    Background="{ThemeResource CardSurfaceBrush}"
+                    BorderBrush="{ThemeResource CardStrokeBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource CardCornerRadius}">
+                    <StackPanel Spacing="{StaticResource Spacing24}">
+                        <ComboBox
+                            x:Name="CloseBehaviorSelector"
+                            x:Uid="CloseBehaviorSelector"
+                            AutomationProperties.AutomationId="CloseBehaviorSelector"
+                            MinWidth="220"
+                            HorizontalAlignment="Left"
+                            SelectedIndex="{x:Bind ViewModel.CloseBehaviorIndex, Mode=OneWay}">
+                            <ComboBoxItem x:Uid="CloseBehaviorTrayItem" />
+                            <ComboBoxItem x:Uid="CloseBehaviorExitItem" />
+                        </ComboBox>
+
+                        <Rectangle
+                            Height="1"
+                            Fill="{ThemeResource CardStrokeBrush}" />
+
+                        <ToggleSwitch
+                            x:Name="StartupToggle"
+                            x:Uid="StartupToggle"
+                            AutomationProperties.AutomationId="StartupToggle"
+                            HorizontalAlignment="Left"
+                            IsOn="{x:Bind ViewModel.IsStartupEnabled, Mode=OneWay}" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <StackPanel Spacing="{StaticResource Spacing12}">
+                <TextBlock
+                    x:Uid="SettingsNotificationsHeading"
+                    Style="{StaticResource AppCardTitleTextStyle}" />
+                <Border
+                    Padding="{StaticResource SurfacePadding}"
+                    Background="{ThemeResource CardSurfaceBrush}"
+                    BorderBrush="{ThemeResource CardStrokeBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource CardCornerRadius}">
+                    <StackPanel Spacing="{StaticResource Spacing24}">
+                        <ToggleSwitch
+                            x:Name="NotificationsToggle"
+                            x:Uid="NotificationsToggle"
+                            AutomationProperties.AutomationId="NotificationsToggle"
+                            HorizontalAlignment="Left"
+                            IsOn="{x:Bind ViewModel.AreNotificationsEnabled, Mode=OneWay}" />
+
+                        <Rectangle
+                            Height="1"
+                            Fill="{ThemeResource CardStrokeBrush}" />
+
+                        <NumberBox
+                            x:Name="NotificationLeadInput"
+                            x:Uid="NotificationLeadInput"
+                            AutomationProperties.AutomationId="NotificationLeadInput"
+                            MinWidth="220"
+                            HorizontalAlignment="Left"
+                            AcceptsExpression="False"
+                            LargeChange="60"
+                            Maximum="525600"
+                            Minimum="0"
+                            SmallChange="1"
+                            SpinButtonPlacementMode="Compact"
+                            ValidationMode="Disabled"
+                            Value="{x:Bind ViewModel.NotificationLeadMinutes, Mode=OneWay}" />
+
+                        <Rectangle
+                            Height="1"
+                            Fill="{ThemeResource CardStrokeBrush}" />
+
+                        <StackPanel Spacing="{StaticResource Spacing12}">
+                            <TextBlock
+                                Text="{x:Bind ViewModel.NotificationAvailabilityText, Mode=OneWay}"
+                                Style="{StaticResource AppBodyTextStyle}" />
+                            <Button
+                                x:Name="OpenWindowsNotificationSettingsButton"
+                                x:Uid="OpenWindowsNotificationSettingsButton"
+                                AutomationProperties.AutomationId="OpenWindowsNotificationSettingsButton"
+                                HorizontalAlignment="Left"
+                                Click="OpenWindowsNotificationSettingsButton_Click"
+                                Visibility="{x:Bind ViewModel.OpenWindowsNotificationSettingsVisibility, Mode=OneWay}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <StackPanel Spacing="{StaticResource Spacing12}">
+                <TextBlock
+                    x:Uid="SettingsDataHeading"
+                    Style="{StaticResource AppCardTitleTextStyle}" />
+                <Border
+                    Padding="{StaticResource SurfacePadding}"
+                    Background="{ThemeResource CardSurfaceBrush}"
+                    BorderBrush="{ThemeResource CardStrokeBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource CardCornerRadius}">
+                    <StackPanel Spacing="{StaticResource Spacing16}">
+                        <TextBlock
+                            x:Uid="SettingsDataDescription"
+                            Style="{StaticResource AppBodyTextStyle}" />
+                        <StackPanel Spacing="{StaticResource Spacing12}">
+                            <Button
+                                x:Name="ExportBackupButton"
+                                x:Uid="ExportBackupButton"
+                                AutomationProperties.AutomationId="ExportBackupButton"
+                                HorizontalAlignment="Left"
+                                Click="ExportBackupButton_Click" />
+                            <Button
+                                x:Name="ImportBackupButton"
+                                x:Uid="ImportBackupButton"
+                                AutomationProperties.AutomationId="ImportBackupButton"
+                                HorizontalAlignment="Left"
+                                Click="ImportBackupButton_Click" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
 </Page>

@@ -1,6 +1,7 @@
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.Windows.ApplicationModel.Resources;
 using StaminaManager.Core.Calculations;
 using StaminaManager.Core.Models;
@@ -59,6 +60,16 @@ public sealed partial class MainWindow : Window
             StandardMinimumHeightEpx);
         AppWindow.Changed += OnAppWindowChanged;
         mainPage.DisplayModeChanged += SetDisplayMode;
+    }
+
+    internal void SetBackdrop(
+        SystemBackdrop? systemBackdrop,
+        bool isSolidSurface)
+    {
+        SystemBackdrop = systemBackdrop;
+        SolidBackdropSurface.Visibility = isSolidSurface
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     private static string ResolveAppTitle()

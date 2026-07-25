@@ -10,6 +10,10 @@ public sealed record AppSettings(
     AppDisplayMode LastDisplayMode = AppDisplayMode.Standard,
     Guid? SelectedCompactGameId = null)
 {
+    public const int MinNotificationLeadMinutes = 0;
+
+    public const int MaxNotificationLeadMinutes = 525_600;
+
     public static AppSettings CreateDefault(AppTheme initialTheme) => new(
         initialTheme,
         BackdropKind.Mica,

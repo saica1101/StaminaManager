@@ -20,24 +20,49 @@ public sealed class AppCoordinator
     private readonly ILocalDataStore _dataStore;
     private readonly GameManager _gameManager;
     private readonly IUiDispatcher _uiDispatcher;
+    private readonly IThemeService _themeService;
+    private readonly IBackdropService _backdropService;
     private readonly SemaphoreSlim _initializationGate = new(1, 1);
 
     public AppCoordinator(
         ILocalDataStore dataStore,
         GameManager gameManager,
         IUiDispatcher uiDispatcher)
+        : this(
+            dataStore,
+            gameManager,
+            uiDispatcher,
+            new PassThroughThemeService(),
+            new PassThroughBackdropService())
+    {
+    }
+
+    public AppCoordinator(
+        ILocalDataStore dataStore,
+        GameManager gameManager,
+        IUiDispatcher uiDispatcher,
+        IThemeService themeService,
+        IBackdropService backdropService)
     {
         ArgumentNullException.ThrowIfNull(dataStore);
         ArgumentNullException.ThrowIfNull(gameManager);
         ArgumentNullException.ThrowIfNull(uiDispatcher);
+        ArgumentNullException.ThrowIfNull(themeService);
+        ArgumentNullException.ThrowIfNull(backdropService);
         _dataStore = dataStore;
         _gameManager = gameManager;
         _uiDispatcher = uiDispatcher;
+        _themeService = themeService;
+        _backdropService = backdropService;
     }
 
     public event EventHandler<AppNavigationRequest>? NavigationRequested;
 
     public DataLoadResult? LastLoadResult { get; private set; }
+
+    public ThemeResult? LastThemeResult { get; private set; }
+
+    public BackdropResult? LastBackdropResult { get; private set; }
 
     public bool IsInitialized { get; private set; }
 
@@ -211,7 +236,15 @@ public sealed class AppCoordinator
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.CompletedTask;
+        return _uiDispatcher.InvokeAsync(
+            () =>
+            {
+                AppSettings settings = _gameManager.CurrentData.Settings;
+                LastThemeResult = _themeService.Apply(settings.Theme);
+                LastBackdropResult = _backdropService.Apply(
+                    settings.Backdrop);
+            },
+            cancellationToken);
     }
 
     private Task RaiseNavigationAsync(
@@ -241,5 +274,25 @@ public sealed class AppCoordinator
             throw new InvalidOperationException(
                 "初期化が完了するまで表示モードを変更できません。");
         }
+    }
+
+    private sealed class PassThroughThemeService : IThemeService
+    {
+        public AppTheme ResolveInitialTheme() => AppTheme.Light;
+
+        public ThemeResult Apply(AppTheme requestedTheme) => new(
+            requestedTheme,
+            requestedTheme,
+            IsApplied: true,
+            ErrorMessage: null);
+    }
+
+    private sealed class PassThroughBackdropService : IBackdropService
+    {
+        public BackdropResult Apply(BackdropKind requestedBackdrop) => new(
+            requestedBackdrop,
+            requestedBackdrop,
+            BackdropFallbackReason.None,
+            ErrorMessage: null);
     }
 }

@@ -36,8 +36,43 @@
   <data name="GameCardAutomationNameFormat" xml:space="preserve"><value>{0}、スタミナ {1} / {2}、{3}、{4}</value></data>
   <data name="SettingsPageTitle.Text" xml:space="preserve"><value>Settings</value></data>
   <data name="SettingsPageDescription.Text" xml:space="preserve"><value>アプリの表示、通知、起動方法、データ管理を調整します。</value></data>
-  <data name="SettingsPlaceholderTitle.Text" xml:space="preserve"><value>設定項目は準備中です</value></data>
-  <data name="SettingsPlaceholderDescription.Text" xml:space="preserve"><value>テーマ、バックドロップ、通知などの設定は後続の実装段階で追加されます。</value></data>
+  <data name="SettingsAppearanceHeading.Text" xml:space="preserve"><value>Appearance</value></data>
+  <data name="ThemeToggle.Header" xml:space="preserve"><value>テーマ</value></data>
+  <data name="ThemeToggle.OffContent" xml:space="preserve"><value>Light</value></data>
+  <data name="ThemeToggle.OnContent" xml:space="preserve"><value>Dark</value></data>
+  <data name="ThemeToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>LightとDarkテーマを切り替える</value></data>
+  <data name="BackdropSelector.Header" xml:space="preserve"><value>ウィンドウの背景</value></data>
+  <data name="BackdropSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>ウィンドウの背景を選択</value></data>
+  <data name="BackdropMicaItem.Content" xml:space="preserve"><value>Mica</value></data>
+  <data name="BackdropAcrylicItem.Content" xml:space="preserve"><value>Acrylic</value></data>
+  <data name="BackdropBlurItem.Content" xml:space="preserve"><value>Blur</value></data>
+  <data name="BackdropTransparentItem.Content" xml:space="preserve"><value>Transparent</value></data>
+  <data name="BackdropSolidItem.Content" xml:space="preserve"><value>Solid</value></data>
+  <data name="SettingsGeneralHeading.Text" xml:space="preserve"><value>General</value></data>
+  <data name="CloseBehaviorSelector.Header" xml:space="preserve"><value>閉じるボタンの動作</value></data>
+  <data name="CloseBehaviorSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>閉じるボタンの動作を選択</value></data>
+  <data name="CloseBehaviorTrayItem.Content" xml:space="preserve"><value>タスクトレイへ格納</value></data>
+  <data name="CloseBehaviorExitItem.Content" xml:space="preserve"><value>アプリを終了</value></data>
+  <data name="StartupToggle.Header" xml:space="preserve"><value>Windowsログイン時に起動</value></data>
+  <data name="StartupToggle.OffContent" xml:space="preserve"><value>オフ</value></data>
+  <data name="StartupToggle.OnContent" xml:space="preserve"><value>オン</value></data>
+  <data name="StartupToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Windowsログイン時の起動を切り替える</value></data>
+  <data name="SettingsNotificationsHeading.Text" xml:space="preserve"><value>Notifications</value></data>
+  <data name="NotificationsToggle.Header" xml:space="preserve"><value>全回復前の通知</value></data>
+  <data name="NotificationsToggle.OffContent" xml:space="preserve"><value>オフ</value></data>
+  <data name="NotificationsToggle.OnContent" xml:space="preserve"><value>オン</value></data>
+  <data name="NotificationsToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>全回復前の通知を切り替える</value></data>
+  <data name="NotificationLeadInput.Header" xml:space="preserve"><value>全回復の何分前に通知するか</value></data>
+  <data name="NotificationLeadInput.Description" xml:space="preserve"><value>0は全回復時刻です。0～525,600の整数を入力してください。</value></data>
+  <data name="NotificationLeadInput.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>全回復前の通知時間（分）</value></data>
+  <data name="OpenWindowsNotificationSettingsButton.Content" xml:space="preserve"><value>Windowsの通知設定を開く</value></data>
+  <data name="OpenWindowsNotificationSettingsButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Windowsの通知設定を開く</value></data>
+  <data name="SettingsDataHeading.Text" xml:space="preserve"><value>Data</value></data>
+  <data name="SettingsDataDescription.Text" xml:space="preserve"><value>ゲームと設定のバックアップ機能です。現在は準備中のため、ボタンを押してもデータは変更されません。</value></data>
+  <data name="ExportBackupButton.Content" xml:space="preserve"><value>バックアップを書き出す</value></data>
+  <data name="ExportBackupButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>バックアップを書き出す</value></data>
+  <data name="ImportBackupButton.Content" xml:space="preserve"><value>バックアップから置き換える</value></data>
+  <data name="ImportBackupButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>バックアップから現在のデータを置き換える</value></data>
   <data name="GameNameInput.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>ゲーム名</value></data>
   <data name="CurrentStaminaInput.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>現在のスタミナ</value></data>
   <data name="MaxStaminaInput.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>スタミナの最大値</value></data>
