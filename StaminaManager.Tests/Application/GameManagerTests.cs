@@ -43,6 +43,71 @@ public sealed class GameManagerTests
     }
 
     [TestMethod]
+    public async Task AddAsync_FirstGameSavesSelectionWithGameOnce()
+    {
+        RecordingDataStore store = new();
+        GameManager manager = await CreateManagerAsync(store);
+
+        GameEntry added = await manager.AddAsync(
+            CreateDraft("First"),
+            CancellationToken.None);
+
+        Assert.AreEqual(1, store.SaveCount);
+        Assert.AreEqual(added.Id, store.LastSaved!.Games.Single().Id);
+        Assert.AreEqual(
+            added.Id,
+            store.LastSaved.Settings.SelectedCompactGameId);
+        Assert.AreEqual(store.LastSaved, manager.CurrentData);
+    }
+
+    [TestMethod]
+    public async Task AddAsync_FirstGameSaveFailurePublishesNeitherChange()
+    {
+        RecordingDataStore store = new()
+        {
+            SaveException = new IOException("simulated failure"),
+        };
+        GameManager manager = await CreateManagerAsync(store);
+        DataEnvelope publishedBeforeAdd = manager.CurrentData;
+
+        await Assert.ThrowsExactlyAsync<IOException>(
+            () => manager.AddAsync(
+                CreateDraft("First"),
+                CancellationToken.None));
+
+        Assert.AreEqual(1, store.SaveCount);
+        Guid attemptedGameId = store.LastAttempted!.Games.Single().Id;
+        Assert.AreEqual(
+            attemptedGameId,
+            store.LastAttempted.Settings.SelectedCompactGameId);
+        Assert.AreEqual(publishedBeforeAdd, manager.CurrentData);
+    }
+
+    [TestMethod]
+    public async Task AddAsync_MissingSelectionUsesFirstRegisteredGame()
+    {
+        RecordingDataStore store = new();
+        GameEntry first = CreateEntry(Guid.NewGuid(), "First", 0);
+        AppSettings settings = AppSettings.CreateDefault(AppTheme.Light) with
+        {
+            SelectedCompactGameId = null,
+        };
+        GameManager manager = await CreateManagerAsync(
+            store,
+            settings,
+            first);
+
+        GameEntry added = await manager.AddAsync(
+            CreateDraft("Added"),
+            CancellationToken.None);
+
+        Assert.AreNotEqual(first.Id, added.Id);
+        Assert.AreEqual(
+            first.Id,
+            store.LastSaved!.Settings.SelectedCompactGameId);
+    }
+
+    [TestMethod]
     public async Task EditAsync_DelegatesMetadataRulesToGameEditPolicy()
     {
         RecordingDataStore store = new();

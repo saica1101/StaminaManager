@@ -100,9 +100,19 @@ public sealed class GameManager
                 recordedAtUtc,
                 draft.ImageAssetId,
                 _data.Games.Length);
+            AppSettings settings =
+                _data.Settings.SelectedCompactGameId is null
+                    ? _data.Settings with
+                    {
+                        SelectedCompactGameId = _data.Games.IsEmpty
+                            ? entry.Id
+                            : _data.Games[0].Id,
+                    }
+                    : _data.Settings;
             DataEnvelope candidate = _data with
             {
                 Games = _data.Games.Add(entry),
+                Settings = settings,
             };
 
             await SaveAndPublishAsync(candidate, cancellationToken)

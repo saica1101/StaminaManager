@@ -28,6 +28,28 @@ public sealed class CompactViewModelTests
     }
 
     [TestMethod]
+    public async Task FirstAddedGame_SynchronizesPersistedSelectionOnce()
+    {
+        Context context = await CreateAsync();
+        using CompactViewModel viewModel = context.CreateViewModel();
+
+        GameEntry added = await context.Manager.AddAsync(
+            new GameDraft(
+                "First",
+                CurrentStamina: 40,
+                MaxStamina: 100,
+                RecoveryMinutes: 5,
+                ImageAssetId: null),
+            CancellationToken.None);
+
+        Assert.AreEqual(1, context.Store.SaveCount);
+        Assert.AreEqual(added.Id, viewModel.SelectedGame!.Id);
+        Assert.AreEqual(
+            added.Id,
+            context.Manager.CurrentData.Settings.SelectedCompactGameId);
+    }
+
+    [TestMethod]
     public async Task DeletedSelectedGame_FallsBackToFirstRegisteredGame()
     {
         GameEntry first = CreateEntry("First", 0);
