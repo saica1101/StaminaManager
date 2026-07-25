@@ -15,7 +15,7 @@
         IsPaneOpen="True"
         IsSettingsVisible="False"
         OpenPaneLength="220"
-        PaneDisplayMode="Left"
+        PaneDisplayMode="Auto"
         SelectionChanged="ShellNavigation_SelectionChanged">
         <NavigationView.MenuItems>
             <NavigationViewItem

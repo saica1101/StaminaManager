@@ -1,5 +1,6 @@
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
+using Microsoft.Windows.ApplicationModel.Resources;
 using System.Runtime.InteropServices;
 using Windows.Graphics;
 
@@ -18,12 +19,17 @@ public sealed partial class MainWindow : Window
     private const int InitialWidthEpx = 1120;
     private const int InitialHeightEpx = 760;
     private const double DefaultDpi = 96d;
+    private const string AppTitleResourceId = "AppTitle";
+    private const string FallbackAppTitle = "Stamina Manager";
 
     public MainWindow(MainPage mainPage)
     {
         ArgumentNullException.ThrowIfNull(mainPage);
         InitializeComponent();
 
+        string appTitle = ResolveAppTitle();
+        Title = appTitle;
+        AppTitleBar.Title = appTitle;
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
 
@@ -31,6 +37,28 @@ public sealed partial class MainWindow : Window
 
         RootFrame.Content = mainPage;
         ResizeForCurrentDpi();
+    }
+
+    private static string ResolveAppTitle()
+    {
+        try
+        {
+            string title = new ResourceLoader().GetString(
+                AppTitleResourceId);
+            return string.IsNullOrWhiteSpace(title)
+                ? FallbackAppTitle
+                : title;
+        }
+        catch (Exception exception) when (
+            exception is COMException
+                or ArgumentException
+                or InvalidOperationException)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                "タイトル リソースの解決に失敗しました: "
+                + exception.GetType().Name);
+            return FallbackAppTitle;
+        }
     }
 
     private void ResizeForCurrentDpi()
