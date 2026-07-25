@@ -19,6 +19,7 @@ public sealed partial class GameCardControl : UserControl, INotifyPropertyChange
     private Brush? _statusBrush;
     private string? _imageAssetId;
     private int _imageAttempt;
+    private bool _isLoaded;
     private GameCardViewModel? _subscribedViewModel;
 
     public static readonly DependencyProperty ViewModelProperty =
@@ -123,7 +124,13 @@ public sealed partial class GameCardControl : UserControl, INotifyPropertyChange
         DependencyPropertyChangedEventArgs args)
     {
         GameCardControl control = (GameCardControl)dependencyObject;
-        control.SubscribeToViewModel(args.NewValue as GameCardViewModel);
+        control.SubscribeToViewModel(null);
+        if (control._isLoaded)
+        {
+            control.SubscribeToViewModel(
+                args.NewValue as GameCardViewModel);
+        }
+
         control.UpdatePresentation(shouldUpdateImage: true);
     }
 
@@ -131,13 +138,18 @@ public sealed partial class GameCardControl : UserControl, INotifyPropertyChange
         object sender,
         RoutedEventArgs args)
     {
+        _isLoaded = true;
         SubscribeToViewModel(CurrentViewModel);
         UpdatePresentation(shouldUpdateImage: true);
     }
 
     private void GameCardControl_Unloaded(
         object sender,
-        RoutedEventArgs args) => SubscribeToViewModel(null);
+        RoutedEventArgs args)
+    {
+        _isLoaded = false;
+        SubscribeToViewModel(null);
+    }
 
     private void SubscribeToViewModel(GameCardViewModel? viewModel)
     {
@@ -174,6 +186,7 @@ public sealed partial class GameCardControl : UserControl, INotifyPropertyChange
     {
         if (CurrentViewModel is not { } viewModel)
         {
+            ClearPresentation();
             return;
         }
 
@@ -187,6 +200,16 @@ public sealed partial class GameCardControl : UserControl, INotifyPropertyChange
                 ".png");
         }
 
+        NotifyDerivedProperties();
+        Bindings.Update();
+    }
+
+    private void ClearPresentation()
+    {
+        _statusBrush = null;
+        _imageAssetId = null;
+        _imageAttempt = 0;
+        GameImageSource = null;
         NotifyDerivedProperties();
         Bindings.Update();
     }

@@ -8,7 +8,7 @@ public static class StaminaRingMath
     {
         if (!double.IsFinite(ratio))
         {
-            throw new ArgumentOutOfRangeException(nameof(ratio));
+            return 0d;
         }
 
         double normalizedRatio = Math.Clamp(ratio, 0d, 1d);

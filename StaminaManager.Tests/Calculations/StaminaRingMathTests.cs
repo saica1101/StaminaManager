@@ -26,12 +26,10 @@ public sealed class StaminaRingMathTests
     [DataRow(double.NaN)]
     [DataRow(double.NegativeInfinity)]
     [DataRow(double.PositiveInfinity)]
-    public void GetSweepDegrees_RejectsNonFiniteRatio(double ratio)
+    public void GetSweepDegrees_TreatsNonFiniteRatioAsEmpty(double ratio)
     {
-        ArgumentOutOfRangeException exception =
-            Assert.ThrowsExactly<ArgumentOutOfRangeException>(
-                () => StaminaRingMath.GetSweepDegrees(ratio));
+        double actual = StaminaRingMath.GetSweepDegrees(ratio);
 
-        Assert.AreEqual("ratio", exception.ParamName);
+        Assert.AreEqual(0d, actual);
     }
 }
