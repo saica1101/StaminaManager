@@ -11,29 +11,38 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
 {
     private readonly GameManager _gameManager;
     private readonly IClock _clock;
+    private readonly IUiDispatcher _uiDispatcher;
     private readonly ObservableCollection<GameCardViewModel> _games = [];
     private bool _isDisposed;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasGames))]
-    public partial bool IsLoading { get; set; }
+    [NotifyCanExecuteChangedFor(nameof(AddGameCommand))]
+    [NotifyCanExecuteChangedFor(nameof(EnterCompactModeCommand))]
+    public partial bool IsLoading { get; private set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasError))]
-    public partial string? ErrorMessage { get; set; }
+    public partial string? ErrorMessage { get; private set; }
 
     public OverviewViewModel(
         GameManager gameManager,
-        IClock clock)
+        IClock clock,
+        IUiDispatcher uiDispatcher)
     {
         ArgumentNullException.ThrowIfNull(gameManager);
         ArgumentNullException.ThrowIfNull(clock);
+        ArgumentNullException.ThrowIfNull(uiDispatcher);
         _gameManager = gameManager;
         _clock = clock;
+        _uiDispatcher = uiDispatcher;
         Games = new ReadOnlyObservableCollection<GameCardViewModel>(
             _games);
         _gameManager.GamesChanged += OnGamesChanged;
-        SynchronizeGames(_clock.UtcNow);
+        _uiDispatcher.InvokeAsync(
+            () => SynchronizeGamesCore(_clock.UtcNow))
+            .GetAwaiter()
+            .GetResult();
     }
 
     public event Action? AddGameRequested;
@@ -50,19 +59,41 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
 
     public void Refresh(DateTimeOffset nowUtc)
     {
-        foreach (GameCardViewModel game in _games)
-        {
-            game.Refresh(nowUtc);
-        }
+        _uiDispatcher.InvokeAsync(() => RefreshCore(nowUtc))
+            .GetAwaiter()
+            .GetResult();
     }
 
-    public void ShowError(Exception exception)
+    public Task SetLoadingAsync(
+        bool isLoading,
+        CancellationToken cancellationToken = default) =>
+        _uiDispatcher.InvokeAsync(
+            () => IsLoading = isLoading,
+            cancellationToken);
+
+    public Task ShowErrorAsync(
+        Exception exception,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(exception);
-        ErrorMessage = exception.Message;
+        string safeMessage = exception switch
+        {
+            IOException or UnauthorizedAccessException =>
+                "データを保存できませんでした。もう一度お試しください。",
+            OperationCanceledException =>
+                "操作がキャンセルされました。",
+            _ => "処理中にエラーが発生しました。もう一度お試しください。",
+        };
+        return _uiDispatcher.InvokeAsync(
+            () => ErrorMessage = safeMessage,
+            cancellationToken);
     }
 
-    public void ClearError() => ErrorMessage = null;
+    public Task ClearErrorAsync(
+        CancellationToken cancellationToken = default) =>
+        _uiDispatcher.InvokeAsync(
+            () => ErrorMessage = null,
+            cancellationToken);
 
     public void Dispose()
     {
@@ -75,16 +106,28 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
         _isDisposed = true;
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanRequestActions))]
     private void AddGame() => AddGameRequested?.Invoke();
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanRequestActions))]
     private void EnterCompactMode() => CompactModeRequested?.Invoke();
 
-    private void OnGamesChanged(object? sender, EventArgs eventArgs) =>
-        SynchronizeGames(_clock.UtcNow);
+    private bool CanRequestActions() => !IsLoading;
 
-    private void SynchronizeGames(DateTimeOffset nowUtc)
+    private Task OnGamesChanged(CancellationToken cancellationToken) =>
+        _uiDispatcher.InvokeAsync(
+            () => SynchronizeGamesCore(_clock.UtcNow),
+            cancellationToken);
+
+    private void RefreshCore(DateTimeOffset nowUtc)
+    {
+        foreach (GameCardViewModel game in _games)
+        {
+            game.Refresh(nowUtc);
+        }
+    }
+
+    private void SynchronizeGamesCore(DateTimeOffset nowUtc)
     {
         Dictionary<Guid, GameCardViewModel> existing = _games
             .ToDictionary(game => game.Id);

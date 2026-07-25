@@ -24,7 +24,7 @@ public sealed class GameManagerTests
     public async Task AddAsync_AppendsGamesInRegistrationOrder()
     {
         RecordingDataStore store = new();
-        GameManager manager = CreateManager(store);
+        GameManager manager = await CreateManagerAsync(store);
 
         GameEntry first = await manager.AddAsync(
             CreateDraft("First"),
@@ -54,7 +54,7 @@ public sealed class GameManagerTests
             BaseStamina = 20,
             RecordedAtUtc = NowUtc.AddHours(-2),
         };
-        GameManager manager = CreateManager(store, original);
+        GameManager manager = await CreateManagerAsync(store, original);
         GameDraft initialDraft = new(
             original.Name,
             CurrentStamina: 44,
@@ -81,7 +81,7 @@ public sealed class GameManagerTests
     {
         RecordingDataStore store = new();
         GameEntry original = CreateEntry(Guid.NewGuid(), "Game", 0);
-        GameManager manager = CreateManager(store, original);
+        GameManager manager = await CreateManagerAsync(store, original);
         GameDraft initialDraft = CreateDraft("Game") with
         {
             CurrentStamina = 40,
@@ -108,7 +108,11 @@ public sealed class GameManagerTests
         GameEntry first = CreateEntry(Guid.NewGuid(), "First", 0);
         GameEntry second = CreateEntry(Guid.NewGuid(), "Second", 1);
         GameEntry third = CreateEntry(Guid.NewGuid(), "Third", 2);
-        GameManager manager = CreateManager(store, first, second, third);
+        GameManager manager = await CreateManagerAsync(
+            store,
+            first,
+            second,
+            third);
 
         bool deleted = await manager.DeleteAsync(
             second.Id,
@@ -132,7 +136,7 @@ public sealed class GameManagerTests
     public async Task DeleteAsync_MissingGameDoesNotPersist()
     {
         RecordingDataStore store = new();
-        GameManager manager = CreateManager(
+        GameManager manager = await CreateManagerAsync(
             store,
             CreateEntry(Guid.NewGuid(), "Only", 0));
 
@@ -154,7 +158,7 @@ public sealed class GameManagerTests
                 $"Game {index}",
                 index))
             .ToArray();
-        GameManager manager = CreateManager(store, games);
+        GameManager manager = await CreateManagerAsync(store, games);
 
         await Assert.ThrowsExactlyAsync<InvalidOperationException>(
             () => manager.AddAsync(
@@ -173,7 +177,7 @@ public sealed class GameManagerTests
             SaveException = new IOException("simulated persistence failure"),
         };
         GameEntry original = CreateEntry(Guid.NewGuid(), "Original", 0);
-        GameManager manager = CreateManager(store, original);
+        GameManager manager = await CreateManagerAsync(store, original);
         GameDraft initialDraft = CreateDraft("Original");
         GameDraft editedDraft = initialDraft with
         {
@@ -192,7 +196,85 @@ public sealed class GameManagerTests
         Assert.AreEqual(75, editedDraft.CurrentStamina);
     }
 
-    private static GameManager CreateManager(
+    [TestMethod]
+    public async Task AddAsync_ThrowingSubscriberDoesNotFailCommittedMutation()
+    {
+        RecordingDataStore store = new();
+        GameManager manager = await CreateManagerAsync(store);
+        bool secondSubscriberWasCalled = false;
+        manager.GamesChanged += _ =>
+            throw new InvalidOperationException("subscriber failure");
+        manager.GamesChanged += _ =>
+        {
+            secondSubscriberWasCalled = true;
+            return Task.CompletedTask;
+        };
+
+        GameEntry added = await manager.AddAsync(
+            CreateDraft("Committed once"),
+            CancellationToken.None);
+
+        Assert.AreEqual(added, manager.Games.Single());
+        Assert.AreEqual(1, store.SaveCount);
+        Assert.IsTrue(secondSubscriberWasCalled);
+        Assert.IsInstanceOfType<InvalidOperationException>(
+            manager.LastNotificationError);
+    }
+
+    [TestMethod]
+    public async Task InitializeAsync_WaitsForInFlightMutation()
+    {
+        RecordingDataStore store = new() { ShouldBlockSave = true };
+        GameEntry original = CreateEntry(Guid.NewGuid(), "Original", 0);
+        GameManager manager = await CreateManagerAsync(store, original);
+        DataEnvelope replacement = CreateEnvelope(
+            CreateEntry(Guid.NewGuid(), "Loaded", 0));
+        Task<GameEntry> addTask = manager.AddAsync(
+            CreateDraft("In flight"),
+            CancellationToken.None);
+        await store.SaveStarted;
+
+        Task initializeTask = manager.InitializeAsync(
+            replacement,
+            CancellationToken.None);
+
+        Assert.IsFalse(initializeTask.IsCompleted);
+        Assert.AreEqual("Original", manager.Games[0].Name);
+        store.ReleaseSave();
+        await addTask;
+        await initializeTask;
+        Assert.AreEqual("Loaded", manager.Games.Single().Name);
+    }
+
+    [TestMethod]
+    public async Task PromoteRecoveryAsync_WaitsForInFlightMutation()
+    {
+        RecordingDataStore store = new() { ShouldBlockSave = true };
+        GameEntry original = CreateEntry(Guid.NewGuid(), "Original", 0);
+        GameEntry recovered = CreateEntry(Guid.NewGuid(), "Recovered", 0);
+        store.PromotionResult = new RecoveryPromotionResult(
+            CreateEnvelope(recovered),
+            "primary",
+            "recovery",
+            DiagnosticBackupPath: null);
+        GameManager manager = await CreateManagerAsync(store, original);
+        Task<GameEntry> addTask = manager.AddAsync(
+            CreateDraft("In flight"),
+            CancellationToken.None);
+        await store.SaveStarted;
+
+        Task<RecoveryPromotionResult> promoteTask =
+            manager.PromoteRecoveryAsync(CancellationToken.None);
+
+        Assert.AreEqual(0, store.PromoteCount);
+        store.ReleaseSave();
+        await addTask;
+        await promoteTask;
+        Assert.AreEqual(1, store.PromoteCount);
+        Assert.AreEqual("Recovered", manager.Games.Single().Name);
+    }
+
+    private static async Task<GameManager> CreateManagerAsync(
         RecordingDataStore store,
         params GameEntry[] games)
     {
@@ -201,12 +283,17 @@ public sealed class GameManagerTests
             store,
             clock,
             AppSettings.CreateDefault(AppTheme.Light));
-        manager.Initialize(new DataEnvelope(
-            DataEnvelope.CurrentSchemaVersion,
-            games.ToImmutableArray(),
-            AppSettings.CreateDefault(AppTheme.Light)));
+        await manager.InitializeAsync(
+            CreateEnvelope(games),
+            CancellationToken.None);
         return manager;
     }
+
+    private static DataEnvelope CreateEnvelope(
+        params GameEntry[] games) => new(
+            DataEnvelope.CurrentSchemaVersion,
+            games.ToImmutableArray(),
+            AppSettings.CreateDefault(AppTheme.Light));
 
     private static GameDraft CreateDraft(string name) => new(
         name,
@@ -230,33 +317,58 @@ public sealed class GameManagerTests
 
     private sealed class RecordingDataStore : ILocalDataStore
     {
+        private readonly TaskCompletionSource _saveStarted = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _continueSave = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
         public DataEnvelope? LastSaved { get; private set; }
 
         public int SaveCount { get; private set; }
 
         public Exception? SaveException { get; init; }
 
+        public bool ShouldBlockSave { get; init; }
+
+        public Task SaveStarted => _saveStarted.Task;
+
+        public RecoveryPromotionResult? PromotionResult { get; set; }
+
+        public int PromoteCount { get; private set; }
+
         public Task<DataLoadResult> LoadAsync(
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task SaveAsync(
+        public async Task SaveAsync(
             DataEnvelope envelope,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             SaveCount++;
+            if (ShouldBlockSave)
+            {
+                _saveStarted.TrySetResult();
+                await _continueSave.Task.WaitAsync(cancellationToken);
+            }
+
             if (SaveException is not null)
             {
-                return Task.FromException(SaveException);
+                throw SaveException;
             }
 
             LastSaved = envelope;
-            return Task.CompletedTask;
         }
 
         public Task<RecoveryPromotionResult> PromoteRecoveryAsync(
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            PromoteCount++;
+            return Task.FromResult(
+                PromotionResult ?? throw new NotSupportedException());
+        }
+
+        public void ReleaseSave() => _continueSave.TrySetResult();
     }
 }

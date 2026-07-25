@@ -6,6 +6,8 @@ using System.Collections.Immutable;
 
 namespace StaminaManager.Application;
 
+public delegate Task GamesChangedHandler(CancellationToken cancellationToken);
+
 public sealed class GameManager
 {
     private const string GameLimitMessage =
@@ -32,18 +34,33 @@ public sealed class GameManager
             initialSettings);
     }
 
-    public event EventHandler? GamesChanged;
+    public event GamesChangedHandler? GamesChanged;
+
+    public Exception? LastNotificationError { get; private set; }
 
     public ImmutableArray<GameEntry> Games => _data.Games;
 
     public DataEnvelope CurrentData => _data;
 
-    public void Initialize(DataEnvelope data)
+    public async Task InitializeAsync(
+        DataEnvelope data,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(data);
-        ImmutableArray<GameEntry> normalized = NormalizeOrder(data.Games);
-        _data = data with { Games = normalized };
-        GamesChanged?.Invoke(this, EventArgs.Empty);
+        await _mutationGate.WaitAsync(cancellationToken)
+            .ConfigureAwait(false);
+        try
+        {
+            ImmutableArray<GameEntry> normalized =
+                NormalizeOrder(data.Games);
+            _data = data with { Games = normalized };
+        }
+        finally
+        {
+            _mutationGate.Release();
+        }
+
+        await NotifyGamesChangedAsync().ConfigureAwait(false);
     }
 
     public async Task<GameEntry> AddAsync(
@@ -51,6 +68,7 @@ public sealed class GameManager
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(draft);
+        GameEntry entry;
         await _mutationGate.WaitAsync(cancellationToken)
             .ConfigureAwait(false);
         try
@@ -62,7 +80,7 @@ public sealed class GameManager
 
             DateTimeOffset recordedAtUtc = _clock.UtcNow.ToUniversalTime();
             EnsureValid(draft, recordedAtUtc);
-            GameEntry entry = new(
+            entry = new GameEntry(
                 Guid.NewGuid(),
                 draft.Name,
                 draft.CurrentStamina,
@@ -78,12 +96,14 @@ public sealed class GameManager
 
             await SaveAndPublishAsync(candidate, cancellationToken)
                 .ConfigureAwait(false);
-            return entry;
         }
         finally
         {
             _mutationGate.Release();
         }
+
+        await NotifyGamesChangedAsync().ConfigureAwait(false);
+        return entry;
     }
 
     public async Task<GameEntry> EditAsync(
@@ -94,6 +114,7 @@ public sealed class GameManager
     {
         ArgumentNullException.ThrowIfNull(initialDraft);
         ArgumentNullException.ThrowIfNull(editedDraft);
+        GameEntry edited;
         await _mutationGate.WaitAsync(cancellationToken)
             .ConfigureAwait(false);
         try
@@ -106,7 +127,7 @@ public sealed class GameManager
             }
 
             DateTimeOffset savedAtUtc = _clock.UtcNow.ToUniversalTime();
-            GameEntry edited = GameEditPolicy.Apply(
+            edited = GameEditPolicy.Apply(
                 _data.Games[index],
                 initialDraft,
                 editedDraft,
@@ -126,18 +147,21 @@ public sealed class GameManager
 
             await SaveAndPublishAsync(candidate, cancellationToken)
                 .ConfigureAwait(false);
-            return edited;
         }
         finally
         {
             _mutationGate.Release();
         }
+
+        await NotifyGamesChangedAsync().ConfigureAwait(false);
+        return edited;
     }
 
     public async Task<bool> DeleteAsync(
         Guid gameId,
         CancellationToken cancellationToken)
     {
+        bool deleted = false;
         await _mutationGate.WaitAsync(cancellationToken)
             .ConfigureAwait(false);
         try
@@ -156,12 +180,43 @@ public sealed class GameManager
             };
             await SaveAndPublishAsync(candidate, cancellationToken)
                 .ConfigureAwait(false);
-            return true;
+            deleted = true;
         }
         finally
         {
             _mutationGate.Release();
         }
+
+        if (deleted)
+        {
+            await NotifyGamesChangedAsync().ConfigureAwait(false);
+        }
+
+        return deleted;
+    }
+
+    public async Task<RecoveryPromotionResult> PromoteRecoveryAsync(
+        CancellationToken cancellationToken)
+    {
+        RecoveryPromotionResult result;
+        await _mutationGate.WaitAsync(cancellationToken)
+            .ConfigureAwait(false);
+        try
+        {
+            result = await _dataStore.PromoteRecoveryAsync(
+                cancellationToken).ConfigureAwait(false);
+            _data = result.Envelope with
+            {
+                Games = NormalizeOrder(result.Envelope.Games),
+            };
+        }
+        finally
+        {
+            _mutationGate.Release();
+        }
+
+        await NotifyGamesChangedAsync().ConfigureAwait(false);
+        return result;
     }
 
     private static void EnsureValid(
@@ -205,6 +260,38 @@ public sealed class GameManager
         await _dataStore.SaveAsync(candidate, cancellationToken)
             .ConfigureAwait(false);
         _data = candidate;
-        GamesChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private async Task NotifyGamesChangedAsync()
+    {
+        GamesChangedHandler? subscribers = GamesChanged;
+        if (subscribers is null)
+        {
+            LastNotificationError = null;
+            return;
+        }
+
+        List<Exception>? errors = null;
+        foreach (GamesChangedHandler subscriber in
+            subscribers.GetInvocationList())
+        {
+            try
+            {
+                await subscriber(CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                errors ??= [];
+                errors.Add(exception);
+            }
+        }
+
+        LastNotificationError = errors?.Count switch
+        {
+            null => null,
+            1 => errors[0],
+            _ => new AggregateException(errors),
+        };
     }
 }

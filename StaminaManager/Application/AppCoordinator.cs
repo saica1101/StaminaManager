@@ -48,24 +48,31 @@ public sealed class AppCoordinator
             cancellationToken).ConfigureAwait(false);
         if (result.Envelope is not null)
         {
-            _gameManager.Initialize(result.Envelope);
+            await _gameManager.InitializeAsync(
+                result.Envelope,
+                cancellationToken).ConfigureAwait(false);
         }
 
         LastLoadResult = result;
-        IsInitialized = true;
         RestoreMode();
         await ReconcileDerivedStateAsync(cancellationToken)
             .ConfigureAwait(false);
+        IsInitialized = true;
         return result;
     }
 
     public async Task<RecoveryPromotionResult> PromoteRecoveryAsync(
         CancellationToken cancellationToken)
     {
+        if (!IsInitialized)
+        {
+            throw new InvalidOperationException(
+                "初期化が完了するまで回復データを適用できません。");
+        }
+
         RecoveryPromotionResult result =
-            await _dataStore.PromoteRecoveryAsync(cancellationToken)
+            await _gameManager.PromoteRecoveryAsync(cancellationToken)
                 .ConfigureAwait(false);
-        _gameManager.Initialize(result.Envelope);
         LastLoadResult = new DataLoadResult(
             DataLoadStatus.Primary,
             result.Envelope,
