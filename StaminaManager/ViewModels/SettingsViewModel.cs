@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using StaminaManager.Application;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
+using System.Diagnostics;
 
 namespace StaminaManager.ViewModels;
 
@@ -14,12 +15,29 @@ public enum SettingsPreparationAction
     OpenWindowsNotificationSettings,
 }
 
+public enum SettingsInitializationState
+{
+    Loading,
+    Ready,
+    Failed,
+}
+
 public sealed partial class SettingsViewModel : ObservableObject
 {
+    private enum AppearanceRollbackStatus
+    {
+        Restored,
+        SafeFallback,
+        Failed,
+        Unknown,
+    }
+
     private const string SaveFailureMessage =
         "設定を保存できませんでした。以前の設定に戻しました。";
     private const string NotReadyMessage =
         "設定を読み込み中です。完了してからもう一度お試しください。";
+    private const string InitializationFailureMessage =
+        "設定を読み込めませんでした。アプリを再起動してください。";
     private const string UnexpectedFailureMessage =
         "設定を変更できませんでした。もう一度お試しください。";
     private readonly GameManager _gameManager;
@@ -52,9 +70,16 @@ public sealed partial class SettingsViewModel : ObservableObject
     public event Action<SettingsPreparationAction>? PreparationRequested;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsReady))]
     [NotifyPropertyChangedFor(nameof(IsLoading))]
+    [NotifyPropertyChangedFor(nameof(IsFailed))]
     [NotifyPropertyChangedFor(nameof(LoadingVisibility))]
-    public partial bool IsReady { get; private set; }
+    [NotifyPropertyChangedFor(nameof(FailedVisibility))]
+    public partial SettingsInitializationState InitializationState
+    {
+        get;
+        private set;
+    } = SettingsInitializationState.Loading;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsDarkTheme))]
@@ -108,11 +133,23 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public bool IsDarkTheme => Theme == AppTheme.Dark;
 
-    public bool IsLoading => !IsReady;
+    public bool IsReady =>
+        InitializationState == SettingsInitializationState.Ready;
+
+    public bool IsLoading =>
+        InitializationState == SettingsInitializationState.Loading;
+
+    public bool IsFailed =>
+        InitializationState == SettingsInitializationState.Failed;
 
     public Visibility LoadingVisibility => IsReady
-        ? Visibility.Collapsed
-        : Visibility.Visible;
+        || IsFailed
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+
+    public Visibility FailedVisibility => IsFailed
+        ? Visibility.Visible
+        : Visibility.Collapsed;
 
     public int SelectedBackdropIndex => (int)SelectedBackdrop;
 
@@ -146,9 +183,9 @@ public sealed partial class SettingsViewModel : ObservableObject
             AppTheme previousTheme =
                 _gameManager.CurrentData.Settings.Theme;
             ThemeResult result = _themeService.Apply(requestedTheme);
+            Theme = result.ActualTheme;
             if (!result.IsApplied)
             {
-                Theme = previousTheme;
                 ShowMessage(
                     result.ErrorMessage
                     ?? "テーマを適用できませんでした。",
@@ -165,15 +202,22 @@ public sealed partial class SettingsViewModel : ObservableObject
                         },
                         cancellationToken);
             }
-            catch (Exception exception) when (IsPersistenceFailure(exception))
+            catch (OperationCanceledException)
             {
-                ThemeResult rollback = _themeService.Apply(previousTheme);
-                Theme = previousTheme;
-                ShowMessage(rollback.IsApplied
-                    ? SaveFailureMessage
-                    : SaveFailureMessage
-                        + " 表示も元に戻せないため、アプリを再起動してください。",
-                    InfoBarSeverity.Error);
+                AppearanceRollbackStatus rollbackStatus =
+                    RollbackTheme(previousTheme);
+                ShowThemeRollbackMessage(
+                    rollbackStatus,
+                    wasCanceled: true);
+                throw;
+            }
+            catch (Exception exception) when (!IsProcessFatal(exception))
+            {
+                AppearanceRollbackStatus rollbackStatus =
+                    RollbackTheme(previousTheme);
+                ShowThemeRollbackMessage(
+                    rollbackStatus,
+                    wasCanceled: false);
                 return false;
             }
 
@@ -224,17 +268,22 @@ public sealed partial class SettingsViewModel : ObservableObject
                         },
                         cancellationToken);
             }
-            catch (Exception exception) when (IsPersistenceFailure(exception))
+            catch (OperationCanceledException)
             {
-                BackdropResult rollback = _backdropService.Apply(
-                    previousBackdrop);
-                SelectedBackdrop = previousBackdrop;
-                ActualBackdrop = rollback.ActualBackdrop;
-                ShowMessage(rollback.IsRequestedBackdropApplied
-                    ? SaveFailureMessage
-                    : SaveFailureMessage
-                        + " 背景は安全な単色表示へ切り替わりました。",
-                    InfoBarSeverity.Error);
+                AppearanceRollbackStatus rollbackStatus =
+                    RollbackBackdrop(previousBackdrop);
+                ShowBackdropRollbackMessage(
+                    rollbackStatus,
+                    wasCanceled: true);
+                throw;
+            }
+            catch (Exception exception) when (!IsProcessFatal(exception))
+            {
+                AppearanceRollbackStatus rollbackStatus =
+                    RollbackBackdrop(previousBackdrop);
+                ShowBackdropRollbackMessage(
+                    rollbackStatus,
+                    wasCanceled: false);
                 return false;
             }
 
@@ -356,17 +405,20 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public void MarkReady()
     {
-        IsReady = _gameManager.IsInitialized;
-        if (!IsReady)
+        if (!_gameManager.IsInitialized)
         {
-            ShowMessage(
-                NotReadyMessage,
-                InfoBarSeverity.Warning,
-                "設定を変更できません");
+            MarkFailed();
+            return;
         }
+
+        InitializationState = SettingsInitializationState.Ready;
     }
 
-    public void MarkNotReady() => IsReady = false;
+    public void MarkFailed()
+    {
+        InitializationState = SettingsInitializationState.Failed;
+        CloseInfoBar();
+    }
 
     internal void ReportUnexpectedFailure() => ShowMessage(
         UnexpectedFailureMessage,
@@ -466,6 +518,127 @@ public sealed partial class SettingsViewModel : ObservableObject
             or UnauthorizedAccessException
             or InvalidDataException;
 
+    private static bool IsProcessFatal(Exception exception) =>
+        exception is OutOfMemoryException
+            or StackOverflowException
+            or AccessViolationException
+            or AppDomainUnloadedException
+            or BadImageFormatException
+            or CannotUnloadAppDomainException
+            or InvalidProgramException;
+
+    private AppearanceRollbackStatus RollbackTheme(
+        AppTheme previousTheme)
+    {
+        try
+        {
+            ThemeResult rollback = _themeService.Apply(previousTheme);
+            Theme = rollback.ActualTheme;
+            return rollback.IsApplied
+                ? AppearanceRollbackStatus.Restored
+                : AppearanceRollbackStatus.Failed;
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Theme rollback failed: "
+                + exception.GetType().Name);
+            return AppearanceRollbackStatus.Unknown;
+        }
+    }
+
+    private AppearanceRollbackStatus RollbackBackdrop(
+        BackdropKind previousBackdrop)
+    {
+        SelectedBackdrop = previousBackdrop;
+        try
+        {
+            BackdropResult rollback = _backdropService.Apply(
+                previousBackdrop);
+            ActualBackdrop = rollback.ActualBackdrop;
+            if (rollback.IsRequestedBackdropApplied)
+            {
+                return AppearanceRollbackStatus.Restored;
+            }
+
+            return rollback.ActualBackdrop == BackdropKind.Solid
+                ? AppearanceRollbackStatus.SafeFallback
+                : AppearanceRollbackStatus.Failed;
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Backdrop rollback failed: "
+                + exception.GetType().Name);
+            return ApplySafeBackdropFallback();
+        }
+    }
+
+    private AppearanceRollbackStatus ApplySafeBackdropFallback()
+    {
+        try
+        {
+            BackdropResult fallback = _backdropService.Apply(
+                BackdropKind.Solid);
+            ActualBackdrop = fallback.ActualBackdrop;
+            return fallback.ActualBackdrop == BackdropKind.Solid
+                ? AppearanceRollbackStatus.SafeFallback
+                : AppearanceRollbackStatus.Failed;
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Backdrop safe fallback failed: "
+                + exception.GetType().Name);
+            return AppearanceRollbackStatus.Unknown;
+        }
+    }
+
+    private void ShowThemeRollbackMessage(
+        AppearanceRollbackStatus rollbackStatus,
+        bool wasCanceled)
+    {
+        string message = GetRollbackMessage(wasCanceled);
+        message += rollbackStatus switch
+        {
+            AppearanceRollbackStatus.Restored => string.Empty,
+            AppearanceRollbackStatus.Unknown =>
+                " テーマの実際の表示状態を確認できません。"
+                + "アプリを再起動してください。",
+            _ =>
+                " テーマ表示を以前に戻せないため、"
+                + "アプリを再起動してください。",
+        };
+
+        ShowMessage(message, InfoBarSeverity.Error);
+    }
+
+    private void ShowBackdropRollbackMessage(
+        AppearanceRollbackStatus rollbackStatus,
+        bool wasCanceled)
+    {
+        string message = GetRollbackMessage(wasCanceled);
+        message += rollbackStatus switch
+        {
+            AppearanceRollbackStatus.Restored => string.Empty,
+            AppearanceRollbackStatus.SafeFallback =>
+                " 背景は安全な単色表示へ切り替わりました。",
+            AppearanceRollbackStatus.Unknown =>
+                " 背景の実際の表示状態を確認できません。"
+                + "アプリを再起動してください。",
+            _ =>
+                " 背景表示を以前に戻せないため、"
+                + "アプリを再起動してください。",
+        };
+
+        ShowMessage(message, InfoBarSeverity.Error);
+    }
+
+    private static string GetRollbackMessage(bool wasCanceled) =>
+        wasCanceled
+            ? "設定の保存がキャンセルされました。以前の設定に戻しました。"
+            : SaveFailureMessage;
+
     private bool EnsureReady()
     {
         if (IsReady && _gameManager.IsInitialized)
@@ -473,11 +646,22 @@ public sealed partial class SettingsViewModel : ObservableObject
             return true;
         }
 
-        IsReady = false;
-        ShowMessage(
-            NotReadyMessage,
-            InfoBarSeverity.Warning,
-            "設定を変更できません");
+        if (IsFailed || InitializationState == SettingsInitializationState.Ready)
+        {
+            InitializationState = SettingsInitializationState.Failed;
+            ShowMessage(
+                InitializationFailureMessage,
+                InfoBarSeverity.Error,
+                "設定を読み込めませんでした");
+        }
+        else
+        {
+            ShowMessage(
+                NotReadyMessage,
+                InfoBarSeverity.Warning,
+                "設定を変更できません");
+        }
+
         return false;
     }
 

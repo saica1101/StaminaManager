@@ -40,6 +40,7 @@
                 Title="{x:Bind ViewModel.InfoBarTitle, Mode=OneWay}" />
 
             <StackPanel
+                x:Uid="SettingsLoadingStatus"
                 AutomationProperties.AutomationId="SettingsLoadingStatus"
                 Orientation="Horizontal"
                 Spacing="{StaticResource Spacing12}"
@@ -54,6 +55,15 @@
                     VerticalAlignment="Center"
                     Style="{StaticResource AppBodyTextStyle}" />
             </StackPanel>
+
+            <InfoBar
+                x:Name="SettingsFailedStatus"
+                x:Uid="SettingsFailedStatus"
+                AutomationProperties.AutomationId="SettingsFailedStatus"
+                AutomationProperties.LiveSetting="Assertive"
+                IsClosable="False"
+                IsOpen="{x:Bind ViewModel.IsFailed, Mode=OneWay}"
+                Severity="Error" />
 
             <ContentControl
                 x:Name="SettingsControls"

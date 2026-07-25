@@ -65,6 +65,32 @@ public sealed class SettingsViewModelTests
     }
 
     [TestMethod]
+    public async Task MarkFailed_StopsLoadingAndKeepsChangesDisabled()
+    {
+        Context context = await Context.CreateAsync();
+        SettingsViewModel viewModel = context.CreateNotReadyViewModel();
+
+        viewModel.MarkFailed();
+        bool saved = await viewModel.SetCloseBehaviorAsync(
+            CloseBehavior.Exit);
+
+        Assert.AreEqual(
+            SettingsInitializationState.Failed,
+            viewModel.InitializationState);
+        Assert.IsFalse(viewModel.IsReady);
+        Assert.IsFalse(viewModel.IsLoading);
+        Assert.IsTrue(viewModel.IsFailed);
+        Assert.AreEqual(
+            Microsoft.UI.Xaml.Visibility.Collapsed,
+            viewModel.LoadingVisibility);
+        Assert.AreEqual(
+            Microsoft.UI.Xaml.Visibility.Visible,
+            viewModel.FailedVisibility);
+        Assert.IsFalse(saved);
+        Assert.AreEqual(0, context.Store.SaveCount);
+    }
+
+    [TestMethod]
     public async Task UnexpectedThemeServiceException_IsSafelyReported()
     {
         Context context = await Context.CreateAsync();
@@ -157,6 +183,140 @@ public sealed class SettingsViewModelTests
     }
 
     [TestMethod]
+    public async Task SetBackdropAsync_SaveCancellationRollsBackThenRethrows()
+    {
+        Context context = await Context.CreateAsync();
+        SettingsViewModel viewModel = context.CreateViewModel();
+        context.Store.SaveException = new OperationCanceledException(
+            "cancellation implementation detail");
+
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(
+            () => viewModel.SetBackdropAsync(
+                BackdropKind.Acrylic,
+                CancellationToken.None));
+
+        CollectionAssert.AreEqual(
+            new[] { BackdropKind.Acrylic, BackdropKind.Mica },
+            context.BackdropService.Requests);
+        Assert.AreEqual(BackdropKind.Mica, viewModel.SelectedBackdrop);
+        Assert.AreEqual(BackdropKind.Mica, viewModel.ActualBackdrop);
+        Assert.AreEqual(
+            BackdropKind.Mica,
+            context.Manager.CurrentData.Settings.Backdrop);
+        Assert.AreEqual(
+            BackdropKind.Mica,
+            context.Store.LastSaved.Settings.Backdrop);
+    }
+
+    [TestMethod]
+    public async Task SetBackdropAsync_UnexpectedSaveFailureRollsBackAllState()
+    {
+        Context context = await Context.CreateAsync();
+        SettingsViewModel viewModel = context.CreateViewModel();
+        context.Store.SaveException = new NotSupportedException(
+            "persistence implementation detail");
+
+        bool applied = await viewModel.SetBackdropAsync(
+            BackdropKind.Acrylic,
+            CancellationToken.None);
+
+        Assert.IsFalse(applied);
+        CollectionAssert.AreEqual(
+            new[] { BackdropKind.Acrylic, BackdropKind.Mica },
+            context.BackdropService.Requests);
+        Assert.AreEqual(BackdropKind.Mica, viewModel.SelectedBackdrop);
+        Assert.AreEqual(BackdropKind.Mica, viewModel.ActualBackdrop);
+        Assert.AreEqual(
+            BackdropKind.Mica,
+            context.Manager.CurrentData.Settings.Backdrop);
+        Assert.AreEqual(
+            BackdropKind.Mica,
+            context.Store.LastSaved.Settings.Backdrop);
+        Assert.IsFalse(viewModel.InfoBarMessage.Contains(
+            "persistence implementation detail",
+            StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public async Task SetBackdropAsync_RollbackExceptionPublishesSafeState()
+    {
+        Context context = await Context.CreateAsync();
+        SettingsViewModel viewModel = context.CreateViewModel();
+        context.Store.SaveException = new NotSupportedException(
+            "persistence implementation detail");
+        context.BackdropService.RollbackException =
+            new InvalidOperationException(
+                "rollback implementation detail");
+
+        bool applied = await viewModel.SetBackdropAsync(
+            BackdropKind.Acrylic,
+            CancellationToken.None);
+
+        Assert.IsFalse(applied);
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                BackdropKind.Acrylic,
+                BackdropKind.Mica,
+                BackdropKind.Solid,
+            },
+            context.BackdropService.Requests);
+        Assert.AreEqual(BackdropKind.Mica, viewModel.SelectedBackdrop);
+        Assert.AreEqual(BackdropKind.Solid, viewModel.ActualBackdrop);
+        Assert.AreEqual(
+            BackdropKind.Mica,
+            context.Manager.CurrentData.Settings.Backdrop);
+        Assert.AreEqual(
+            BackdropKind.Mica,
+            context.Store.LastSaved.Settings.Backdrop);
+        StringAssert.Contains(viewModel.InfoBarMessage, "単色");
+        Assert.IsFalse(viewModel.InfoBarMessage.Contains(
+            "rollback implementation detail",
+            StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public async Task SetBackdropAsync_SolidFallbackExceptionKeepsLastKnownActualState()
+    {
+        Context context = await Context.CreateAsync();
+        SettingsViewModel viewModel = context.CreateViewModel();
+        context.Store.SaveException = new NotSupportedException(
+            "persistence implementation detail");
+        context.BackdropService.RollbackException =
+            new InvalidOperationException(
+                "rollback implementation detail");
+        context.BackdropService.SafeFallbackException =
+            new InvalidOperationException(
+                "fallback implementation detail");
+
+        bool applied = await viewModel.SetBackdropAsync(
+            BackdropKind.Acrylic,
+            CancellationToken.None);
+
+        Assert.IsFalse(applied);
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                BackdropKind.Acrylic,
+                BackdropKind.Mica,
+                BackdropKind.Solid,
+            },
+            context.BackdropService.Requests);
+        Assert.AreEqual(BackdropKind.Mica, viewModel.SelectedBackdrop);
+        Assert.AreEqual(BackdropKind.Acrylic, viewModel.ActualBackdrop);
+        Assert.AreEqual(
+            BackdropKind.Mica,
+            context.Manager.CurrentData.Settings.Backdrop);
+        Assert.AreEqual(
+            BackdropKind.Mica,
+            context.Store.LastSaved.Settings.Backdrop);
+        StringAssert.Contains(viewModel.InfoBarMessage, "確認できません");
+        Assert.IsFalse(viewModel.InfoBarMessage.Contains(
+            "implementation detail",
+            StringComparison.Ordinal));
+    }
+
+    [TestMethod]
     public async Task SetThemeAsync_ApplyFailureKeepsLastGoodTheme()
     {
         Context context = await Context.CreateAsync();
@@ -178,6 +338,66 @@ public sealed class SettingsViewModelTests
         Assert.AreEqual(AppTheme.Light, viewModel.Theme);
         Assert.AreEqual(0, context.Store.SaveCount);
         Assert.IsTrue(viewModel.IsInfoBarOpen);
+    }
+
+    [TestMethod]
+    public async Task SetThemeAsync_UnexpectedSaveFailureRollsBackAllState()
+    {
+        Context context = await Context.CreateAsync();
+        SettingsViewModel viewModel = context.CreateViewModel();
+        context.Store.SaveException = new NotSupportedException(
+            "persistence implementation detail");
+
+        bool applied = await viewModel.SetThemeAsync(
+            AppTheme.Dark,
+            CancellationToken.None);
+
+        Assert.IsFalse(applied);
+        CollectionAssert.AreEqual(
+            new[] { AppTheme.Dark, AppTheme.Light },
+            context.ThemeService.Requests);
+        Assert.AreEqual(AppTheme.Light, viewModel.Theme);
+        Assert.AreEqual(
+            AppTheme.Light,
+            context.Manager.CurrentData.Settings.Theme);
+        Assert.AreEqual(
+            AppTheme.Light,
+            context.Store.LastSaved.Settings.Theme);
+        Assert.IsFalse(viewModel.InfoBarMessage.Contains(
+            "persistence implementation detail",
+            StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public async Task SetThemeAsync_SaveCancellationPreservesCancellationWhenRollbackThrows()
+    {
+        Context context = await Context.CreateAsync();
+        SettingsViewModel viewModel = context.CreateViewModel();
+        context.Store.SaveException = new OperationCanceledException(
+            "cancellation implementation detail");
+        context.ThemeService.RollbackException =
+            new InvalidOperationException(
+                "rollback implementation detail");
+
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(
+            () => viewModel.SetThemeAsync(
+                AppTheme.Dark,
+                CancellationToken.None));
+
+        CollectionAssert.AreEqual(
+            new[] { AppTheme.Dark, AppTheme.Light },
+            context.ThemeService.Requests);
+        Assert.AreEqual(AppTheme.Dark, viewModel.Theme);
+        Assert.AreEqual(
+            AppTheme.Light,
+            context.Manager.CurrentData.Settings.Theme);
+        Assert.AreEqual(
+            AppTheme.Light,
+            context.Store.LastSaved.Settings.Theme);
+        StringAssert.Contains(viewModel.InfoBarMessage, "確認できません");
+        Assert.IsFalse(viewModel.InfoBarMessage.Contains(
+            "rollback implementation detail",
+            StringComparison.Ordinal));
     }
 
     [TestMethod]
@@ -383,11 +603,18 @@ public sealed class SettingsViewModelTests
 
         public Exception? ApplyException { get; set; }
 
+        public Exception? RollbackException { get; set; }
+
         public AppTheme ResolveInitialTheme() => initialTheme;
 
         public ThemeResult Apply(AppTheme requestedTheme)
         {
             Requests.Add(requestedTheme);
+            if (Requests.Count == 2 && RollbackException is not null)
+            {
+                throw RollbackException;
+            }
+
             if (ApplyException is not null)
             {
                 throw ApplyException;
@@ -409,9 +636,23 @@ public sealed class SettingsViewModelTests
 
         public BackdropResult? NextResult { get; set; }
 
+        public Exception? RollbackException { get; set; }
+
+        public Exception? SafeFallbackException { get; set; }
+
         public BackdropResult Apply(BackdropKind requestedBackdrop)
         {
             Requests.Add(requestedBackdrop);
+            if (Requests.Count == 2 && RollbackException is not null)
+            {
+                throw RollbackException;
+            }
+
+            if (Requests.Count == 3 && SafeFallbackException is not null)
+            {
+                throw SafeFallbackException;
+            }
+
             BackdropResult result = NextResult ?? new BackdropResult(
                 requestedBackdrop,
                 requestedBackdrop,
@@ -422,15 +663,23 @@ public sealed class SettingsViewModelTests
         }
     }
 
-    private sealed class MemoryDataStore(DataEnvelope envelope)
-        : ILocalDataStore
+    private sealed class MemoryDataStore : ILocalDataStore
     {
         private readonly TaskCompletionSource _continueSave = new(
             TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly DataEnvelope _envelope;
+
+        public MemoryDataStore(DataEnvelope envelope)
+        {
+            _envelope = envelope;
+            LastSaved = envelope;
+        }
 
         public Exception? SaveException { get; set; }
 
         public int SaveCount { get; private set; }
+
+        public DataEnvelope LastSaved { get; private set; }
 
         public bool ShouldBlockSave { get; set; }
 
@@ -438,7 +687,7 @@ public sealed class SettingsViewModelTests
             CancellationToken cancellationToken) => Task.FromResult(
                 new DataLoadResult(
                     DataLoadStatus.Primary,
-                    envelope,
+                    _envelope,
                     "primary",
                     "recovery"));
 
@@ -458,6 +707,8 @@ public sealed class SettingsViewModelTests
             {
                 throw SaveException;
             }
+
+            LastSaved = value;
         }
 
         public Task<RecoveryPromotionResult> PromoteRecoveryAsync(

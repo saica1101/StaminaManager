@@ -96,6 +96,7 @@
                 x:Name="StartupErrorInfoBar"
                 x:Uid="OverviewStartupErrorInfoBar"
                 AutomationProperties.AutomationId="OverviewStartupErrorInfoBar"
+                AutomationProperties.LiveSetting="Assertive"
                 IsClosable="False"
                 IsOpen="False"
                 Severity="Error" />

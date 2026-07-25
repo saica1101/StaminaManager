@@ -63,7 +63,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             if (loadResult.Status == DataLoadStatus.Corrupt
                 || !_gameManager!.IsInitialized)
             {
-                _settingsViewModel!.MarkNotReady();
+                _settingsViewModel!.MarkFailed();
                 _overviewPage!.ShowStartupError();
                 return;
             }
@@ -78,7 +78,7 @@ public partial class App : Microsoft.UI.Xaml.Application
         }
         catch (Exception exception)
         {
-            _settingsViewModel?.MarkNotReady();
+            _settingsViewModel?.MarkFailed();
             await HandleLaunchFailureAsync(exception);
         }
     }
