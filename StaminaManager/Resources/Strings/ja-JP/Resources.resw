@@ -5,6 +5,10 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
   <data name="AppTitle" xml:space="preserve"><value>Stamina Manager</value></data>
+  <data name="StartupFailureWindowTitle" xml:space="preserve"><value>Stamina Manager</value></data>
+  <data name="StartupFailureHeading" xml:space="preserve"><value>Stamina Managerを起動できませんでした</value></data>
+  <data name="StartupFailureMessage" xml:space="preserve"><value>起動中に問題が発生しました。アプリを閉じて、もう一度お試しください。</value></data>
+  <data name="StartupFailureCloseButton" xml:space="preserve"><value>閉じる</value></data>
   <data name="ShellNavigation.PaneTitle" xml:space="preserve"><value>スタミナ管理</value></data>
   <data name="NavOverview.Content" xml:space="preserve"><value>Overview</value></data>
   <data name="NavSettings.Content" xml:space="preserve"><value>Settings</value></data>
