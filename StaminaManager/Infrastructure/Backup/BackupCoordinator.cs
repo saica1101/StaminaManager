@@ -36,7 +36,8 @@ public sealed partial class BackupCoordinator
         ILocalDataStore dataStore,
         IAppDataPathProvider pathProvider,
         Action<RestoreJournalStage>? failureInjector = null,
-        Action<RestoreJournalStage>? journalWriteInjector = null)
+        Action<RestoreJournalStage>? journalWriteInjector = null,
+        Action? commitPointInjector = null)
     {
         ArgumentNullException.ThrowIfNull(reader);
         ArgumentNullException.ThrowIfNull(dataStore);
@@ -46,7 +47,8 @@ public sealed partial class BackupCoordinator
         _failureInjector = failureInjector;
         _transactions = new BackupTransactionStore(
             pathProvider,
-            journalWriteInjector);
+            journalWriteInjector,
+            commitPointInjector);
         _dataWriteGate = AppDataWriteGate.Get(pathProvider);
         _assetGate = AppAssetGate.Get(pathProvider);
         string root = Path.TrimEndingDirectorySeparator(
@@ -231,7 +233,8 @@ public sealed partial class BackupCoordinator
             }
             catch (InvalidDataException)
             {
-                bool isPreCommit = _transactions.HasStagedData;
+                bool isPreCommit = _transactions.HasStagedData
+                    || !_transactions.HasCommitEvidence;
                 _transactions.QuarantineCorruptJournal();
                 if (isPreCommit)
                 {

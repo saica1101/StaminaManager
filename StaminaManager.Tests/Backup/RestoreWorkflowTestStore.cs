@@ -50,12 +50,14 @@ internal sealed class RestoreWorkflowTestStore : IAsyncDisposable
 
     public BackupCoordinator CreateBackup(
         Action<RestoreJournalStage>? injector = null,
-        Action<RestoreJournalStage>? journalWriteInjector = null) => new(
+        Action<RestoreJournalStage>? journalWriteInjector = null,
+        Action? commitPointInjector = null) => new(
             new SafeZipReader(),
             Store,
             Paths,
             injector,
-            journalWriteInjector);
+            journalWriteInjector,
+            commitPointInjector);
 
     public async Task<string> ExportAsync()
     {

@@ -19,16 +19,20 @@ internal sealed class BackupTransactionStore
     private const string PendingDirectoryName = "previous.pending";
     private const string RollbackDirectoryName = "assets.rollback";
     private const string JournalFileName = "restore-journal.json";
+    private const string NoAssetsMarkerFileName = "assets.rollback.none";
     private readonly IAppDataPathProvider _pathProvider;
     private readonly Action<RestoreJournalStage>? _journalWriteInjector;
+    private readonly Action? _commitPointInjector;
 
     public BackupTransactionStore(
         IAppDataPathProvider pathProvider,
-        Action<RestoreJournalStage>? journalWriteInjector = null)
+        Action<RestoreJournalStage>? journalWriteInjector = null,
+        Action? commitPointInjector = null)
     {
         ArgumentNullException.ThrowIfNull(pathProvider);
         _pathProvider = pathProvider;
         _journalWriteInjector = journalWriteInjector;
+        _commitPointInjector = commitPointInjector;
     }
 
     public string PreviousDirectory => GetStatePath(PreviousDirectoryName);
@@ -51,6 +55,7 @@ internal sealed class BackupTransactionStore
 
     public bool HasCommitEvidence => Directory.Exists(
             GetStatePath(RollbackDirectoryName))
+        || File.Exists(GetStatePath(NoAssetsMarkerFileName))
         || Directory.Exists(StageDirectory)
             && !Directory.Exists(StageAssetsDirectory)
             && !HasStagedData;
@@ -117,10 +122,15 @@ internal sealed class BackupTransactionStore
         {
             Directory.Delete(rollback, recursive: true);
         }
+        DeleteFileIfExists(GetStatePath(NoAssetsMarkerFileName));
 
         if (Directory.Exists(CurrentAssetsDirectory))
         {
             Directory.Move(CurrentAssetsDirectory, rollback);
+        }
+        else
+        {
+            WriteDurableEmptyFile(GetStatePath(NoAssetsMarkerFileName));
         }
 
         try
@@ -130,6 +140,7 @@ internal sealed class BackupTransactionStore
                     GetStatePath(StageDirectoryName),
                     AssetsDirectoryName),
                 CurrentAssetsDirectory);
+            _commitPointInjector?.Invoke();
             if (File.Exists(currentData))
             {
                 File.Replace(
@@ -287,6 +298,7 @@ internal sealed class BackupTransactionStore
         DeleteDirectoryIfExists(GetStatePath(StageDirectoryName));
         DeleteDirectoryIfExists(GetStatePath(PendingDirectoryName));
         DeleteDirectoryIfExists(GetStatePath(RollbackDirectoryName));
+        DeleteFileIfExists(GetStatePath(NoAssetsMarkerFileName));
         DeleteFileIfExists(GetJournalPath());
         return Task.CompletedTask;
     }
@@ -307,6 +319,15 @@ internal sealed class BackupTransactionStore
 
     private void RollbackAssets(string rollback)
     {
+        string noAssetsMarker = GetStatePath(NoAssetsMarkerFileName);
+        if (File.Exists(noAssetsMarker))
+        {
+            DeleteDirectoryIfExists(CurrentAssetsDirectory);
+            DeleteFileIfExists(noAssetsMarker);
+            DeleteDirectoryIfExists(rollback);
+            return;
+        }
+
         if (!Directory.Exists(rollback))
         {
             return;
@@ -366,6 +387,18 @@ internal sealed class BackupTransactionStore
         {
             File.Delete(path);
         }
+    }
+
+    private static void WriteDurableEmptyFile(string path)
+    {
+        using FileStream stream = new(
+            path,
+            FileMode.CreateNew,
+            FileAccess.Write,
+            FileShare.None,
+            bufferSize: 1,
+            FileOptions.WriteThrough);
+        stream.Flush(flushToDisk: true);
     }
 
     private string GetStateDirectory() => Path.Combine(
