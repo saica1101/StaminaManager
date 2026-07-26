@@ -20,11 +20,15 @@ internal sealed class BackupTransactionStore
     private const string RollbackDirectoryName = "assets.rollback";
     private const string JournalFileName = "restore-journal.json";
     private readonly IAppDataPathProvider _pathProvider;
+    private readonly Action<RestoreJournalStage>? _journalWriteInjector;
 
-    public BackupTransactionStore(IAppDataPathProvider pathProvider)
+    public BackupTransactionStore(
+        IAppDataPathProvider pathProvider,
+        Action<RestoreJournalStage>? journalWriteInjector = null)
     {
         ArgumentNullException.ThrowIfNull(pathProvider);
         _pathProvider = pathProvider;
+        _journalWriteInjector = journalWriteInjector;
     }
 
     public string PreviousDirectory => GetStatePath(PreviousDirectoryName);
@@ -42,6 +46,14 @@ internal sealed class BackupTransactionStore
     public string StageAssetsDirectory => Path.Combine(
         StageDirectory,
         AssetsDirectoryName);
+
+    public bool HasStagedData => File.Exists(StageDataPath);
+
+    public bool HasCommitEvidence => Directory.Exists(
+            GetStatePath(RollbackDirectoryName))
+        || Directory.Exists(StageDirectory)
+            && !Directory.Exists(StageAssetsDirectory)
+            && !HasStagedData;
 
     public void BeginStage()
     {
@@ -210,15 +222,30 @@ internal sealed class BackupTransactionStore
         RestoreJournal journal,
         CancellationToken cancellationToken)
     {
+        _journalWriteInjector?.Invoke(journal.Stage);
         Directory.CreateDirectory(GetStateDirectory());
         string path = GetJournalPath();
         string temporaryPath = path + ".tmp";
         try
         {
-            await File.WriteAllTextAsync(
+            await using (FileStream stream = new(
                 temporaryPath,
-                JsonSerializer.Serialize(journal, SerializerOptions),
-                cancellationToken).ConfigureAwait(false);
+                FileMode.Create,
+                FileAccess.Write,
+                FileShare.None,
+                16 * 1024,
+                FileOptions.Asynchronous | FileOptions.WriteThrough))
+            {
+                await JsonSerializer.SerializeAsync(
+                    stream,
+                    journal,
+                    SerializerOptions,
+                    cancellationToken).ConfigureAwait(false);
+                await stream.FlushAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                stream.Flush(flushToDisk: true);
+            }
+
             File.Move(temporaryPath, path, overwrite: true);
         }
         finally
@@ -262,6 +289,20 @@ internal sealed class BackupTransactionStore
         DeleteDirectoryIfExists(GetStatePath(RollbackDirectoryName));
         DeleteFileIfExists(GetJournalPath());
         return Task.CompletedTask;
+    }
+
+    public void QuarantineCorruptJournal()
+    {
+        string journal = GetJournalPath();
+        if (!File.Exists(journal))
+        {
+            return;
+        }
+
+        string quarantine = Path.Combine(
+            GetStateDirectory(),
+            $"restore-journal.corrupt-{Guid.NewGuid():N}.json");
+        File.Move(journal, quarantine);
     }
 
     private void RollbackAssets(string rollback)

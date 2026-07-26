@@ -419,7 +419,11 @@ public sealed class AppCoordinator
             }
             catch (OperationCanceledException)
             {
-                throw;
+                return result with
+                {
+                    IsPartial = true,
+                    RequiresDerivedStateRetry = true,
+                };
             }
             catch (Exception exception) when (!IsProcessFatal(exception))
             {
@@ -550,7 +554,7 @@ public sealed class AppCoordinator
         }
         catch (OperationCanceledException)
         {
-            throw;
+            return false;
         }
         catch (Exception exception) when (!IsProcessFatal(exception))
         {

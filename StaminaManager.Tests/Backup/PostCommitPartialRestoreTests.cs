@@ -13,6 +13,102 @@ namespace StaminaManager.Tests.Backup;
 public sealed class PostCommitPartialRestoreTests
 {
     [TestMethod]
+    [DataRow(true)]
+    [DataRow(false)]
+    public async Task RestoreAsync_commit直後の取消またはjournal失敗でもnewDataをpublishする(
+        bool cancelToken)
+    {
+        await using RestoreWorkflowTestStore source =
+            await RestoreWorkflowTestStore.CreateAsync("new", false);
+        string backupPath = await source.ExportAsync();
+        await using RestoreWorkflowTestStore destination =
+            await RestoreWorkflowTestStore.CreateAsync("old", false);
+        GameManager manager = destination.CreateManager();
+        await manager.InitializeAsync(
+            (await destination.Store.LoadAsync(CancellationToken.None)).Envelope!,
+            CancellationToken.None);
+        using CancellationTokenSource cancellation = new();
+        BackupCoordinator backup = destination.CreateBackup(
+            journalWriteInjector: stage =>
+            {
+                if (stage != RestoreJournalStage.LocalCommitted)
+                {
+                    return;
+                }
+
+                if (cancelToken)
+                {
+                    cancellation.Cancel();
+                    cancellation.Token.ThrowIfCancellationRequested();
+                }
+
+                throw new IOException("journal write failure");
+            });
+        PreparedBackupRestore prepared = await backup.PrepareRestoreAsync(
+            backupPath,
+            CancellationToken.None);
+
+        BackupRestoreResult result = await new RestoreCoordinator(
+                backup,
+                manager)
+            .CommitPreparedAsync(
+                prepared.SessionId,
+                true,
+                cancellation.Token)
+            .WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.IsTrue(result.IsCommitted);
+        Assert.IsTrue(result.IsPartial);
+        Assert.AreEqual("new", manager.Games[0].Name);
+        Assert.AreEqual(
+            "new",
+            (await destination.Store.LoadAsync(CancellationToken.None))
+                .Envelope!.Games[0].Name);
+        Assert.IsNotNull(await backup.ResumeAsync(CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task RestoreAsync_LocalCommitted例外後もnewDataをpublishしてpartialを返す()
+    {
+        await using RestoreWorkflowTestStore source =
+            await RestoreWorkflowTestStore.CreateAsync("new", false);
+        string backupPath = await source.ExportAsync();
+        await using RestoreWorkflowTestStore destination =
+            await RestoreWorkflowTestStore.CreateAsync("old", false);
+        GameManager manager = destination.CreateManager();
+        await manager.InitializeAsync(
+            (await destination.Store.LoadAsync(CancellationToken.None)).Envelope!,
+            CancellationToken.None);
+        BackupCoordinator backup = destination.CreateBackup(stage =>
+        {
+            if (stage == RestoreJournalStage.LocalCommitted)
+            {
+                throw new IOException("post-commit failure");
+            }
+        });
+        RestoreCoordinator restore = new(backup, manager);
+        PreparedBackupRestore prepared = await backup.PrepareRestoreAsync(
+            backupPath,
+            CancellationToken.None);
+
+        BackupRestoreResult result = await restore.CommitPreparedAsync(
+                prepared.SessionId,
+                true,
+                CancellationToken.None)
+            .WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.IsTrue(result.IsCommitted);
+        Assert.IsTrue(result.IsPartial);
+        Assert.IsTrue(result.RequiresDerivedStateRetry);
+        Assert.AreEqual("new", manager.Games[0].Name);
+        Assert.AreEqual(
+            "new",
+            (await destination.Store.LoadAsync(CancellationToken.None))
+                .Envelope!.Games[0].Name);
+        Assert.IsNotNull(await backup.ResumeAsync(CancellationToken.None));
+    }
+
+    [TestMethod]
     public async Task RestoreAsync_theme例外後もnewDataとVmを同期してpartialを返す()
     {
         await using RestoreWorkflowTestStore source =
@@ -127,7 +223,57 @@ public sealed class PostCommitPartialRestoreTests
         Assert.IsTrue(result.IsPartial);
         Assert.IsTrue(result.RequiresDerivedStateRetry);
         Assert.AreEqual("new", manager.Games[0].Name);
-        Assert.IsNull(await backup.ResumeAsync(CancellationToken.None));
+        Assert.IsNotNull(await backup.ResumeAsync(CancellationToken.None));
+    }
+
+    [TestMethod]
+    [DataRow("startup")]
+    [DataRow("notification")]
+    [DataRow("ack")]
+    public async Task RestoreAsync_commit後取消をpartialへ変換する(string target)
+    {
+        await using RestoreWorkflowTestStore source =
+            await RestoreWorkflowTestStore.CreateAsync("new", true);
+        string backupPath = await source.ExportAsync();
+        await using RestoreWorkflowTestStore destination =
+            await RestoreWorkflowTestStore.CreateAsync("old", false);
+        GameManager manager = destination.CreateManager();
+        PartialServices services = new();
+        BackupCoordinator backup = destination.CreateBackup(stage =>
+        {
+            if (target == "ack" && stage == RestoreJournalStage.Completed)
+            {
+                throw new OperationCanceledException("ack canceled");
+            }
+        });
+        AppCoordinator app = new(
+            destination.Store,
+            manager,
+            new RecordingUiDispatcher(),
+            services,
+            services,
+            services,
+            services,
+            services,
+            new RestoreCoordinator(backup, manager));
+        await app.InitializeAsync(CancellationToken.None);
+        services.CancelStartup = target == "startup";
+        services.CancelNotifications = target == "notification";
+        PreparedBackupRestore prepared = await app.PreviewRestoreAsync(
+            backupPath,
+            CancellationToken.None);
+
+        BackupRestoreResult result = await app.RestoreBackupAsync(
+                prepared.SessionId,
+                true,
+                CancellationToken.None)
+            .WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.IsTrue(result.IsCommitted);
+        Assert.IsTrue(result.IsPartial);
+        Assert.IsTrue(result.RequiresDerivedStateRetry);
+        Assert.AreEqual("new", manager.Games[0].Name);
+        Assert.IsNotNull(await backup.ResumeAsync(CancellationToken.None));
     }
 
     private sealed class PartialServices
@@ -140,6 +286,10 @@ public sealed class PostCommitPartialRestoreTests
           ISettingsLauncher
     {
         public bool ThrowForDarkTheme { get; set; }
+
+        public bool CancelStartup { get; set; }
+
+        public bool CancelNotifications { get; set; }
 
         public AppDisplayMode CurrentDisplayMode { get; private set; }
 
@@ -171,13 +321,20 @@ public sealed class PostCommitPartialRestoreTests
 
         public Task<StartupChangeResult> SetEnabledAsync(
             bool isEnabled,
-            CancellationToken cancellationToken) => Task.FromResult(new
-                StartupChangeResult(
+            CancellationToken cancellationToken)
+        {
+            if (CancelStartup)
+            {
+                throw new OperationCanceledException("startup canceled");
+            }
+
+            return Task.FromResult(new StartupChangeResult(
                     new StartupStatus(isEnabled
                         ? StartupState.Enabled
                         : StartupState.Disabled),
                     IsApplied: true,
                     StartupFailureReason.None));
+        }
 
         public void ApplyDisplayMode(AppDisplayMode displayMode) =>
             CurrentDisplayMode = displayMode;
@@ -189,8 +346,16 @@ public sealed class PostCommitPartialRestoreTests
         public Task<NotificationReconcileResult> ReconcileAsync(
             IReadOnlyCollection<GameEntry> games,
             AppSettings settings,
-            CancellationToken cancellationToken) => Task.FromResult(
-                NotificationReconcileResult.Success);
+            CancellationToken cancellationToken)
+        {
+            if (CancelNotifications)
+            {
+                throw new OperationCanceledException(
+                    "notification canceled");
+            }
+
+            return Task.FromResult(NotificationReconcileResult.Success);
+        }
 
         Task<NotificationPermissionStatus>
             INotificationPermissionService.GetStatusAsync(

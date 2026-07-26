@@ -170,11 +170,12 @@ public sealed class BackupCoordinatorTests_ResumeWorkflow
         RestoreCoordinator crashingRestore = new(
             crashingBackup,
             crashingManager);
-        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
-            crashingRestore.CommitPreparedAsync(
+        BackupRestoreResult committed =
+            await crashingRestore.CommitPreparedAsync(
                 prepared.SessionId,
                 isReplacementConfirmed: true,
-                CancellationToken.None));
+                CancellationToken.None);
+        Assert.IsTrue(committed.IsPartial);
 
         GameManager manager = destination.CreateManager();
         BackupCoordinator backup = destination.CreateBackup();

@@ -4,6 +4,7 @@ using StaminaManager.Core.Validation;
 using StaminaManager.Application;
 using StaminaManager.Infrastructure.Persistence;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 
 namespace StaminaManager.Infrastructure.Backup;
 
@@ -34,7 +35,8 @@ public sealed partial class BackupCoordinator
         SafeZipReader reader,
         ILocalDataStore dataStore,
         IAppDataPathProvider pathProvider,
-        Action<RestoreJournalStage>? failureInjector = null)
+        Action<RestoreJournalStage>? failureInjector = null,
+        Action<RestoreJournalStage>? journalWriteInjector = null)
     {
         ArgumentNullException.ThrowIfNull(reader);
         ArgumentNullException.ThrowIfNull(dataStore);
@@ -42,7 +44,9 @@ public sealed partial class BackupCoordinator
         _reader = reader;
         _dataStore = dataStore;
         _failureInjector = failureInjector;
-        _transactions = new BackupTransactionStore(pathProvider);
+        _transactions = new BackupTransactionStore(
+            pathProvider,
+            journalWriteInjector);
         _dataWriteGate = AppDataWriteGate.Get(pathProvider);
         _assetGate = AppAssetGate.Get(pathProvider);
         string root = Path.TrimEndingDirectorySeparator(
@@ -132,18 +136,40 @@ public sealed partial class BackupCoordinator
                     .ConfigureAwait(false);
                 try
                 {
-                    await _transactions.CommitAsync(cancellationToken)
+                    cancellationToken.ThrowIfCancellationRequested();
+                    await _transactions.CommitAsync(CancellationToken.None)
                         .ConfigureAwait(false);
-                    await _transactions.WriteJournalAsync(
-                        new RestoreJournal(
-                            RestoreJournalStage.LocalCommitted,
-                            sessionId,
-                            RequiresDerivedStateRetry: true),
-                        cancellationToken).ConfigureAwait(false);
-                    InjectFailure(RestoreJournalStage.LocalCommitted);
-                    await publishCommittedDataAsync(
-                        data,
-                        cancellationToken).ConfigureAwait(false);
+                    try
+                    {
+                        await _transactions.WriteJournalAsync(
+                            new RestoreJournal(
+                                RestoreJournalStage.LocalCommitted,
+                                sessionId,
+                                RequiresDerivedStateRetry: true),
+                            CancellationToken.None).ConfigureAwait(false);
+                        InjectFailure(RestoreJournalStage.LocalCommitted);
+                    }
+                    catch (Exception exception) when (
+                        !IsProcessFatal(exception))
+                    {
+                        Debug.WriteLine(
+                            "Post-commit journal update failed: "
+                            + exception.GetType().Name);
+                    }
+
+                    try
+                    {
+                        await publishCommittedDataAsync(
+                            data,
+                            CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception exception) when (
+                        !IsProcessFatal(exception))
+                    {
+                        Debug.WriteLine(
+                            "Post-commit in-memory publication failed: "
+                            + exception.GetType().Name);
+                    }
                 }
                 finally
                 {
@@ -197,10 +223,44 @@ public sealed partial class BackupCoordinator
             .ConfigureAwait(false);
         try
         {
-            RestoreJournal? journal = await _transactions.ReadJournalAsync(
-                cancellationToken).ConfigureAwait(false);
+            RestoreJournal? journal;
+            try
+            {
+                journal = await _transactions.ReadJournalAsync(
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (InvalidDataException)
+            {
+                bool isPreCommit = _transactions.HasStagedData;
+                _transactions.QuarantineCorruptJournal();
+                if (isPreCommit)
+                {
+                    await RecoverPreCommitWithGatesAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                    return null;
+                }
+
+                DataEnvelope recovered = await LoadCommittedDataAsync(
+                    cancellationToken).ConfigureAwait(false);
+                await TryWriteRecoveryJournalAsync().ConfigureAwait(false);
+                return CreateResult(
+                    recovered,
+                    requiresDerivedStateRetry: true);
+            }
             if (journal is null)
             {
+                if (!_transactions.HasStagedData
+                    && _transactions.HasCommitEvidence)
+                {
+                    DataEnvelope recovered = await LoadCommittedDataAsync(
+                        cancellationToken).ConfigureAwait(false);
+                    await TryWriteRecoveryJournalAsync()
+                        .ConfigureAwait(false);
+                    return CreateResult(
+                        recovered,
+                        requiresDerivedStateRetry: true);
+                }
+
                 await RecoverPreCommitWithGatesAsync(cancellationToken)
                     .ConfigureAwait(false);
                 return null;
@@ -225,11 +285,8 @@ public sealed partial class BackupCoordinator
                 return null;
             }
 
-            DataLoadResult loaded = await _dataStore.LoadAsync(
+            DataEnvelope data = await LoadCommittedDataAsync(
                 cancellationToken).ConfigureAwait(false);
-            DataEnvelope data = loaded.Envelope
-                ?? throw new InvalidDataException(
-                    "Committed restore data is not readable.");
             BackupPreview preview = BackupPreview.From(
                 data.Settings,
                 data.Games.Length,
@@ -259,17 +316,18 @@ public sealed partial class BackupCoordinator
                 cancellationToken).ConfigureAwait(false);
             if (journal is not null)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+                InjectFailure(RestoreJournalStage.Completed);
                 await _transactions.WriteJournalAsync(
                     journal with
                     {
                         Stage = RestoreJournalStage.Completed,
                         RequiresDerivedStateRetry = false,
                     },
-                    cancellationToken).ConfigureAwait(false);
-                InjectFailure(RestoreJournalStage.Completed);
+                    CancellationToken.None).ConfigureAwait(false);
             }
 
-            await _transactions.AcknowledgeAsync(cancellationToken)
+            await _transactions.AcknowledgeAsync(CancellationToken.None)
                 .ConfigureAwait(false);
         }
         finally
@@ -290,6 +348,37 @@ public sealed partial class BackupCoordinator
             requiresDerivedStateRetry,
             IsCommitted: true,
             IsPartial: requiresDerivedStateRetry);
+
+    private async Task<DataEnvelope> LoadCommittedDataAsync(
+        CancellationToken cancellationToken)
+    {
+        DataLoadResult loaded = await _dataStore.LoadAsync(cancellationToken)
+            .ConfigureAwait(false);
+        DataEnvelope data = loaded.Envelope
+            ?? throw new InvalidDataException(
+                "Committed restore data is not readable.");
+        BackupArchiveValidator.ValidateData(data);
+        return data;
+    }
+
+    private async Task TryWriteRecoveryJournalAsync()
+    {
+        try
+        {
+            await _transactions.WriteJournalAsync(
+                new RestoreJournal(
+                    RestoreJournalStage.LocalCommitted,
+                    Guid.NewGuid().ToString("N"),
+                    RequiresDerivedStateRetry: true),
+                CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Restore journal reconstruction failed: "
+                + exception.GetType().Name);
+        }
+    }
 
     private async Task RecoverPreCommitWithGatesAsync(
         CancellationToken cancellationToken)
@@ -386,5 +475,14 @@ public sealed partial class BackupCoordinator
 
     private void InjectFailure(RestoreJournalStage stage) =>
         _failureInjector?.Invoke(stage);
+
+    private static bool IsProcessFatal(Exception exception) =>
+        exception is OutOfMemoryException
+            or StackOverflowException
+            or AccessViolationException
+            or AppDomainUnloadedException
+            or BadImageFormatException
+            or CannotUnloadAppDomainException
+            or InvalidProgramException;
 
 }

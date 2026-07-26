@@ -49,11 +49,13 @@ internal sealed class RestoreWorkflowTestStore : IAsyncDisposable
         AppSettings.CreateDefault(AppTheme.Light));
 
     public BackupCoordinator CreateBackup(
-        Action<RestoreJournalStage>? injector = null) => new(
+        Action<RestoreJournalStage>? injector = null,
+        Action<RestoreJournalStage>? journalWriteInjector = null) => new(
             new SafeZipReader(),
             Store,
             Paths,
-            injector);
+            injector,
+            journalWriteInjector);
 
     public async Task<string> ExportAsync()
     {

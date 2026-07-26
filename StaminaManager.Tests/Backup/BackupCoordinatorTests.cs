@@ -85,11 +85,12 @@ public sealed class BackupCoordinatorTests
                 CancellationToken.None);
             if (failureStage == RestoreJournalStage.LocalCommitted)
             {
-                await Assert.ThrowsExactlyAsync<InjectedRestoreException>(
-                    () => restore.CommitPreparedAsync(
+                BackupRestoreResult result =
+                    await restore.CommitPreparedAsync(
                         prepared.SessionId,
                         isReplacementConfirmed: true,
-                        CancellationToken.None));
+                        CancellationToken.None);
+                Assert.IsTrue(result.IsPartial);
             }
             else
             {
@@ -146,11 +147,12 @@ public sealed class BackupCoordinatorTests
                 CancellationToken.None)).Envelope!,
             CancellationToken.None);
         RestoreCoordinator restore = new(failing, manager);
-        await Assert.ThrowsExactlyAsync<InjectedRestoreException>(() =>
-            restore.CommitPreparedAsync(
+        BackupRestoreResult committed =
+            await restore.CommitPreparedAsync(
                 prepared.SessionId,
                 isReplacementConfirmed: true,
-                CancellationToken.None));
+                CancellationToken.None);
+        Assert.IsTrue(committed.IsPartial);
 
         BackupRestoreResult? resumed =
             await destination.Coordinator.ResumeAsync(
