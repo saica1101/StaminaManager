@@ -48,6 +48,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly INotificationPermissionService
         _notificationPermissionService;
     private readonly ISettingsLauncher _settingsLauncher;
+    private readonly AppCoordinator? _appCoordinator;
     private readonly SemaphoreSlim _mutationGate = new(1, 1);
 
     public SettingsViewModel(
@@ -88,7 +89,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         IStartupService startupService,
         INotificationReconciler notificationReconciler,
         INotificationPermissionService notificationPermissionService,
-        ISettingsLauncher settingsLauncher)
+        ISettingsLauncher settingsLauncher,
+        AppCoordinator? appCoordinator = null)
     {
         ArgumentNullException.ThrowIfNull(gameManager);
         ArgumentNullException.ThrowIfNull(themeService);
@@ -105,6 +107,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _notificationReconciler = notificationReconciler;
         _notificationPermissionService = notificationPermissionService;
         _settingsLauncher = settingsLauncher;
+        _appCoordinator = appCoordinator;
         AppSettings settings = gameManager.CurrentData.Settings;
         Theme = settings.Theme;
         SelectedBackdrop = settings.Backdrop;
@@ -187,6 +190,15 @@ public sealed partial class SettingsViewModel : ObservableObject
     public partial InfoBarSeverity InfoBarSeverity { get; private set; } =
         InfoBarSeverity.Error;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BackupStatusVisibility))]
+    public partial bool IsBackupBusy { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BackupStatusVisibility))]
+    public partial string BackupStatusText { get; private set; } =
+        string.Empty;
+
     public bool IsDarkTheme => Theme == AppTheme.Dark;
 
     public bool IsReady =>
@@ -216,6 +228,11 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public Visibility OpenWindowsNotificationSettingsVisibility =>
         IsOpenWindowsNotificationSettingsVisible
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+    public Visibility BackupStatusVisibility =>
+        IsBackupBusy || !string.IsNullOrEmpty(BackupStatusText)
             ? Visibility.Visible
             : Visibility.Collapsed;
 
@@ -594,6 +611,84 @@ public sealed partial class SettingsViewModel : ObservableObject
     public void PrepareBackupImport() =>
         ReportPreparation(SettingsPreparationAction.ImportBackup);
 
+    public async Task ExportBackupAsync(
+        string destinationPath,
+        CancellationToken cancellationToken = default)
+    {
+        AppCoordinator coordinator = GetBackupCoordinator();
+        IsBackupBusy = true;
+        BackupStatusText = "バックアップを作成しています…";
+        try
+        {
+            await coordinator.ExportBackupAsync(
+                destinationPath,
+                cancellationToken);
+            BackupStatusText = "バックアップを作成しました。";
+            ShowMessage(
+                "選択した場所にバックアップを保存しました。",
+                InfoBarSeverity.Success,
+                "バックアップが完了しました");
+        }
+        finally
+        {
+            IsBackupBusy = false;
+        }
+    }
+
+    public Task<BackupPreview> PreviewRestoreAsync(
+        string sourcePath,
+        CancellationToken cancellationToken = default) =>
+        GetBackupCoordinator().PreviewRestoreAsync(
+            sourcePath,
+            cancellationToken);
+
+    public async Task RestoreBackupAsync(
+        string sourcePath,
+        bool isReplacementConfirmed,
+        CancellationToken cancellationToken = default)
+    {
+        AppCoordinator coordinator = GetBackupCoordinator();
+        IsBackupBusy = true;
+        BackupStatusText = "バックアップを復元しています…";
+        try
+        {
+            _ = await coordinator.RestoreBackupAsync(
+                sourcePath,
+                isReplacementConfirmed,
+                cancellationToken);
+            AppSettings restored = _gameManager.CurrentData.Settings;
+            Theme = restored.Theme;
+            SelectedBackdrop = restored.Backdrop;
+            ActualBackdrop = coordinator.LastBackdropResult?.ActualBackdrop
+                ?? restored.Backdrop;
+            CloseBehavior = restored.CloseBehavior;
+            IsStartupEnabled = restored.StartupEnabled;
+            AreNotificationsEnabled = restored.NotificationsEnabled;
+            NotificationLeadMinutes = restored.NotificationLeadMinutes;
+
+            bool hasRetry = coordinator.LastThemeResult?.IsApplied != true
+                || coordinator.LastBackdropResult?.ErrorMessage is not null
+                || !coordinator.IsStartupSynchronized
+                || coordinator.LastNotificationReconcileResult?.HasFailures
+                    == true;
+            BackupStatusText = hasRetry
+                ? "データを復元しました。Windows設定の再調整を次回も試行します。"
+                : "バックアップを復元しました。";
+            ShowMessage(
+                BackupStatusText,
+                hasRetry
+                    ? InfoBarSeverity.Warning
+                    : InfoBarSeverity.Success,
+                hasRetry
+                    ? "データは復元済みです"
+                    : "復元が完了しました");
+        }
+        finally
+        {
+            IsBackupBusy = false;
+        }
+    }
+
     public void PrepareWindowsNotificationSettings() => ReportPreparation(
         SettingsPreparationAction.OpenWindowsNotificationSettings);
 
@@ -799,6 +894,10 @@ public sealed partial class SettingsViewModel : ObservableObject
             InfoBarSeverity.Informational,
             "準備中の機能です");
     }
+
+    private AppCoordinator GetBackupCoordinator() =>
+        _appCoordinator ?? throw new InvalidOperationException(
+            "バックアップ機能を利用できません。");
 
     private async Task<bool> RollbackStartupAsync(bool previousEnabled)
     {

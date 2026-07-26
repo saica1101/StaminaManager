@@ -26,6 +26,7 @@ public sealed class AppCoordinator
     private readonly IStartupService _startupService;
     private readonly IWindowStateService _windowStateService;
     private readonly INotificationReconciler _notificationReconciler;
+    private readonly RestoreCoordinator? _restoreCoordinator;
     private readonly SemaphoreSlim _initializationGate = new(1, 1);
 
     public AppCoordinator(
@@ -105,7 +106,8 @@ public sealed class AppCoordinator
         IBackdropService backdropService,
         IStartupService startupService,
         IWindowStateService windowStateService,
-        INotificationReconciler notificationReconciler)
+        INotificationReconciler notificationReconciler,
+        RestoreCoordinator? restoreCoordinator = null)
     {
         ArgumentNullException.ThrowIfNull(dataStore);
         ArgumentNullException.ThrowIfNull(gameManager);
@@ -123,6 +125,7 @@ public sealed class AppCoordinator
         _startupService = startupService;
         _windowStateService = windowStateService;
         _notificationReconciler = notificationReconciler;
+        _restoreCoordinator = restoreCoordinator;
     }
 
     public event EventHandler<AppNavigationRequest>? NavigationRequested;
@@ -195,9 +198,15 @@ public sealed class AppCoordinator
                     "初期化状態を復元できません。");
             }
 
-            await RestoreModeAsync(cancellationToken)
-                .ConfigureAwait(false);
+            if (_restoreCoordinator is not null)
+            {
+                _ = await _restoreCoordinator.ResumeAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
             await ReconcileDerivedStateAsync(cancellationToken)
+                .ConfigureAwait(false);
+            await AcknowledgeRestoreIfReconciledAsync(cancellationToken)
                 .ConfigureAwait(false);
             IsInitialized = true;
             _gameManager.GamesChanged += OnGamesChangedAsync;
@@ -337,10 +346,63 @@ public sealed class AppCoordinator
             return;
         }
 
+        await RestoreModeAsync(cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         await ReconcileStartupAsync(cancellationToken).ConfigureAwait(false);
         await ReconcileNotificationsAsync(cancellationToken)
             .ConfigureAwait(false);
     }
+
+    public Task ExportBackupAsync(
+        string destinationPath,
+        CancellationToken cancellationToken = default) =>
+        GetRestoreCoordinator().ExportAsync(
+            destinationPath,
+            cancellationToken);
+
+    public Task<BackupPreview> PreviewRestoreAsync(
+        string sourcePath,
+        CancellationToken cancellationToken = default) =>
+        GetRestoreCoordinator().PreviewAsync(sourcePath, cancellationToken);
+
+    public async Task<BackupRestoreResult> RestoreBackupAsync(
+        string sourcePath,
+        bool isReplacementConfirmed,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureInitialized();
+        BackupRestoreResult result = await GetRestoreCoordinator()
+            .RestoreAsync(
+                sourcePath,
+                isReplacementConfirmed,
+                cancellationToken)
+            .ConfigureAwait(false);
+        await ReconcileDerivedStateAsync(cancellationToken)
+            .ConfigureAwait(false);
+        await AcknowledgeRestoreIfReconciledAsync(cancellationToken)
+            .ConfigureAwait(false);
+        return result;
+    }
+
+    private async Task AcknowledgeRestoreIfReconciledAsync(
+        CancellationToken cancellationToken)
+    {
+        if (_restoreCoordinator is null
+            || !IsStartupSynchronized
+            || LastThemeResult?.IsApplied != true
+            || LastBackdropResult?.ErrorMessage is not null
+            || LastNotificationReconcileResult?.HasFailures == true)
+        {
+            return;
+        }
+
+        await _restoreCoordinator.AcknowledgeDerivedStateAsync(
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private RestoreCoordinator GetRestoreCoordinator() =>
+        _restoreCoordinator ?? throw new InvalidOperationException(
+            "バックアップ機能が登録されていません。");
 
     private async Task ReconcileStartupAsync(
         CancellationToken cancellationToken)

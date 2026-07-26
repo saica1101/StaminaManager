@@ -11,6 +11,7 @@ using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
 using StaminaManager.Core.Persistence;
 using StaminaManager.Infrastructure.Persistence;
+using StaminaManager.Infrastructure.Backup;
 using StaminaManager.Infrastructure.Notifications;
 using StaminaManager.Infrastructure.Storage;
 using StaminaManager.Infrastructure.Windows;
@@ -338,6 +339,13 @@ public partial class App : Microsoft.UI.Xaml.Application
             _notificationScheduler,
             notificationLedgerStore,
             clock);
+        IBackupService backupService = new BackupCoordinator(
+            new SafeZipReader(),
+            dataStore,
+            pathProvider);
+        RestoreCoordinator restoreCoordinator = new(
+            backupService,
+            _gameManager);
         _coordinator = new AppCoordinator(
             dataStore,
             _gameManager,
@@ -346,7 +354,8 @@ public partial class App : Microsoft.UI.Xaml.Application
             backdropService,
             _startupService,
             _windowStateService,
-            notificationCoordinator);
+            notificationCoordinator,
+            restoreCoordinator);
         _coordinator.NavigationRequested += OnNavigationRequested;
         _compactViewModel = new CompactViewModel(
             _gameManager,
@@ -369,7 +378,8 @@ public partial class App : Microsoft.UI.Xaml.Application
             _startupService,
             notificationCoordinator,
             notificationPermissionService,
-            settingsLauncher);
+            settingsLauncher,
+            _coordinator);
 
         _startupStage = "OverviewPage";
         _overviewPage = new OverviewPage(_overviewViewModel);

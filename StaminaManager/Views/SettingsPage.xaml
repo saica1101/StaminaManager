@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:StaminaManager.Views"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     Background="Transparent"
     mc:Ignorable="d">
@@ -222,13 +223,29 @@
                                 x:Uid="ExportBackupButton"
                                 AutomationProperties.AutomationId="ExportBackupButton"
                                 HorizontalAlignment="Left"
+                                IsEnabled="{x:Bind local:SettingsPage.Not(ViewModel.IsBackupBusy), Mode=OneWay}"
                                 Click="ExportBackupButton_Click" />
                             <Button
                                 x:Name="ImportBackupButton"
                                 x:Uid="ImportBackupButton"
                                 AutomationProperties.AutomationId="ImportBackupButton"
                                 HorizontalAlignment="Left"
+                                IsEnabled="{x:Bind local:SettingsPage.Not(ViewModel.IsBackupBusy), Mode=OneWay}"
                                 Click="ImportBackupButton_Click" />
+                            <StackPanel
+                                AutomationProperties.LiveSetting="Polite"
+                                Orientation="Horizontal"
+                                Spacing="{StaticResource Spacing8}"
+                                Visibility="{x:Bind ViewModel.BackupStatusVisibility, Mode=OneWay}">
+                                <ProgressRing
+                                    Width="18"
+                                    Height="18"
+                                    IsActive="{x:Bind ViewModel.IsBackupBusy, Mode=OneWay}" />
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    Text="{x:Bind ViewModel.BackupStatusText, Mode=OneWay}"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </Border>

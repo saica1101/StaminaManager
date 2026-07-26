@@ -1,5 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.Windows.Storage.Pickers;
+using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
 using StaminaManager.ViewModels;
 using System.Diagnostics;
@@ -20,6 +22,8 @@ public sealed partial class SettingsPage : Page
     }
 
     public SettingsViewModel ViewModel { get; }
+
+    public static bool Not(bool value) => !value;
 
     private void SettingsPage_Loaded(
         object sender,
@@ -149,13 +153,116 @@ public sealed partial class SettingsPage : Page
         });
     }
 
-    private void ExportBackupButton_Click(
+    private async void ExportBackupButton_Click(
         object sender,
-        RoutedEventArgs args) => ViewModel.PrepareBackupExport();
+        RoutedEventArgs args)
+    {
+        FileSavePicker picker = new(
+            XamlRoot.ContentIslandEnvironment.AppWindowId)
+        {
+            SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
+            SuggestedFileName = $"StaminaManager-{DateTime.Now:yyyyMMdd}",
+        };
+        picker.FileTypeChoices.Add(
+            "Stamina Manager バックアップ",
+            new List<string> { ".staminabackup" });
+        PickFileResult? selected = await picker.PickSaveFileAsync();
+        if (selected is null)
+        {
+            return;
+        }
 
-    private void ImportBackupButton_Click(
+        await ExecuteSettingChangeAsync(() =>
+            ViewModel.ExportBackupAsync(selected.Path));
+    }
+
+    private async void ImportBackupButton_Click(
         object sender,
-        RoutedEventArgs args) => ViewModel.PrepareBackupImport();
+        RoutedEventArgs args)
+    {
+        FileOpenPicker picker = new(
+            XamlRoot.ContentIslandEnvironment.AppWindowId)
+        {
+            SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
+        };
+        picker.FileTypeFilter.Add(".staminabackup");
+        PickFileResult? selected = await picker.PickSingleFileAsync();
+        if (selected is null)
+        {
+            return;
+        }
+
+        try
+        {
+            BackupPreview preview = await ViewModel.PreviewRestoreAsync(
+                selected.Path);
+            ContentDialog confirmation = new()
+            {
+                XamlRoot = XamlRoot,
+                Title = "バックアップを復元しますか？",
+                PrimaryButtonText = "現在データを置き換える",
+                CloseButtonText = "キャンセル",
+                DefaultButton = ContentDialogButton.Close,
+                Content = CreateRestorePreview(preview),
+            };
+            ContentDialogResult result = await confirmation.ShowAsync();
+            if (result != ContentDialogResult.Primary)
+            {
+                return;
+            }
+
+            await ExecuteSettingChangeAsync(() =>
+                ViewModel.RestoreBackupAsync(
+                    selected.Path,
+                    isReplacementConfirmed: true));
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine(
+                "Backup restore preparation failed: "
+                + exception.GetType().Name);
+            ViewModel.ReportUnexpectedFailure();
+        }
+    }
+
+    private StackPanel CreateRestorePreview(BackupPreview preview)
+    {
+        StackPanel content = new()
+        {
+            Spacing = 8,
+            MaxWidth = 520,
+        };
+        content.Children.Add(new TextBlock
+        {
+            Text = "現在のゲーム、画像、設定をバックアップの内容で置き換えます。"
+                + " 端末固有の通知台帳は保持されます。",
+            TextWrapping = TextWrapping.Wrap,
+        });
+        foreach (string line in new[]
+        {
+            $"ゲーム: {preview.GameCount}件",
+            $"画像: {preview.ImageCount}件",
+            $"テーマ: {ViewModel.Theme} → {preview.Theme}",
+            $"背景: {ViewModel.SelectedBackdrop} → {preview.Backdrop}",
+            $"通知: {FormatEnabled(ViewModel.AreNotificationsEnabled)}"
+                + $" → {FormatEnabled(preview.NotificationsEnabled)}",
+            $"閉じる動作: {ViewModel.CloseBehavior} → {preview.CloseBehavior}",
+            $"自動起動: {FormatEnabled(ViewModel.IsStartupEnabled)}"
+                + $" → {FormatEnabled(preview.StartupEnabled)}",
+        })
+        {
+            content.Children.Add(new TextBlock
+            {
+                Text = line,
+                TextWrapping = TextWrapping.Wrap,
+            });
+        }
+
+        return content;
+    }
+
+    private static string FormatEnabled(bool isEnabled) =>
+        isEnabled ? "オン" : "オフ";
 
     private void SettingsInfoBar_Closed(
         InfoBar sender,

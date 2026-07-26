@@ -286,6 +286,29 @@ public sealed class GameManager
         return result;
     }
 
+    public async Task ReplaceFromRestoreAsync(
+        DataEnvelope restoredData,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(restoredData);
+        await _mutationGate.WaitAsync(cancellationToken)
+            .ConfigureAwait(false);
+        try
+        {
+            EnsureInitialized();
+            _data = restoredData with
+            {
+                Games = NormalizeOrder(restoredData.Games),
+            };
+        }
+        finally
+        {
+            _mutationGate.Release();
+        }
+
+        await NotifyGamesChangedAsync().ConfigureAwait(false);
+    }
+
     private static void EnsureValid(
         GameDraft draft,
         DateTimeOffset recordedAtUtc)
