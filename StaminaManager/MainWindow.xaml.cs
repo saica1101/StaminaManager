@@ -38,8 +38,10 @@ public sealed class MainWindow : WinUIEx.WindowEx
     private IWindowStateService? _windowStateService;
     private ITrayService? _trayService;
     private Func<CloseBehavior>? _getCloseBehavior;
+    private Action? _shutdownAction;
     private bool _isExplicitExit;
     private bool _isLifecycleConfigured;
+    private bool _isLifecycleDisposed;
     private readonly MainWindowContent _windowContent;
 
     public MainWindow(MainPage mainPage)
@@ -62,7 +64,8 @@ public sealed class MainWindow : WinUIEx.WindowEx
     internal void ConfigureLifecycle(
         IWindowStateService windowStateService,
         ITrayService trayService,
-        Func<CloseBehavior> getCloseBehavior)
+        Func<CloseBehavior> getCloseBehavior,
+        Action? shutdownAction = null)
     {
         ArgumentNullException.ThrowIfNull(windowStateService);
         ArgumentNullException.ThrowIfNull(trayService);
@@ -76,6 +79,7 @@ public sealed class MainWindow : WinUIEx.WindowEx
         _windowStateService = windowStateService;
         _trayService = trayService;
         _getCloseBehavior = getCloseBehavior;
+        _shutdownAction = shutdownAction;
         AppWindow.Closing += OnAppWindowClosing;
         trayService.OpenRequested += OnTrayOpenRequested;
         trayService.ExitRequested += OnTrayExitRequested;
@@ -157,6 +161,11 @@ public sealed class MainWindow : WinUIEx.WindowEx
 
     private void DisposeLifecycle()
     {
+        if (_isLifecycleDisposed)
+        {
+            return;
+        }
+
         AppWindow.Closing -= OnAppWindowClosing;
         if (_trayService is not null)
         {
@@ -164,6 +173,9 @@ public sealed class MainWindow : WinUIEx.WindowEx
             _trayService.ExitRequested -= OnTrayExitRequested;
             _trayService.Dispose();
         }
+
+        _shutdownAction?.Invoke();
+        _isLifecycleDisposed = true;
     }
 
     private void UpdateBackdropDiagnostic()

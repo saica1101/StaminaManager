@@ -2,6 +2,9 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
 using StaminaManager.Application;
+using StaminaManager.Core.Abstractions;
+using StaminaManager.Infrastructure.Notifications;
+using System.Diagnostics;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 
@@ -19,19 +22,56 @@ public static class Program
         _ = args;
         WinRT.ComWrappersSupport.InitializeComWrappers();
 
-        AppInstance currentInstance = AppInstance.GetCurrent();
+        INotificationScheduler notificationScheduler =
+            new WindowsNotificationScheduler();
+        (AppInstance Current, AppActivationArguments Activation)
+            activationContext;
+        try
+        {
+            activationContext = InitializeNotificationsBeforeActivation(
+                notificationScheduler,
+                () =>
+                {
+                    AppInstance current = AppInstance.GetCurrent();
+                    return (current, current.GetActivatedEventArgs());
+                });
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Early notification registration failed: "
+                + exception.GetType().Name);
+            notificationScheduler.Dispose();
+            return 1;
+        }
+
+        AppInstance currentInstance = activationContext.Current;
         AppActivationArguments activationArguments =
-            currentInstance.GetActivatedEventArgs();
+            activationContext.Activation;
         AppInstance mainInstance = AppInstance.FindOrRegisterForKey(
             MainInstanceKey);
         if (!mainInstance.IsCurrent)
         {
-            RedirectActivation(activationArguments, mainInstance);
+            try
+            {
+                RedirectActivation(activationArguments, mainInstance);
+            }
+            finally
+            {
+                notificationScheduler.Dispose();
+            }
+
             return 0;
         }
 
         _mainInstance = mainInstance;
         _mainInstance.Activated += OnActivated;
+        if (activationArguments.Kind
+            == ExtendedActivationKind.AppNotification)
+        {
+            ActivationRouter.Enqueue(activationArguments);
+        }
+
         Microsoft.UI.Xaml.Application.Start(initializationParameters =>
         {
             _ = initializationParameters;
@@ -39,7 +79,7 @@ public static class Program
                 DispatcherQueue.GetForCurrentThread();
             SynchronizationContext.SetSynchronizationContext(
                 new DispatcherQueueSynchronizationContext(dispatcherQueue));
-            new App();
+            new App(notificationScheduler);
         });
         return 0;
     }
@@ -87,6 +127,26 @@ public static class Program
         object? sender,
         AppActivationArguments activationArguments) =>
         ActivationRouter.Enqueue(activationArguments);
+
+    internal static T InitializeNotificationsBeforeActivation<T>(
+        INotificationScheduler notificationScheduler,
+        Func<T> readActivation)
+    {
+        ArgumentNullException.ThrowIfNull(notificationScheduler);
+        ArgumentNullException.ThrowIfNull(readActivation);
+        // 通知COM activationでは、activation引数を読む前の登録が必須。
+        notificationScheduler.Initialize();
+        return readActivation();
+    }
+
+    private static bool IsProcessFatal(Exception exception) =>
+        exception is OutOfMemoryException
+            or StackOverflowException
+            or AccessViolationException
+            or AppDomainUnloadedException
+            or BadImageFormatException
+            or CannotUnloadAppDomainException
+            or InvalidProgramException;
 
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [DllImport("ole32.dll", ExactSpelling = true)]

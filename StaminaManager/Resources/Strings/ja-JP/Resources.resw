@@ -98,4 +98,5 @@
   <data name="CompactEditButton.Content" xml:space="preserve"><value>ゲームを編集</value></data>
   <data name="TrayOpenText" xml:space="preserve"><value>開く</value></data>
   <data name="TrayExitText" xml:space="preserve"><value>終了</value></data>
+  <data name="StaminaNotificationDetailFormat" xml:space="preserve"><value>全回復予定: {0:g}</value></data>
 </root>

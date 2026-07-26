@@ -25,6 +25,7 @@ public sealed class AppCoordinator
     private readonly IBackdropService _backdropService;
     private readonly IStartupService _startupService;
     private readonly IWindowStateService _windowStateService;
+    private readonly INotificationReconciler _notificationReconciler;
     private readonly SemaphoreSlim _initializationGate = new(1, 1);
 
     public AppCoordinator(
@@ -71,7 +72,8 @@ public sealed class AppCoordinator
             themeService,
             backdropService,
             startupService,
-            new PassThroughWindowStateService())
+            new PassThroughWindowStateService(),
+            new PassThroughNotificationReconciler())
     {
     }
 
@@ -83,6 +85,27 @@ public sealed class AppCoordinator
         IBackdropService backdropService,
         IStartupService startupService,
         IWindowStateService windowStateService)
+        : this(
+            dataStore,
+            gameManager,
+            uiDispatcher,
+            themeService,
+            backdropService,
+            startupService,
+            windowStateService,
+            new PassThroughNotificationReconciler())
+    {
+    }
+
+    public AppCoordinator(
+        ILocalDataStore dataStore,
+        GameManager gameManager,
+        IUiDispatcher uiDispatcher,
+        IThemeService themeService,
+        IBackdropService backdropService,
+        IStartupService startupService,
+        IWindowStateService windowStateService,
+        INotificationReconciler notificationReconciler)
     {
         ArgumentNullException.ThrowIfNull(dataStore);
         ArgumentNullException.ThrowIfNull(gameManager);
@@ -91,6 +114,7 @@ public sealed class AppCoordinator
         ArgumentNullException.ThrowIfNull(backdropService);
         ArgumentNullException.ThrowIfNull(startupService);
         ArgumentNullException.ThrowIfNull(windowStateService);
+        ArgumentNullException.ThrowIfNull(notificationReconciler);
         _dataStore = dataStore;
         _gameManager = gameManager;
         _uiDispatcher = uiDispatcher;
@@ -98,6 +122,7 @@ public sealed class AppCoordinator
         _backdropService = backdropService;
         _startupService = startupService;
         _windowStateService = windowStateService;
+        _notificationReconciler = notificationReconciler;
     }
 
     public event EventHandler<AppNavigationRequest>? NavigationRequested;
@@ -109,6 +134,12 @@ public sealed class AppCoordinator
     public BackdropResult? LastBackdropResult { get; private set; }
 
     public StartupStatus? LastStartupStatus { get; private set; }
+
+    public NotificationReconcileResult? LastNotificationReconcileResult
+    {
+        get;
+        private set;
+    }
 
     public bool IsStartupSynchronized { get; private set; } = true;
 
@@ -169,6 +200,7 @@ public sealed class AppCoordinator
             await ReconcileDerivedStateAsync(cancellationToken)
                 .ConfigureAwait(false);
             IsInitialized = true;
+            _gameManager.GamesChanged += OnGamesChangedAsync;
             return result;
         }
         finally
@@ -305,6 +337,14 @@ public sealed class AppCoordinator
             return;
         }
 
+        await ReconcileStartupAsync(cancellationToken).ConfigureAwait(false);
+        await ReconcileNotificationsAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private async Task ReconcileStartupAsync(
+        CancellationToken cancellationToken)
+    {
         IsStartupSynchronized = false;
         StartupReconcileFailureReason = StartupFailureReason.OperationFailed;
         StartupStatus startupStatus;
@@ -357,6 +397,47 @@ public sealed class AppCoordinator
                 "StartupTask reconciliation save failed: "
                 + exception.GetType().Name);
         }
+    }
+
+    private async Task ReconcileNotificationsAsync(
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            LastNotificationReconcileResult =
+                await _notificationReconciler.ReconcileAsync(
+                    _gameManager.Games,
+                    _gameManager.CurrentData.Settings,
+                    cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Notification reconciliation failed: "
+                + exception.GetType().Name);
+            LastNotificationReconcileResult = new NotificationReconcileResult(
+                System.Collections.Immutable.ImmutableArray.Create(
+                    new NotificationReconcileIssue(
+                        GameId: null,
+                        NotificationDecisionError.None,
+                        exception.GetType().Name)));
+        }
+    }
+
+    private async Task OnGamesChangedAsync(
+        CancellationToken cancellationToken)
+    {
+        if (!IsInitialized)
+        {
+            return;
+        }
+
+        await ReconcileNotificationsAsync(cancellationToken)
+            .ConfigureAwait(false);
     }
 
     private Task RaiseNavigationAsync(
@@ -449,5 +530,15 @@ public sealed class AppCoordinator
         public void CaptureCurrent()
         {
         }
+    }
+
+    private sealed class PassThroughNotificationReconciler
+        : INotificationReconciler
+    {
+        public Task<NotificationReconcileResult> ReconcileAsync(
+            IReadOnlyCollection<GameEntry> games,
+            AppSettings settings,
+            CancellationToken cancellationToken) => Task.FromResult(
+                NotificationReconcileResult.Success);
     }
 }

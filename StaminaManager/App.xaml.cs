@@ -5,11 +5,13 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Windows.ApplicationModel.Resources;
 using Microsoft.Windows.AppLifecycle;
+using Microsoft.Windows.AppNotifications;
 using StaminaManager.Application;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
 using StaminaManager.Core.Persistence;
 using StaminaManager.Infrastructure.Persistence;
+using StaminaManager.Infrastructure.Notifications;
 using StaminaManager.Infrastructure.Storage;
 using StaminaManager.Infrastructure.Windows;
 using StaminaManager.ViewModels;
@@ -33,11 +35,23 @@ public partial class App : Microsoft.UI.Xaml.Application
     private IStartupService? _startupService;
     private IWindowStateService? _windowStateService;
     private ITrayService? _trayService;
+    private readonly INotificationScheduler _notificationScheduler;
     private DispatcherQueue? _dispatcherQueue;
     private Window? _fallbackWindow;
+    private readonly NotificationActivationQueue
+        _notificationActivationQueue = new();
     private string _startupStage = "NotStarted";
     public App()
+        : this(new WindowsNotificationScheduler())
     {
+    }
+
+    internal App(INotificationScheduler notificationScheduler)
+    {
+        ArgumentNullException.ThrowIfNull(notificationScheduler);
+        _notificationScheduler = notificationScheduler;
+        _notificationScheduler.ActivationRequested +=
+            OnNotificationActivationRequested;
         InitializeComponent();
     }
 
@@ -79,10 +93,12 @@ public partial class App : Microsoft.UI.Xaml.Application
                 _coordinator.LastBackdropResult,
                 _coordinator.LastStartupStatus,
                 _coordinator.IsStartupSynchronized);
+            await _settingsViewModel.RefreshNotificationAvailabilityAsync();
             _settingsViewModel.MarkReady();
 
             await _overviewViewModel!.SetLoadingAsync(false);
             await _timerCoordinator!.SetVisibleAsync(true);
+            await DrainNotificationActivationsAsync();
         }
         catch (Exception exception)
         {
@@ -113,8 +129,19 @@ public partial class App : Microsoft.UI.Xaml.Application
     private async Task RestoreForActivationAsync(
         AppActivationArguments activationArguments)
     {
-        // Task 11で通知activationの引数を解決するため、元の引数を保持する。
-        _ = activationArguments;
+        if (activationArguments.Kind
+            == ExtendedActivationKind.AppNotification
+            && activationArguments.Data
+                is AppNotificationActivatedEventArgs notificationArgs
+            && WindowsNotificationScheduler.TryParseGameId(
+                notificationArgs.Argument,
+                out Guid gameId))
+        {
+            QueueNotificationActivation(gameId);
+            await DrainNotificationActivationsAsync();
+            return;
+        }
+
         _window?.RestoreAndActivate();
         if (_coordinator is not null)
         {
@@ -282,6 +309,8 @@ public partial class App : Microsoft.UI.Xaml.Application
         IAppDataPathProvider pathProvider = new AppDataPathProvider();
         ILocalDataStore dataStore = new LocalDataStore(pathProvider);
         AssetStore assetStore = new(pathProvider);
+        INotificationLedgerStore notificationLedgerStore =
+            new NotificationLedgerStore(pathProvider);
         IThemeService themeService = new ThemeService(
             new FrameworkElementThemeTarget(
                 () => _window?.Content as FrameworkElement),
@@ -293,6 +322,9 @@ public partial class App : Microsoft.UI.Xaml.Application
         _startupService = new StartupService();
         _windowStateService = new WindowStateService(() => _window);
         _trayService = new TrayService(() => _window);
+        INotificationPermissionService notificationPermissionService =
+            new NotificationPermissionService();
+        ISettingsLauncher settingsLauncher = new WindowsSettingsLauncher();
         AppSettings initialSettings = AppSettings.CreateDefault(
             themeService.ResolveInitialTheme());
 
@@ -302,6 +334,10 @@ public partial class App : Microsoft.UI.Xaml.Application
             _gameManager,
             clock,
             uiDispatcher);
+        NotificationCoordinator notificationCoordinator = new(
+            _notificationScheduler,
+            notificationLedgerStore,
+            clock);
         _coordinator = new AppCoordinator(
             dataStore,
             _gameManager,
@@ -309,7 +345,8 @@ public partial class App : Microsoft.UI.Xaml.Application
             themeService,
             backdropService,
             _startupService,
-            _windowStateService);
+            _windowStateService,
+            notificationCoordinator);
         _coordinator.NavigationRequested += OnNavigationRequested;
         _compactViewModel = new CompactViewModel(
             _gameManager,
@@ -329,7 +366,10 @@ public partial class App : Microsoft.UI.Xaml.Application
             _gameManager,
             themeService,
             backdropService,
-            _startupService);
+            _startupService,
+            notificationCoordinator,
+            notificationPermissionService,
+            settingsLauncher);
 
         _startupStage = "OverviewPage";
         _overviewPage = new OverviewPage(_overviewViewModel);
@@ -352,7 +392,19 @@ public partial class App : Microsoft.UI.Xaml.Application
         _window.ConfigureLifecycle(
             _windowStateService,
             _trayService,
-            () => _gameManager.CurrentData.Settings.CloseBehavior);
+            () => _gameManager.CurrentData.Settings.CloseBehavior,
+            DisposeNotificationLifecycle);
+        try
+        {
+            _notificationScheduler.Initialize();
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Notification registration failed: "
+                + exception.GetType().Name);
+        }
+
         _trayService.Initialize();
         _startupStage = "Composed";
     }
@@ -363,6 +415,78 @@ public partial class App : Microsoft.UI.Xaml.Application
     {
         _shellViewModel?.ApplyNavigationRequest(request);
     }
+
+    private void OnNotificationActivationRequested(
+        object? sender,
+        NotificationActivationEventArgs args)
+    {
+        QueueNotificationActivation(args.GameId);
+        DispatcherQueue? dispatcherQueue = _dispatcherQueue;
+        if (dispatcherQueue is null)
+        {
+            return;
+        }
+
+        if (dispatcherQueue.HasThreadAccess)
+        {
+            _ = DrainNotificationActivationsAsync();
+            return;
+        }
+
+        _ = dispatcherQueue.TryEnqueue(
+            () => _ = DrainNotificationActivationsAsync());
+    }
+
+    private void QueueNotificationActivation(Guid gameId)
+    {
+        _notificationActivationQueue.Enqueue(gameId);
+    }
+
+    private async Task DrainNotificationActivationsAsync()
+    {
+        if (_coordinator?.IsInitialized != true
+            || _overviewPage is null
+            || _window is null
+            || _overviewViewModel is null)
+        {
+            return;
+        }
+
+        AppCoordinator coordinator = _coordinator;
+        OverviewPage overviewPage = _overviewPage;
+        MainWindow window = _window;
+        OverviewViewModel overviewViewModel = _overviewViewModel;
+        await _notificationActivationQueue.DrainAsync(
+            async gameId =>
+            {
+                window.RestoreAndActivate();
+                await coordinator.RouteActivationAsync(gameId);
+                await overviewPage.FocusGameAsync(gameId);
+            },
+            async (_, exception) =>
+            {
+                Debug.WriteLine(
+                    "Notification activation failed: "
+                    + exception.GetType().Name);
+                await overviewViewModel.ShowErrorAsync(exception);
+            });
+    }
+
+    private void DisposeNotificationLifecycle()
+    {
+        _notificationScheduler.ActivationRequested -=
+            OnNotificationActivationRequested;
+        _notificationScheduler.Dispose();
+    }
+
+    private static bool IsProcessFatal(Exception exception) =>
+        exception is OutOfMemoryException
+            or StackOverflowException
+            or AccessViolationException
+            or AppDomainUnloadedException
+            or BadImageFormatException
+            or CannotUnloadAppDomainException
+            or InvalidProgramException;
 
     private sealed record LaunchFailureText(
         string WindowTitle,

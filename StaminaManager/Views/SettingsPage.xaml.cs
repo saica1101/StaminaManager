@@ -139,10 +139,15 @@ public sealed partial class SettingsPage : Page
         });
     }
 
-    private void OpenWindowsNotificationSettingsButton_Click(
+    private async void OpenWindowsNotificationSettingsButton_Click(
         object sender,
-        RoutedEventArgs args) =>
-        ViewModel.PrepareWindowsNotificationSettings();
+        RoutedEventArgs args)
+    {
+        await ExecuteSettingChangeAsync(async () =>
+        {
+            await ViewModel.OpenWindowsNotificationSettingsAsync();
+        });
+    }
 
     private void ExportBackupButton_Click(
         object sender,

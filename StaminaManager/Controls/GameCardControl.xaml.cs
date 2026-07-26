@@ -116,6 +116,9 @@ public sealed partial class GameCardControl : UserControl, INotifyPropertyChange
             RemainingText)
         : string.Empty;
 
+    internal bool FocusCard() => CardButton.Focus(
+        FocusState.Programmatic);
+
     private GameCardViewModel? CurrentViewModel =>
         GetValue(ViewModelProperty) as GameCardViewModel;
 

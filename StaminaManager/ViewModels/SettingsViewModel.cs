@@ -44,6 +44,10 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly IThemeService _themeService;
     private readonly IBackdropService _backdropService;
     private readonly IStartupService _startupService;
+    private readonly INotificationReconciler _notificationReconciler;
+    private readonly INotificationPermissionService
+        _notificationPermissionService;
+    private readonly ISettingsLauncher _settingsLauncher;
     private readonly SemaphoreSlim _mutationGate = new(1, 1);
 
     public SettingsViewModel(
@@ -54,7 +58,10 @@ public sealed partial class SettingsViewModel : ObservableObject
             gameManager,
             themeService,
             backdropService,
-            new PassThroughStartupService())
+            new PassThroughStartupService(),
+            new PassThroughNotificationReconciler(),
+            new PassThroughPermissionService(),
+            new PassThroughSettingsLauncher())
     {
     }
 
@@ -63,16 +70,41 @@ public sealed partial class SettingsViewModel : ObservableObject
         IThemeService themeService,
         IBackdropService backdropService,
         IStartupService startupService)
+        : this(
+            gameManager,
+            themeService,
+            backdropService,
+            startupService,
+            new PassThroughNotificationReconciler(),
+            new PassThroughPermissionService(),
+            new PassThroughSettingsLauncher())
+    {
+    }
+
+    public SettingsViewModel(
+        GameManager gameManager,
+        IThemeService themeService,
+        IBackdropService backdropService,
+        IStartupService startupService,
+        INotificationReconciler notificationReconciler,
+        INotificationPermissionService notificationPermissionService,
+        ISettingsLauncher settingsLauncher)
     {
         ArgumentNullException.ThrowIfNull(gameManager);
         ArgumentNullException.ThrowIfNull(themeService);
         ArgumentNullException.ThrowIfNull(backdropService);
         ArgumentNullException.ThrowIfNull(startupService);
+        ArgumentNullException.ThrowIfNull(notificationReconciler);
+        ArgumentNullException.ThrowIfNull(notificationPermissionService);
+        ArgumentNullException.ThrowIfNull(settingsLauncher);
 
         _gameManager = gameManager;
         _themeService = themeService;
         _backdropService = backdropService;
         _startupService = startupService;
+        _notificationReconciler = notificationReconciler;
+        _notificationPermissionService = notificationPermissionService;
+        _settingsLauncher = settingsLauncher;
         AppSettings settings = gameManager.CurrentData.Settings;
         Theme = settings.Theme;
         SelectedBackdrop = settings.Backdrop;
@@ -134,6 +166,14 @@ public sealed partial class SettingsViewModel : ObservableObject
     } = true;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NotificationAvailabilityText))]
+    public partial NotificationPermissionState WindowsNotificationState
+    {
+        get;
+        private set;
+    } = NotificationPermissionState.Enabled;
+
+    [ObservableProperty]
     public partial bool IsInfoBarOpen { get; private set; }
 
     [ObservableProperty]
@@ -180,9 +220,20 @@ public sealed partial class SettingsViewModel : ObservableObject
             : Visibility.Collapsed;
 
     public string NotificationAvailabilityText =>
-        AreWindowsNotificationsAvailable
-            ? "Windowsの通知は利用できます。"
-            : "Windowsの通知が無効です。通知設定を確認してください。";
+        WindowsNotificationState switch
+        {
+            NotificationPermissionState.Enabled =>
+                "Windowsの通知は利用できます。",
+            NotificationPermissionState.DisabledForApplication =>
+                "Windowsのアプリごとの設定で通知が無効です。",
+            NotificationPermissionState.DisabledForUser =>
+                "Windows全体の通知が無効です。",
+            NotificationPermissionState.DisabledByPolicy =>
+                "組織のポリシーにより通知が無効です。",
+            NotificationPermissionState.DisabledByManifest =>
+                "アプリの通知構成が無効です。",
+            _ => "この環境ではWindows通知を利用できません。",
+        };
 
     public async Task<bool> SetThemeAsync(
         AppTheme requestedTheme,
@@ -429,14 +480,13 @@ public sealed partial class SettingsViewModel : ObservableObject
             return Task.FromResult(false);
         }
 
-        return PersistAsync(
+        return PersistAndReconcileNotificationsAsync(
             settings => settings with
             {
                 NotificationsEnabled = isEnabled,
             },
             () => AreNotificationsEnabled = isEnabled,
-            cancellationToken,
-            "設定を保存しました。Windows通知との同期は準備中です。");
+            cancellationToken);
     }
 
     public Task<bool> SetNotificationLeadMinutesAsync(
@@ -461,19 +511,81 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
 
         int minutes = checked((int)value);
-        return PersistAsync(
+        return PersistAndReconcileNotificationsAsync(
             settings => settings with
             {
                 NotificationLeadMinutes = minutes,
             },
             () => NotificationLeadMinutes = minutes,
-            cancellationToken,
-            "設定を保存しました。Windows通知との同期は準備中です。");
+            cancellationToken);
     }
 
     public void SetWindowsNotificationAvailability(bool isAvailable)
     {
         AreWindowsNotificationsAvailable = isAvailable;
+        WindowsNotificationState = isAvailable
+            ? NotificationPermissionState.Enabled
+            : NotificationPermissionState.DisabledForApplication;
+    }
+
+    public async Task RefreshNotificationAvailabilityAsync(
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            NotificationPermissionStatus status =
+                await _notificationPermissionService.GetStatusAsync(
+                    cancellationToken);
+            WindowsNotificationState = status.State;
+            AreWindowsNotificationsAvailable = status.IsAvailable;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Notification permission check failed: "
+                + exception.GetType().Name);
+            WindowsNotificationState = NotificationPermissionState.Unsupported;
+            AreWindowsNotificationsAvailable = false;
+            ShowMessage(
+                "Windowsの通知状態を確認できませんでした。",
+                InfoBarSeverity.Error);
+        }
+    }
+
+    public async Task<bool> OpenWindowsNotificationSettingsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            bool opened = await _settingsLauncher
+                .OpenNotificationSettingsAsync(cancellationToken);
+            if (!opened)
+            {
+                ShowMessage(
+                    "Windowsの通知設定を開けませんでした。",
+                    InfoBarSeverity.Error);
+            }
+
+            return opened;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Notification settings launch failed: "
+                + exception.GetType().Name);
+            ShowMessage(
+                "Windowsの通知設定を開けませんでした。",
+                InfoBarSeverity.Error);
+            return false;
+        }
     }
 
     public void PrepareBackupExport() =>
@@ -601,6 +713,82 @@ public sealed partial class SettingsViewModel : ObservableObject
         {
             _mutationGate.Release();
         }
+    }
+
+    private async Task<bool> PersistAndReconcileNotificationsAsync(
+        Func<AppSettings, AppSettings> update,
+        Action publish,
+        CancellationToken cancellationToken)
+    {
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            try
+            {
+                await _gameManager.UpdateSettingsAsync(
+                    update,
+                    cancellationToken);
+            }
+            catch (Exception exception) when (
+                IsPersistenceFailure(exception))
+            {
+                ShowMessage(SaveFailureMessage, InfoBarSeverity.Error);
+                return false;
+            }
+
+            publish();
+            NotificationReconcileResult result;
+            try
+            {
+                result = await _notificationReconciler.ReconcileAsync(
+                    _gameManager.Games,
+                    _gameManager.CurrentData.Settings,
+                    cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception) when (!IsProcessFatal(exception))
+            {
+                Debug.WriteLine(
+                    "Notification reconciliation failed: "
+                    + exception.GetType().Name);
+                ShowNotificationReconcileFailure(
+                    hasInvalidSchedule: false);
+                return false;
+            }
+
+            await RefreshNotificationAvailabilityAsync(cancellationToken);
+            if (result.HasFailures)
+            {
+                ShowNotificationReconcileFailure(result.HasInvalidSchedule);
+                return false;
+            }
+
+            if (AreWindowsNotificationsAvailable)
+            {
+                CloseInfoBar();
+            }
+
+            return true;
+        }
+        finally
+        {
+            _mutationGate.Release();
+        }
+    }
+
+    private void ShowNotificationReconcileFailure(bool hasInvalidSchedule)
+    {
+        ShowMessage(
+            hasInvalidSchedule
+                ? "通知時刻を計算できませんでした。"
+                    + "通知する分数またはゲーム設定を見直してください。"
+                : "設定は保存しましたが、一部のWindows通知を同期できませんでした。"
+                    + "設定を変更して再試行してください。",
+            InfoBarSeverity.Warning,
+            "通知の同期が完了していません");
     }
 
     private void ReportPreparation(SettingsPreparationAction action)
@@ -849,5 +1037,30 @@ public sealed partial class SettingsViewModel : ObservableObject
                 IsApplied: true,
                 StartupFailureReason.None));
         }
+    }
+
+    private sealed class PassThroughNotificationReconciler
+        : INotificationReconciler
+    {
+        public Task<NotificationReconcileResult> ReconcileAsync(
+            IReadOnlyCollection<GameEntry> games,
+            AppSettings settings,
+            CancellationToken cancellationToken) => Task.FromResult(
+                NotificationReconcileResult.Success);
+    }
+
+    private sealed class PassThroughPermissionService
+        : INotificationPermissionService
+    {
+        public Task<NotificationPermissionStatus> GetStatusAsync(
+            CancellationToken cancellationToken) => Task.FromResult(
+                new NotificationPermissionStatus(
+                    NotificationPermissionState.Enabled));
+    }
+
+    private sealed class PassThroughSettingsLauncher : ISettingsLauncher
+    {
+        public Task<bool> OpenNotificationSettingsAsync(
+            CancellationToken cancellationToken) => Task.FromResult(true);
     }
 }

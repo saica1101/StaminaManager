@@ -5,8 +5,9 @@
   xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
   xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  xmlns:com="http://schemas.microsoft.com/appx/manifest/com/windows10"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-  IgnorableNamespaces="uap desktop rescap">
+  IgnorableNamespaces="uap desktop com rescap">
 
   <Identity
     Name="35F978A4-DE78-42D1-AA68-26AAB5754821"
@@ -44,6 +45,22 @@
         <uap:SplashScreen Image="Assets\SplashScreen.png" />
       </uap:VisualElements>
       <Extensions>
+        <desktop:Extension Category="windows.toastNotificationActivation">
+          <desktop:ToastNotificationActivation
+            ToastActivatorCLSID="D5F7A0E1-7A64-4C85-9E72-1A148D65B63B" />
+        </desktop:Extension>
+        <com:Extension Category="windows.comServer">
+          <com:ComServer>
+            <com:ExeServer
+              Executable="StaminaManager.exe"
+              Arguments="----AppNotificationActivated:"
+              DisplayName="Stamina Manager notification activator">
+              <com:Class
+                Id="D5F7A0E1-7A64-4C85-9E72-1A148D65B63B"
+                DisplayName="Stamina Manager notification activator" />
+            </com:ExeServer>
+          </com:ComServer>
+        </com:Extension>
         <desktop:Extension
           Category="windows.startupTask"
           Executable="$targetnametoken$.exe"

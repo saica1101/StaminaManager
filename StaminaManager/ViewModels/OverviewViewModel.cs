@@ -99,6 +99,13 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
             cancellationToken);
     }
 
+    public Task ShowNotificationTargetMissingAsync(
+        CancellationToken cancellationToken = default) =>
+        _uiDispatcher.InvokeAsync(
+            () => ErrorMessage =
+                "通知の対象ゲームは削除されているため表示できません。",
+            cancellationToken);
+
     public Task ClearErrorAsync(
         CancellationToken cancellationToken = default) =>
         _uiDispatcher.InvokeAsync(
