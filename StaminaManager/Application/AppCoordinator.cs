@@ -1,6 +1,7 @@
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
 using StaminaManager.Core.Persistence;
+using System.Diagnostics;
 
 namespace StaminaManager.Application;
 
@@ -22,6 +23,8 @@ public sealed class AppCoordinator
     private readonly IUiDispatcher _uiDispatcher;
     private readonly IThemeService _themeService;
     private readonly IBackdropService _backdropService;
+    private readonly IStartupService _startupService;
+    private readonly IWindowStateService _windowStateService;
     private readonly SemaphoreSlim _initializationGate = new(1, 1);
 
     public AppCoordinator(
@@ -43,17 +46,58 @@ public sealed class AppCoordinator
         IUiDispatcher uiDispatcher,
         IThemeService themeService,
         IBackdropService backdropService)
+        : this(
+            dataStore,
+            gameManager,
+            uiDispatcher,
+            themeService,
+            backdropService,
+            new PassThroughStartupService(
+                () => gameManager.CurrentData.Settings.StartupEnabled))
+    {
+    }
+
+    public AppCoordinator(
+        ILocalDataStore dataStore,
+        GameManager gameManager,
+        IUiDispatcher uiDispatcher,
+        IThemeService themeService,
+        IBackdropService backdropService,
+        IStartupService startupService)
+        : this(
+            dataStore,
+            gameManager,
+            uiDispatcher,
+            themeService,
+            backdropService,
+            startupService,
+            new PassThroughWindowStateService())
+    {
+    }
+
+    public AppCoordinator(
+        ILocalDataStore dataStore,
+        GameManager gameManager,
+        IUiDispatcher uiDispatcher,
+        IThemeService themeService,
+        IBackdropService backdropService,
+        IStartupService startupService,
+        IWindowStateService windowStateService)
     {
         ArgumentNullException.ThrowIfNull(dataStore);
         ArgumentNullException.ThrowIfNull(gameManager);
         ArgumentNullException.ThrowIfNull(uiDispatcher);
         ArgumentNullException.ThrowIfNull(themeService);
         ArgumentNullException.ThrowIfNull(backdropService);
+        ArgumentNullException.ThrowIfNull(startupService);
+        ArgumentNullException.ThrowIfNull(windowStateService);
         _dataStore = dataStore;
         _gameManager = gameManager;
         _uiDispatcher = uiDispatcher;
         _themeService = themeService;
         _backdropService = backdropService;
+        _startupService = startupService;
+        _windowStateService = windowStateService;
     }
 
     public event EventHandler<AppNavigationRequest>? NavigationRequested;
@@ -63,6 +107,16 @@ public sealed class AppCoordinator
     public ThemeResult? LastThemeResult { get; private set; }
 
     public BackdropResult? LastBackdropResult { get; private set; }
+
+    public StartupStatus? LastStartupStatus { get; private set; }
+
+    public bool IsStartupSynchronized { get; private set; } = true;
+
+    public StartupFailureReason StartupReconcileFailureReason
+    {
+        get;
+        private set;
+    } = StartupFailureReason.None;
 
     public bool IsInitialized { get; private set; }
 
@@ -232,11 +286,11 @@ public sealed class AppCoordinator
             .ConfigureAwait(false);
     }
 
-    public Task ReconcileDerivedStateAsync(
+    public async Task ReconcileDerivedStateAsync(
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return _uiDispatcher.InvokeAsync(
+        await _uiDispatcher.InvokeAsync(
             () =>
             {
                 AppSettings settings = _gameManager.CurrentData.Settings;
@@ -244,14 +298,76 @@ public sealed class AppCoordinator
                 LastBackdropResult = _backdropService.Apply(
                     settings.Backdrop);
             },
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
+
+        if (!_gameManager.IsInitialized)
+        {
+            return;
+        }
+
+        IsStartupSynchronized = false;
+        StartupReconcileFailureReason = StartupFailureReason.OperationFailed;
+        StartupStatus startupStatus;
+        try
+        {
+            startupStatus = await _startupService.GetStatusAsync(
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "StartupTask reconciliation failed: "
+                + exception.GetType().Name);
+            return;
+        }
+
+        LastStartupStatus = startupStatus;
+        AppSettings currentSettings = _gameManager.CurrentData.Settings;
+        if (currentSettings.StartupEnabled == startupStatus.IsEnabled)
+        {
+            IsStartupSynchronized = true;
+            StartupReconcileFailureReason = StartupFailureReason.None;
+            return;
+        }
+
+        try
+        {
+            await _gameManager.UpdateSettingsAsync(
+                    settings => settings with
+                    {
+                        StartupEnabled = startupStatus.IsEnabled,
+                    },
+                    cancellationToken)
+                .ConfigureAwait(false);
+            IsStartupSynchronized = true;
+            StartupReconcileFailureReason = StartupFailureReason.None;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "StartupTask reconciliation save failed: "
+                + exception.GetType().Name);
+        }
     }
 
     private Task RaiseNavigationAsync(
         AppNavigationRequest request,
         CancellationToken cancellationToken) =>
         _uiDispatcher.InvokeAsync(
-            () => NavigationRequested?.Invoke(this, request),
+            () =>
+            {
+                _windowStateService.ApplyDisplayMode(request.DisplayMode);
+                NavigationRequested?.Invoke(this, request);
+            },
             cancellationToken);
 
     private Guid? ResolveCompactGameId(Guid? requestedGameId)
@@ -276,6 +392,15 @@ public sealed class AppCoordinator
         }
     }
 
+    private static bool IsProcessFatal(Exception exception) =>
+        exception is OutOfMemoryException
+            or StackOverflowException
+            or AccessViolationException
+            or AppDomainUnloadedException
+            or BadImageFormatException
+            or CannotUnloadAppDomainException
+            or InvalidProgramException;
+
     private sealed class PassThroughThemeService : IThemeService
     {
         public AppTheme ResolveInitialTheme() => AppTheme.Light;
@@ -294,5 +419,35 @@ public sealed class AppCoordinator
             requestedBackdrop,
             BackdropFallbackReason.None,
             ErrorMessage: null);
+    }
+
+    private sealed class PassThroughStartupService(
+        Func<bool> getSavedState) : IStartupService
+    {
+        public Task<StartupStatus> GetStatusAsync(
+            CancellationToken cancellationToken)
+        {
+            bool isEnabled = getSavedState();
+            return Task.FromResult(new StartupStatus(
+                isEnabled ? StartupState.Enabled : StartupState.Disabled));
+        }
+
+        public Task<StartupChangeResult> SetEnabledAsync(
+            bool isEnabled,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class PassThroughWindowStateService : IWindowStateService
+    {
+        public AppDisplayMode CurrentDisplayMode { get; private set; } =
+            AppDisplayMode.Standard;
+
+        public void ApplyDisplayMode(AppDisplayMode displayMode) =>
+            CurrentDisplayMode = displayMode;
+
+        public void CaptureCurrent()
+        {
+        }
     }
 }

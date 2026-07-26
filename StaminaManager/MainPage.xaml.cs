@@ -67,8 +67,6 @@ public sealed partial class MainPage : Page
 
     public ShellViewModel ViewModel { get; }
 
-    public event Action<AppDisplayMode>? DisplayModeChanged;
-
     private void ShellNavigation_SelectionChanged(
         NavigationView sender,
         NavigationViewSelectionChangedEventArgs args)
@@ -150,7 +148,6 @@ public sealed partial class MainPage : Page
             _compactPage.ApplySelectedGame(ViewModel.SelectedGameId);
         }
 
-        DisplayModeChanged?.Invoke(displayMode);
     }
 
     private void OnAddGameRequested() =>

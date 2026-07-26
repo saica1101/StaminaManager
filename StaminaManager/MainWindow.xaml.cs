@@ -1,75 +1,95 @@
-using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.Windows.ApplicationModel.Resources;
+using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Calculations;
 using StaminaManager.Core.Models;
 using System.Runtime.InteropServices;
-using Windows.Graphics;
-
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
 
 namespace StaminaManager;
 
 /// <summary>
-/// The application window. This hosts a Frame that displays pages. Add your
-/// UI and logic to MainPage.xaml / MainPage.xaml.cs instead of here so you
-/// can use Page features such as navigation events and the Loaded lifecycle.
+/// アプリケーションウィンドウ。表示内容はMainPageが管理する。
 /// </summary>
-public sealed partial class MainWindow : Window
+public sealed partial class MainWindowContent : Page
 {
-    private const int InitialWidthEpx = 1120;
-    private const int InitialHeightEpx = 760;
-    private const int StandardMinimumWidthEpx = 520;
-    private const int StandardMinimumHeightEpx = 520;
-    private const int CompactWidthEpx = 420;
-    private const int CompactHeightEpx = 520;
-    private const int CompactMinimumWidthEpx = 360;
-    private const int CompactMinimumHeightEpx = 480;
-    private const uint DefaultDpi = 96;
+    public MainWindowContent()
+    {
+        InitializeComponent();
+    }
+
+    internal TitleBar TitleBarControl => AppTitleBar;
+
+    internal Frame RootFrameControl => RootFrame;
+
+    internal Grid SolidBackdropSurfaceControl => SolidBackdropSurface;
+
+    internal TextBlock BackdropDiagnosticControl =>
+        ActualBackdropDiagnostic;
+}
+
+public sealed class MainWindow : WinUIEx.WindowEx
+{
     private const string AppTitleResourceId = "AppTitle";
     private const string FallbackAppTitle = "Stamina Manager";
-    private WindowBounds _restoredBounds;
-    private bool _shouldMaximizeOnReturn;
-    private bool _isTransitioningDisplayMode;
-    private bool _isApplyingMinimumSize;
-    private uint _lastDpi;
-    private AppDisplayMode _displayMode = AppDisplayMode.Standard;
+    private IWindowStateService? _windowStateService;
+    private ITrayService? _trayService;
+    private Func<CloseBehavior>? _getCloseBehavior;
+    private bool _isExplicitExit;
+    private bool _isLifecycleConfigured;
+    private readonly MainWindowContent _windowContent;
 
     public MainWindow(MainPage mainPage)
     {
         ArgumentNullException.ThrowIfNull(mainPage);
-        InitializeComponent();
+        _windowContent = new MainWindowContent();
+        Content = _windowContent;
+        SystemBackdrop = new MicaBackdrop();
 
         string appTitle = ResolveAppTitle();
         Title = appTitle;
-        AppTitleBar.Title = appTitle;
+        _windowContent.TitleBarControl.Title = appTitle;
         ExtendsContentIntoTitleBar = true;
-        SetTitleBar(AppTitleBar);
-
+        SetTitleBar(_windowContent.TitleBarControl);
         AppWindow.SetIcon("Assets/AppIcon.ico");
-
-        RootFrame.Content = mainPage;
-        _lastDpi = GetCurrentDpi();
-        ResizeEffective(InitialWidthEpx, InitialHeightEpx);
-        _restoredBounds = GetCurrentBounds();
-        SetMinimumSize(
-            StandardMinimumWidthEpx,
-            StandardMinimumHeightEpx);
-        AppWindow.Changed += OnAppWindowChanged;
-        mainPage.DisplayModeChanged += SetDisplayMode;
+        _windowContent.RootFrameControl.Content = mainPage;
         UpdateBackdropDiagnostic();
     }
+
+    internal void ConfigureLifecycle(
+        IWindowStateService windowStateService,
+        ITrayService trayService,
+        Func<CloseBehavior> getCloseBehavior)
+    {
+        ArgumentNullException.ThrowIfNull(windowStateService);
+        ArgumentNullException.ThrowIfNull(trayService);
+        ArgumentNullException.ThrowIfNull(getCloseBehavior);
+        if (_isLifecycleConfigured)
+        {
+            throw new InvalidOperationException(
+                "ウィンドウのライフサイクルは既に構成されています。");
+        }
+
+        _windowStateService = windowStateService;
+        _trayService = trayService;
+        _getCloseBehavior = getCloseBehavior;
+        AppWindow.Closing += OnAppWindowClosing;
+        trayService.OpenRequested += OnTrayOpenRequested;
+        trayService.ExitRequested += OnTrayExitRequested;
+        _isLifecycleConfigured = true;
+    }
+
+    internal void RestoreAndActivate() => _trayService?.ShowWindow();
 
     internal void SetBackdrop(
         SystemBackdrop? systemBackdrop,
         bool isSolidSurface)
     {
         SystemBackdrop = systemBackdrop;
-        SolidBackdropSurface.Visibility = isSolidSurface
+        _windowContent.SolidBackdropSurfaceControl.Visibility = isSolidSurface
             ? Visibility.Visible
             : Visibility.Collapsed;
         UpdateBackdropDiagnostic();
@@ -83,21 +103,75 @@ public sealed partial class MainWindow : Window
             DesktopAcrylicBackdrop => "Acrylic",
             Infrastructure.Windows.BlurredBackdrop => "Blur",
             WinUIEx.TransparentTintBackdrop => "Transparent",
-            null when SolidBackdropSurface.Visibility
+            null when _windowContent.SolidBackdropSurfaceControl.Visibility
                 == Visibility.Visible => "Solid",
             null => "None",
             _ => "Unknown",
         };
         return $"{backdrop}|SolidSurface="
-            + SolidBackdropSurface.Visibility;
+            + _windowContent.SolidBackdropSurfaceControl.Visibility;
+    }
+
+    private void OnAppWindowClosing(
+        AppWindow sender,
+        AppWindowClosingEventArgs args)
+    {
+        _windowStateService?.CaptureCurrent();
+        CloseBehavior closeBehavior = _getCloseBehavior?.Invoke()
+            ?? CloseBehavior.MinimizeToTray;
+        if (WindowClosePolicy.ShouldMinimizeToTray(
+            closeBehavior,
+            _isExplicitExit))
+        {
+            args.Cancel = true;
+            _trayService?.HideWindow();
+            return;
+        }
+
+        DisposeLifecycle();
+    }
+
+    private void OnTrayOpenRequested(object? sender, EventArgs args) =>
+        RestoreAndActivate();
+
+    private void OnTrayExitRequested(object? sender, EventArgs args)
+    {
+        if (_isExplicitExit)
+        {
+            return;
+        }
+
+        _isExplicitExit = true;
+        if (!DispatcherQueue.TryEnqueue(CompleteExplicitExit))
+        {
+            CompleteExplicitExit();
+        }
+    }
+
+    private void CompleteExplicitExit()
+    {
+        _windowStateService?.CaptureCurrent();
+        DisposeLifecycle();
+        Microsoft.UI.Xaml.Application.Current.Exit();
+    }
+
+    private void DisposeLifecycle()
+    {
+        AppWindow.Closing -= OnAppWindowClosing;
+        if (_trayService is not null)
+        {
+            _trayService.OpenRequested -= OnTrayOpenRequested;
+            _trayService.ExitRequested -= OnTrayExitRequested;
+            _trayService.Dispose();
+        }
     }
 
     private void UpdateBackdropDiagnostic()
     {
         string diagnostic = GetActualBackdropDiagnostic();
-        ActualBackdropDiagnostic.Text = diagnostic;
+        _windowContent.BackdropDiagnosticControl.Text = diagnostic;
         AutomationProperties.SetName(
-            ActualBackdropDiagnostic,
+            _windowContent.BackdropDiagnosticControl,
             diagnostic);
     }
 
@@ -122,187 +196,4 @@ public sealed partial class MainWindow : Window
             return FallbackAppTitle;
         }
     }
-
-    private void SetDisplayMode(AppDisplayMode displayMode)
-    {
-        if (_displayMode == displayMode)
-        {
-            return;
-        }
-
-        if (AppWindow.Presenter is not OverlappedPresenter presenter)
-        {
-            return;
-        }
-
-        _isTransitioningDisplayMode = true;
-        try
-        {
-            if (displayMode == AppDisplayMode.Compact)
-            {
-                EnterCompactMode(presenter);
-            }
-            else
-            {
-                ReturnToStandardMode(presenter);
-            }
-        }
-        finally
-        {
-            _isTransitioningDisplayMode = false;
-        }
-    }
-
-    private void EnterCompactMode(OverlappedPresenter presenter)
-    {
-        WindowDisplayModeSnapshot snapshot =
-            WindowDisplayModePolicy.CaptureSnapshot(
-                ToWindowPresenterState(presenter.State),
-                GetCurrentBounds(),
-                _restoredBounds);
-        _restoredBounds = snapshot.RestoredBounds;
-        _shouldMaximizeOnReturn = snapshot.ShouldMaximizeOnReturn;
-        _displayMode = AppDisplayMode.Compact;
-
-        if (presenter.State != OverlappedPresenterState.Restored)
-        {
-            presenter.Restore();
-        }
-
-        SetMinimumSize(
-            CompactMinimumWidthEpx,
-            CompactMinimumHeightEpx);
-        ResizeEffective(CompactWidthEpx, CompactHeightEpx);
-    }
-
-    private void ReturnToStandardMode(OverlappedPresenter presenter)
-    {
-        SetMinimumSize(
-            StandardMinimumWidthEpx,
-            StandardMinimumHeightEpx);
-        if (presenter.State != OverlappedPresenterState.Restored)
-        {
-            presenter.Restore();
-        }
-
-        AppWindow.MoveAndResize(ToRect(_restoredBounds));
-        if (_shouldMaximizeOnReturn)
-        {
-            presenter.Maximize();
-        }
-
-        _displayMode = AppDisplayMode.Standard;
-    }
-
-    private void OnAppWindowChanged(
-        AppWindow sender,
-        AppWindowChangedEventArgs args)
-    {
-        uint currentDpi = GetCurrentDpi();
-        if (currentDpi != _lastDpi)
-        {
-            _lastDpi = currentDpi;
-            ApplyMinimumSizeForCurrentMode();
-        }
-
-        if ((!args.DidPositionChange && !args.DidSizeChange)
-            || sender.Presenter is not OverlappedPresenter presenter)
-        {
-            return;
-        }
-
-        WindowPresenterState presenterState =
-            ToWindowPresenterState(presenter.State);
-        if (WindowDisplayModePolicy.ShouldCaptureRestoredBounds(
-            _displayMode,
-            _isTransitioningDisplayMode,
-            presenterState))
-        {
-            _restoredBounds = GetCurrentBounds();
-        }
-    }
-
-    private void ApplyMinimumSizeForCurrentMode()
-    {
-        if (_isApplyingMinimumSize)
-        {
-            return;
-        }
-
-        if (_displayMode == AppDisplayMode.Compact)
-        {
-            SetMinimumSize(
-                CompactMinimumWidthEpx,
-                CompactMinimumHeightEpx);
-            return;
-        }
-
-        SetMinimumSize(
-            StandardMinimumWidthEpx,
-            StandardMinimumHeightEpx);
-    }
-
-    private void SetMinimumSize(int widthEpx, int heightEpx)
-    {
-        if (AppWindow.Presenter is not OverlappedPresenter presenter)
-        {
-            return;
-        }
-
-        _isApplyingMinimumSize = true;
-        try
-        {
-            presenter.PreferredMinimumWidth = ScaleEffective(widthEpx);
-            presenter.PreferredMinimumHeight = ScaleEffective(heightEpx);
-        }
-        finally
-        {
-            _isApplyingMinimumSize = false;
-        }
-    }
-
-    private void ResizeEffective(int widthEpx, int heightEpx) =>
-        AppWindow.Resize(new SizeInt32(
-            ScaleEffective(widthEpx),
-            ScaleEffective(heightEpx)));
-
-    private int ScaleEffective(int value)
-    {
-        return WindowDisplayModePolicy.ScaleEffectiveToPhysical(
-            value,
-            GetCurrentDpi());
-    }
-
-    private uint GetCurrentDpi()
-    {
-        nint windowHandle = Win32Interop.GetWindowFromWindowId(AppWindow.Id);
-        uint dpi = GetDpiForWindow(windowHandle);
-        return dpi == 0 ? DefaultDpi : dpi;
-    }
-
-    private WindowBounds GetCurrentBounds() => new(
-        AppWindow.Position.X,
-        AppWindow.Position.Y,
-        AppWindow.Size.Width,
-        AppWindow.Size.Height);
-
-    private static RectInt32 ToRect(WindowBounds bounds) => new(
-        bounds.X,
-        bounds.Y,
-        bounds.Width,
-        bounds.Height);
-
-    private static WindowPresenterState ToWindowPresenterState(
-        OverlappedPresenterState state) => state switch
-    {
-        OverlappedPresenterState.Maximized =>
-            WindowPresenterState.Maximized,
-        OverlappedPresenterState.Minimized =>
-            WindowPresenterState.Minimized,
-        _ => WindowPresenterState.Restored,
-    };
-
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    [DllImport("user32.dll")]
-    private static extern uint GetDpiForWindow(nint windowHandle);
 }

@@ -329,6 +329,79 @@ public sealed class AppCoordinatorTests
         Assert.IsTrue(themeService.WasAppliedOnUiDispatcher);
     }
 
+    [TestMethod]
+    [DataRow(true, StartupState.DisabledByUser, false)]
+    [DataRow(false, StartupState.EnabledByPolicy, true)]
+    public async Task InitializeAsync_Startup実状態へ保存設定を補正する(
+        bool savedEnabled,
+        StartupState expectedState,
+        bool expectedEnabled)
+    {
+        AppSettings settings = AppSettings.CreateDefault(AppTheme.Light) with
+        {
+            StartupEnabled = savedEnabled,
+        };
+        CoordinatorDataStore store = new(new DataLoadResult(
+            DataLoadStatus.Primary,
+            CreateEnvelope(settings),
+            "primary",
+            "recovery"));
+        GameManager manager = CreateManager(store);
+        RecordingStartupService startupService = new(expectedState);
+        AppCoordinator coordinator = new(
+            store,
+            manager,
+            new RecordingUiDispatcher(),
+            new RecordingThemeService(() => true),
+            new RecordingBackdropService(),
+            startupService);
+
+        await coordinator.InitializeAsync(CancellationToken.None);
+
+        Assert.AreEqual(
+            expectedEnabled,
+            manager.CurrentData.Settings.StartupEnabled);
+        Assert.AreEqual(1, store.SaveCount);
+        Assert.AreEqual(expectedState, coordinator.LastStartupStatus!.State);
+    }
+
+    [TestMethod]
+    public async Task InitializeAsync_Startup補正保存失敗でも本体初期化を維持する()
+    {
+        AppSettings settings = AppSettings.CreateDefault(AppTheme.Light) with
+        {
+            StartupEnabled = true,
+        };
+        CoordinatorDataStore store = new(new DataLoadResult(
+            DataLoadStatus.Primary,
+            CreateEnvelope(settings),
+            "primary",
+            "recovery"))
+        {
+            SaveException = new IOException("save detail"),
+        };
+        GameManager manager = CreateManager(store);
+        AppCoordinator coordinator = new(
+            store,
+            manager,
+            new RecordingUiDispatcher(),
+            new RecordingThemeService(() => true),
+            new RecordingBackdropService(),
+            new RecordingStartupService(StartupState.DisabledByUser));
+
+        await coordinator.InitializeAsync(CancellationToken.None);
+
+        Assert.IsTrue(coordinator.IsInitialized);
+        Assert.IsTrue(manager.CurrentData.Settings.StartupEnabled);
+        Assert.AreEqual(
+            StartupState.DisabledByUser,
+            coordinator.LastStartupStatus!.State);
+        Assert.IsFalse(coordinator.IsStartupSynchronized);
+        Assert.AreEqual(
+            StartupFailureReason.OperationFailed,
+            coordinator.StartupReconcileFailureReason);
+    }
+
     private static GameManager CreateManager(ILocalDataStore store) => new(
         store,
         new FakeClock(NowUtc),
@@ -472,5 +545,18 @@ public sealed class AppCoordinatorTests
                 BackdropFallbackReason.None,
                 ErrorMessage: null);
         }
+    }
+
+    private sealed class RecordingStartupService(StartupState state)
+        : IStartupService
+    {
+        public Task<StartupStatus> GetStatusAsync(
+            CancellationToken cancellationToken) => Task.FromResult(
+                new StartupStatus(state));
+
+        public Task<StartupChangeResult> SetEnabledAsync(
+            bool isEnabled,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 }

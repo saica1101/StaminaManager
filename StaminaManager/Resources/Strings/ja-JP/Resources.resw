@@ -96,4 +96,6 @@
   <data name="CompactErrorInfoBar.Title" xml:space="preserve"><value>操作を完了できませんでした</value></data>
   <data name="CompactUpdateButton.Content" xml:space="preserve"><value>現在値を更新</value></data>
   <data name="CompactEditButton.Content" xml:space="preserve"><value>ゲームを編集</value></data>
+  <data name="TrayOpenText" xml:space="preserve"><value>開く</value></data>
+  <data name="TrayExitText" xml:space="preserve"><value>終了</value></data>
 </root>

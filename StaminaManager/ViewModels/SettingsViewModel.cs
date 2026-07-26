@@ -43,20 +43,36 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly GameManager _gameManager;
     private readonly IThemeService _themeService;
     private readonly IBackdropService _backdropService;
+    private readonly IStartupService _startupService;
     private readonly SemaphoreSlim _mutationGate = new(1, 1);
 
     public SettingsViewModel(
         GameManager gameManager,
         IThemeService themeService,
         IBackdropService backdropService)
+        : this(
+            gameManager,
+            themeService,
+            backdropService,
+            new PassThroughStartupService())
+    {
+    }
+
+    public SettingsViewModel(
+        GameManager gameManager,
+        IThemeService themeService,
+        IBackdropService backdropService,
+        IStartupService startupService)
     {
         ArgumentNullException.ThrowIfNull(gameManager);
         ArgumentNullException.ThrowIfNull(themeService);
         ArgumentNullException.ThrowIfNull(backdropService);
+        ArgumentNullException.ThrowIfNull(startupService);
 
         _gameManager = gameManager;
         _themeService = themeService;
         _backdropService = backdropService;
+        _startupService = startupService;
         AppSettings settings = gameManager.CurrentData.Settings;
         Theme = settings.Theme;
         SelectedBackdrop = settings.Backdrop;
@@ -320,20 +336,88 @@ public sealed partial class SettingsViewModel : ObservableObject
             cancellationToken);
     }
 
-    public Task<bool> SetStartupEnabledAsync(
+    public async Task<bool> SetStartupEnabledAsync(
         bool isEnabled,
         CancellationToken cancellationToken = default)
     {
         if (!EnsureReady())
         {
-            return Task.FromResult(false);
+            return false;
         }
 
-        return PersistAsync(
-            settings => settings with { StartupEnabled = isEnabled },
-            () => IsStartupEnabled = isEnabled,
-            cancellationToken,
-            "設定を保存しました。Windowsログイン時起動の適用は準備中です。");
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            bool previousEnabled =
+                _gameManager.CurrentData.Settings.StartupEnabled;
+            StartupChangeResult changeResult;
+            try
+            {
+                changeResult = await _startupService.SetEnabledAsync(
+                    isEnabled,
+                    cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception) when (!IsProcessFatal(exception))
+            {
+                Debug.WriteLine(
+                    "StartupTask change failed: "
+                    + exception.GetType().Name);
+                ShowMessage(
+                    "Windowsログイン時起動を変更できませんでした。",
+                    InfoBarSeverity.Error);
+                return false;
+            }
+
+            IsStartupEnabled = changeResult.Status.IsEnabled;
+            if (!changeResult.IsApplied
+                || changeResult.Status.IsEnabled != isEnabled)
+            {
+                ShowStartupFailure(changeResult.FailureReason);
+                return false;
+            }
+
+            try
+            {
+                await _gameManager.UpdateSettingsAsync(
+                    settings => settings with
+                    {
+                        StartupEnabled = isEnabled,
+                    },
+                    cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                await RollbackStartupAsync(previousEnabled);
+                throw;
+            }
+            catch (Exception exception) when (!IsProcessFatal(exception))
+            {
+                Debug.WriteLine(
+                    "StartupTask setting save failed: "
+                    + exception.GetType().Name);
+                bool wasRestored = await RollbackStartupAsync(
+                    previousEnabled);
+                ShowMessage(
+                    wasRestored
+                        ? SaveFailureMessage
+                        : SaveFailureMessage
+                            + " Windowsの実際の状態は画面へ反映しました。",
+                    InfoBarSeverity.Error);
+                return false;
+            }
+
+            IsStartupEnabled = isEnabled;
+            CloseInfoBar();
+            return true;
+        }
+        finally
+        {
+            _mutationGate.Release();
+        }
     }
 
     public Task<bool> SetNotificationsEnabledAsync(
@@ -426,7 +510,9 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public void SynchronizeFromCurrentSettings(
         ThemeResult? themeResult = null,
-        BackdropResult? backdropResult = null)
+        BackdropResult? backdropResult = null,
+        StartupStatus? startupStatus = null,
+        bool isStartupSynchronized = true)
     {
         AppSettings settings = _gameManager.CurrentData.Settings;
         Theme = settings.Theme;
@@ -434,9 +520,22 @@ public sealed partial class SettingsViewModel : ObservableObject
         ActualBackdrop = backdropResult?.ActualBackdrop
             ?? settings.Backdrop;
         CloseBehavior = settings.CloseBehavior;
-        IsStartupEnabled = settings.StartupEnabled;
+        IsStartupEnabled = startupStatus?.IsEnabled
+            ?? settings.StartupEnabled;
         AreNotificationsEnabled = settings.NotificationsEnabled;
         NotificationLeadMinutes = settings.NotificationLeadMinutes;
+
+        if (!isStartupSynchronized)
+        {
+            ShowMessage(
+                startupStatus is null
+                    ? "Windowsログイン時起動の実際の状態を確認できませんでした。"
+                        + "Settingsを開き直して再試行してください。"
+                    : "Windowsログイン時起動の実際の状態は画面へ反映しましたが、"
+                        + "設定を保存できませんでした。再試行してください。",
+                InfoBarSeverity.Error);
+            return;
+        }
 
         if (backdropResult is { IsRequestedBackdropApplied: false })
         {
@@ -511,6 +610,57 @@ public sealed partial class SettingsViewModel : ObservableObject
             "この機能は準備中です。データやWindows設定は変更されていません。",
             InfoBarSeverity.Informational,
             "準備中の機能です");
+    }
+
+    private async Task<bool> RollbackStartupAsync(bool previousEnabled)
+    {
+        try
+        {
+            StartupChangeResult rollback =
+                await _startupService.SetEnabledAsync(
+                    previousEnabled,
+                    CancellationToken.None);
+            IsStartupEnabled = rollback.Status.IsEnabled;
+            return rollback.IsApplied
+                && rollback.Status.IsEnabled == previousEnabled;
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "StartupTask rollback failed: "
+                + exception.GetType().Name);
+            try
+            {
+                StartupStatus actual = await _startupService.GetStatusAsync(
+                    CancellationToken.None);
+                IsStartupEnabled = actual.IsEnabled;
+            }
+            catch (Exception statusException) when (
+                !IsProcessFatal(statusException))
+            {
+                Debug.WriteLine(
+                    "StartupTask status refresh failed: "
+                    + statusException.GetType().Name);
+            }
+
+            return false;
+        }
+    }
+
+    private void ShowStartupFailure(StartupFailureReason reason)
+    {
+        string message = reason switch
+        {
+            StartupFailureReason.DisabledByUser =>
+                "ユーザーがWindowsのスタートアップ設定で無効にしています。"
+                + "Windowsの設定から有効にしてください。",
+            StartupFailureReason.DisabledByPolicy =>
+                "組織のポリシーによりWindowsログイン時起動を有効にできません。",
+            StartupFailureReason.EnabledByPolicy =>
+                "組織のポリシーによりWindowsログイン時起動を無効にできません。",
+            _ => "Windowsログイン時起動を変更できませんでした。",
+        };
+        ShowMessage(message, InfoBarSeverity.Warning);
     }
 
     private static bool IsPersistenceFailure(Exception exception) =>
@@ -680,5 +830,24 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         InfoBarMessage = string.Empty;
         IsInfoBarOpen = false;
+    }
+
+    private sealed class PassThroughStartupService : IStartupService
+    {
+        public Task<StartupStatus> GetStatusAsync(
+            CancellationToken cancellationToken) => Task.FromResult(
+                new StartupStatus(StartupState.Disabled));
+
+        public Task<StartupChangeResult> SetEnabledAsync(
+            bool isEnabled,
+            CancellationToken cancellationToken)
+        {
+            StartupStatus status = new(
+                isEnabled ? StartupState.Enabled : StartupState.Disabled);
+            return Task.FromResult(new StartupChangeResult(
+                status,
+                IsApplied: true,
+                StartupFailureReason.None));
+        }
     }
 }

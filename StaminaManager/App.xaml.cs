@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Windows.ApplicationModel.Resources;
+using Microsoft.Windows.AppLifecycle;
 using StaminaManager.Application;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
@@ -29,6 +30,10 @@ public partial class App : Microsoft.UI.Xaml.Application
     private OverviewPage? _overviewPage;
     private ShellViewModel? _shellViewModel;
     private TimerCoordinator? _timerCoordinator;
+    private IStartupService? _startupService;
+    private IWindowStateService? _windowStateService;
+    private ITrayService? _trayService;
+    private DispatcherQueue? _dispatcherQueue;
     private Window? _fallbackWindow;
     private string _startupStage = "NotStarted";
     public App()
@@ -57,9 +62,10 @@ public partial class App : Microsoft.UI.Xaml.Application
             }
 
             CreateCompositionRoot();
-            _window!.Activate();
             DataLoadResult loadResult = await _coordinator!.InitializeAsync(
                 CancellationToken.None);
+            ActivationRouter.Attach(HandleRedirectedActivation);
+            _window!.Activate();
             if (loadResult.Status == DataLoadStatus.Corrupt
                 || !_gameManager!.IsInitialized)
             {
@@ -70,7 +76,9 @@ public partial class App : Microsoft.UI.Xaml.Application
 
             _settingsViewModel!.SynchronizeFromCurrentSettings(
                 _coordinator.LastThemeResult,
-                _coordinator.LastBackdropResult);
+                _coordinator.LastBackdropResult,
+                _coordinator.LastStartupStatus,
+                _coordinator.IsStartupSynchronized);
             _settingsViewModel.MarkReady();
 
             await _overviewViewModel!.SetLoadingAsync(false);
@@ -80,6 +88,37 @@ public partial class App : Microsoft.UI.Xaml.Application
         {
             _settingsViewModel?.MarkFailed();
             await HandleLaunchFailureAsync(exception);
+        }
+    }
+
+    private void HandleRedirectedActivation(
+        AppActivationArguments activationArguments)
+    {
+        DispatcherQueue? dispatcherQueue = _dispatcherQueue;
+        if (dispatcherQueue is null)
+        {
+            return;
+        }
+
+        if (dispatcherQueue.HasThreadAccess)
+        {
+            _ = RestoreForActivationAsync(activationArguments);
+            return;
+        }
+
+        _ = dispatcherQueue.TryEnqueue(
+            () => _ = RestoreForActivationAsync(activationArguments));
+    }
+
+    private async Task RestoreForActivationAsync(
+        AppActivationArguments activationArguments)
+    {
+        // Task 11で通知activationの引数を解決するため、元の引数を保持する。
+        _ = activationArguments;
+        _window?.RestoreAndActivate();
+        if (_coordinator is not null)
+        {
+            await _coordinator.RouteActivationAsync(gameId: null);
         }
     }
 
@@ -236,6 +275,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             DispatcherQueue.GetForCurrentThread()
             ?? throw new InvalidOperationException(
                 "UI DispatcherQueueを取得できませんでした。");
+        _dispatcherQueue = dispatcherQueue;
         IUiDispatcher uiDispatcher = new DispatcherQueueUiDispatcher(
             dispatcherQueue);
         IClock clock = new SystemClock();
@@ -250,6 +290,9 @@ public partial class App : Microsoft.UI.Xaml.Application
             new MainWindowBackdropTarget(() => _window),
             new WindowsBackdropEnvironment(
                 () => _window?.AppWindow.Id));
+        _startupService = new StartupService();
+        _windowStateService = new WindowStateService(() => _window);
+        _trayService = new TrayService(() => _window);
         AppSettings initialSettings = AppSettings.CreateDefault(
             themeService.ResolveInitialTheme());
 
@@ -264,7 +307,9 @@ public partial class App : Microsoft.UI.Xaml.Application
             _gameManager,
             uiDispatcher,
             themeService,
-            backdropService);
+            backdropService,
+            _startupService,
+            _windowStateService);
         _coordinator.NavigationRequested += OnNavigationRequested;
         _compactViewModel = new CompactViewModel(
             _gameManager,
@@ -283,7 +328,8 @@ public partial class App : Microsoft.UI.Xaml.Application
         _settingsViewModel = new SettingsViewModel(
             _gameManager,
             themeService,
-            backdropService);
+            backdropService,
+            _startupService);
 
         _startupStage = "OverviewPage";
         _overviewPage = new OverviewPage(_overviewViewModel);
@@ -303,6 +349,11 @@ public partial class App : Microsoft.UI.Xaml.Application
             assetStore);
         _startupStage = "MainWindow";
         _window = new MainWindow(mainPage);
+        _window.ConfigureLifecycle(
+            _windowStateService,
+            _trayService,
+            () => _gameManager.CurrentData.Settings.CloseBehavior);
+        _trayService.Initialize();
         _startupStage = "Composed";
     }
 

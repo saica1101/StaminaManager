@@ -14,13 +14,13 @@ namespace StaminaManager.Tests.Infrastructure.Windows;
 public sealed class AppearanceServiceTests
 {
     [TestMethod]
-    public void MainWindow_GetDpiForWindowLoadsOnlyFromSystem32()
+    public void Program_CoWaitForMultipleObjectsLoadsOnlyFromSystem32()
     {
-        MethodInfo method = typeof(MainWindow).GetMethod(
-            "GetDpiForWindow",
+        MethodInfo method = typeof(Program).GetMethod(
+            "CoWaitForMultipleObjects",
             BindingFlags.NonPublic | BindingFlags.Static)
             ?? throw new AssertFailedException(
-                "GetDpiForWindow was not found.");
+                "CoWaitForMultipleObjects was not found.");
 
         DefaultDllImportSearchPathsAttribute? attribute =
             method.GetCustomAttribute<
