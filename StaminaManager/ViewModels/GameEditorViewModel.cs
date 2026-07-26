@@ -41,6 +41,9 @@ public sealed partial class GameEditorViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsEditing))]
+    [NotifyPropertyChangedFor(nameof(CanPrimaryAction))]
+    [NotifyPropertyChangedFor(nameof(DialogCloseButtonText))]
+    [NotifyPropertyChangedFor(nameof(DialogPrimaryActionText))]
     public partial GameEditorState State { get; private set; } =
         GameEditorState.Editing;
 
@@ -65,10 +68,12 @@ public sealed partial class GameEditorViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanSave))]
+    [NotifyPropertyChangedFor(nameof(CanPrimaryAction))]
     public partial bool IsBusy { get; private set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanSave))]
+    [NotifyPropertyChangedFor(nameof(CanPrimaryAction))]
     public partial bool IsValid { get; private set; }
 
     public GameEditorViewModel(
@@ -114,6 +119,10 @@ public sealed partial class GameEditorViewModel : ObservableObject
 
     public bool CanSave => IsEditing && IsValid && !IsBusy;
 
+    public bool CanPrimaryAction => State == GameEditorState.DeleteConfirmation
+        ? !IsBusy
+        : CanSave;
+
     public bool HasElapsedWarning =>
         !string.IsNullOrWhiteSpace(ElapsedWarning);
 
@@ -122,6 +131,16 @@ public sealed partial class GameEditorViewModel : ObservableObject
         : "ゲームを編集";
 
     public string ActionText => IsNew ? "追加" : "保存";
+
+    public string DialogPrimaryActionText =>
+        State == GameEditorState.DeleteConfirmation
+            ? "削除"
+            : ActionText;
+
+    public string DialogCloseButtonText =>
+        State == GameEditorState.DeleteConfirmation
+            ? "戻る"
+            : "キャンセル";
 
     public GameEntry? OriginalEntry => _originalEntry;
 

@@ -104,6 +104,8 @@
                 x:Name="OverviewInfoBar"
                 x:Uid="OverviewInfoBar"
                 AutomationProperties.AutomationId="OverviewInfoBar"
+                AutomationProperties.HelpText="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+                AutomationProperties.LiveSetting="Assertive"
                 IsClosable="False"
                 IsOpen="{x:Bind ViewModel.HasError, Mode=OneWay}"
                 Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"

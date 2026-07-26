@@ -83,4 +83,20 @@
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="{StaticResource CardCornerRadius}" />
     </Style>
+
+    <Style
+        x:Key="RestoreDialogPrimaryButtonStyle"
+        BasedOn="{StaticResource AccentButtonStyle}"
+        TargetType="Button">
+        <Setter Property="AutomationProperties.AutomationId" Value="RestoreBackupConfirmButton" />
+        <Setter Property="AutomationProperties.Name" Value="現在のデータをバックアップで置き換える" />
+    </Style>
+
+    <Style
+        x:Key="RestoreDialogCancelButtonStyle"
+        BasedOn="{StaticResource DefaultButtonStyle}"
+        TargetType="Button">
+        <Setter Property="AutomationProperties.AutomationId" Value="RestoreBackupCancelButton" />
+        <Setter Property="AutomationProperties.Name" Value="バックアップの復元をキャンセル" />
+    </Style>
 </ResourceDictionary>

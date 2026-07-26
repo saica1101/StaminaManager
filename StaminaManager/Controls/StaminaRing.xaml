@@ -30,7 +30,6 @@
 
         <Viewbox
             MaxWidth="96"
-            MaxHeight="36"
             HorizontalAlignment="Center"
             VerticalAlignment="Center"
             IsHitTestVisible="False"

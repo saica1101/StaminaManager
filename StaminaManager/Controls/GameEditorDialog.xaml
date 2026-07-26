@@ -5,10 +5,46 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:StaminaManager.Controls"
     xmlns:viewModels="using:StaminaManager.ViewModels"
-    CloseButtonText="キャンセル"
+    AutomationProperties.AutomationId="GameEditorDialog"
+    AutomationProperties.Name="{x:Bind ViewModel.DialogTitle, Mode=OneTime}"
+    CloseButtonText="{x:Bind ViewModel.DialogCloseButtonText, Mode=OneWay}"
     CloseButtonClick="Dialog_CloseButtonClick"
-    DefaultButton="None"
+    DefaultButton="Primary"
+    IsPrimaryButtonEnabled="{x:Bind ViewModel.CanPrimaryAction, Mode=OneWay}"
+    PrimaryButtonText="{x:Bind ViewModel.DialogPrimaryActionText, Mode=OneWay}"
+    PrimaryButtonClick="Dialog_PrimaryButtonClick"
     Title="{x:Bind ViewModel.DialogTitle, Mode=OneTime}">
+
+    <ContentDialog.Resources>
+        <Style
+            x:Key="GameEditorSaveButtonStyle"
+            BasedOn="{StaticResource AccentButtonStyle}"
+            TargetType="Button">
+            <Setter Property="AutomationProperties.AutomationId" Value="GameEditorSaveButton" />
+            <Setter Property="AutomationProperties.Name" Value="ゲームを追加または保存" />
+        </Style>
+        <Style
+            x:Key="DeleteConfirmButtonStyle"
+            BasedOn="{StaticResource AccentButtonStyle}"
+            TargetType="Button">
+            <Setter Property="AutomationProperties.AutomationId" Value="DeleteConfirmButton" />
+            <Setter Property="AutomationProperties.Name" Value="このゲームを削除する" />
+        </Style>
+        <Style
+            x:Key="GameEditorCancelButtonStyle"
+            BasedOn="{StaticResource DefaultButtonStyle}"
+            TargetType="Button">
+            <Setter Property="AutomationProperties.AutomationId" Value="GameEditorCancelButton" />
+            <Setter Property="AutomationProperties.Name" Value="編集をキャンセル" />
+        </Style>
+        <Style
+            x:Key="DeleteBackButtonStyle"
+            BasedOn="{StaticResource DefaultButtonStyle}"
+            TargetType="Button">
+            <Setter Property="AutomationProperties.AutomationId" Value="DeleteBackButton" />
+            <Setter Property="AutomationProperties.Name" Value="削除せず編集へ戻る" />
+        </Style>
+    </ContentDialog.Resources>
 
     <Grid MinWidth="320" MaxWidth="520">
         <ScrollViewer
@@ -22,11 +58,13 @@
                         x:Name="GameNameInput"
                         x:Uid="GameNameInput"
                         AutomationProperties.AutomationId="GameNameInput"
+                        AutomationProperties.HelpText="{x:Bind ViewModel.NameError, Mode=OneWay}"
                         Header="ゲーム名"
                         MaxLength="200"
                         Text="{x:Bind ViewModel.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <TextBlock
                         Margin="0,-12,0,0"
+                        AutomationProperties.LiveSetting="Assertive"
                         Foreground="{ThemeResource SystemFillColorCriticalBrush}"
                         Text="{x:Bind ViewModel.NameError, Mode=OneWay}"
                         Visibility="{x:Bind local:GameEditorDialog.TextToVisibility(ViewModel.NameError), Mode=OneWay}" />
@@ -35,6 +73,7 @@
                         x:Name="CurrentStaminaInput"
                         x:Uid="CurrentStaminaInput"
                         AutomationProperties.AutomationId="CurrentStaminaInput"
+                        AutomationProperties.HelpText="{x:Bind ViewModel.CurrentStaminaError, Mode=OneWay}"
                         Header="現在のスタミナ"
                         Maximum="1000000"
                         Minimum="0"
@@ -43,6 +82,7 @@
                         Value="{x:Bind ViewModel.CurrentStamina, Mode=TwoWay}" />
                     <TextBlock
                         Margin="0,-12,0,0"
+                        AutomationProperties.LiveSetting="Assertive"
                         Foreground="{ThemeResource SystemFillColorCriticalBrush}"
                         Text="{x:Bind ViewModel.CurrentStaminaError, Mode=OneWay}"
                         Visibility="{x:Bind local:GameEditorDialog.TextToVisibility(ViewModel.CurrentStaminaError), Mode=OneWay}" />
@@ -51,6 +91,7 @@
                         x:Name="MaxStaminaInput"
                         x:Uid="MaxStaminaInput"
                         AutomationProperties.AutomationId="MaxStaminaInput"
+                        AutomationProperties.HelpText="{x:Bind ViewModel.MaxStaminaError, Mode=OneWay}"
                         Header="スタミナの最大値"
                         Maximum="1000000"
                         Minimum="1"
@@ -59,6 +100,7 @@
                         Value="{x:Bind ViewModel.MaxStamina, Mode=TwoWay}" />
                     <TextBlock
                         Margin="0,-12,0,0"
+                        AutomationProperties.LiveSetting="Assertive"
                         Foreground="{ThemeResource SystemFillColorCriticalBrush}"
                         Text="{x:Bind ViewModel.MaxStaminaError, Mode=OneWay}"
                         Visibility="{x:Bind local:GameEditorDialog.TextToVisibility(ViewModel.MaxStaminaError), Mode=OneWay}" />
@@ -67,6 +109,7 @@
                         x:Name="RecoveryMinutesInput"
                         x:Uid="RecoveryMinutesInput"
                         AutomationProperties.AutomationId="RecoveryMinutesInput"
+                        AutomationProperties.HelpText="{x:Bind ViewModel.RecoveryMinutesError, Mode=OneWay}"
                         Header="スタミナが1回復する時間（分）"
                         Maximum="525600"
                         Minimum="1"
@@ -75,6 +118,7 @@
                         Value="{x:Bind ViewModel.RecoveryMinutes, Mode=TwoWay}" />
                     <TextBlock
                         Margin="0,-12,0,0"
+                        AutomationProperties.LiveSetting="Assertive"
                         Foreground="{ThemeResource SystemFillColorCriticalBrush}"
                         Text="{x:Bind ViewModel.RecoveryMinutesError, Mode=OneWay}"
                         Visibility="{x:Bind local:GameEditorDialog.TextToVisibility(ViewModel.RecoveryMinutesError), Mode=OneWay}" />
@@ -103,37 +147,29 @@
 
                     <InfoBar
                         x:Uid="GameEditorElapsedInfoBar"
+                        AutomationProperties.AutomationId="GameEditorElapsedInfoBar"
+                        AutomationProperties.LiveSetting="Polite"
                         IsClosable="False"
                         IsOpen="{x:Bind ViewModel.HasElapsedWarning, Mode=OneWay}"
                         Message="{x:Bind ViewModel.ElapsedWarning, Mode=OneWay}"
                         Severity="Warning" />
                     <InfoBar
                         x:Uid="GameEditorErrorInfoBar"
+                        AutomationProperties.AutomationId="GameEditorErrorInfoBar"
+                        AutomationProperties.HelpText="{x:Bind ViewModel.GeneralError, Mode=OneWay}"
+                        AutomationProperties.LiveSetting="Assertive"
                         IsClosable="False"
                         IsOpen="{x:Bind local:GameEditorDialog.HasText(ViewModel.GeneralError), Mode=OneWay}"
                         Message="{x:Bind ViewModel.GeneralError, Mode=OneWay}"
                         Severity="Error" />
 
-                    <Grid ColumnSpacing="{StaticResource Spacing8}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <Button
-                            x:Name="GameEditorDeleteButton"
-                            x:Uid="GameEditorDeleteButton"
-                            AutomationProperties.AutomationId="GameEditorDeleteButton"
-                            Command="{x:Bind ViewModel.RequestDeleteCommand, Mode=OneWay}"
-                            Visibility="{x:Bind local:GameEditorDialog.BoolToVisibility(ViewModel.CanDelete), Mode=OneWay}" />
-                        <Button
-                            x:Name="GameEditorSaveButton"
-                            Grid.Column="1"
-                            AutomationProperties.AutomationId="GameEditorSaveButton"
-                            Click="GameEditorSaveButton_Click"
-                            Content="{x:Bind ViewModel.ActionText, Mode=OneTime}"
-                            IsEnabled="{x:Bind ViewModel.CanSave, Mode=OneWay}"
-                            Style="{StaticResource AccentButtonStyle}" />
-                    </Grid>
+                    <Button
+                        x:Name="GameEditorDeleteButton"
+                        x:Uid="GameEditorDeleteButton"
+                        AutomationProperties.AutomationId="GameEditorDeleteButton"
+                        Command="{x:Bind ViewModel.RequestDeleteCommand, Mode=OneWay}"
+                        HorizontalAlignment="Left"
+                        Visibility="{x:Bind local:GameEditorDialog.BoolToVisibility(ViewModel.CanDelete), Mode=OneWay}" />
                 </StackPanel>
 
                 <StackPanel
@@ -155,25 +191,14 @@
                         Style="{StaticResource AppSecondaryTextStyle}"
                         Text="この操作は元に戻せません。戻ると、編集中の入力内容を保持したまま編集画面へ戻ります。" />
                     <InfoBar
+                        x:Uid="GameEditorDeleteErrorInfoBar"
+                        AutomationProperties.AutomationId="GameEditorDeleteErrorInfoBar"
+                        AutomationProperties.HelpText="{x:Bind ViewModel.GeneralError, Mode=OneWay}"
+                        AutomationProperties.LiveSetting="Assertive"
                         IsClosable="False"
                         IsOpen="{x:Bind local:GameEditorDialog.HasText(ViewModel.GeneralError), Mode=OneWay}"
                         Message="{x:Bind ViewModel.GeneralError, Mode=OneWay}"
                         Severity="Error" />
-                    <StackPanel
-                        HorizontalAlignment="Right"
-                        Orientation="Horizontal"
-                        Spacing="{StaticResource Spacing8}">
-                        <Button
-                            x:Name="DeleteConfirmButton"
-                            x:Uid="DeleteConfirmButton"
-                            AutomationProperties.AutomationId="DeleteConfirmButton"
-                            Click="DeleteConfirmButton_Click" />
-                        <Button
-                            x:Name="DeleteBackButton"
-                            x:Uid="DeleteBackButton"
-                            AutomationProperties.AutomationId="DeleteBackButton"
-                            Command="{x:Bind ViewModel.BackToEditingCommand, Mode=OneWay}" />
-                    </StackPanel>
                 </StackPanel>
             </Grid>
         </ScrollViewer>

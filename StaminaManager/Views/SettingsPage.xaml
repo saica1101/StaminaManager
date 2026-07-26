@@ -33,6 +33,9 @@
             <InfoBar
                 x:Name="SettingsInfoBar"
                 AutomationProperties.AutomationId="SettingsInfoBar"
+                AutomationProperties.HelpText="{x:Bind ViewModel.InfoBarMessage, Mode=OneWay}"
+                AutomationProperties.LiveSetting="Polite"
+                AutomationProperties.Name="{x:Bind ViewModel.InfoBarTitle, Mode=OneWay}"
                 IsClosable="True"
                 Closed="SettingsInfoBar_Closed"
                 IsOpen="{x:Bind ViewModel.IsInfoBarOpen, Mode=OneWay}"

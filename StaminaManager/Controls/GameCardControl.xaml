@@ -63,7 +63,7 @@
                 Width="128"
                 Height="128"
                 HorizontalAlignment="Center"
-                AutomationProperties.AccessibilityView="Raw"
+                AutomationProperties.AutomationId="{x:Bind RingAutomationId, Mode=OneWay}"
                 Current="{x:Bind ViewModel.CurrentStamina, Mode=OneWay}"
                 GameName="{x:Bind ViewModel.Name, Mode=OneWay}"
                 Maximum="{x:Bind ViewModel.MaxStamina, Mode=OneWay}"

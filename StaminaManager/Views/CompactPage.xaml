@@ -68,6 +68,7 @@
                         Width="144"
                         Height="144"
                         HorizontalAlignment="Center"
+                        AutomationProperties.AutomationId="CompactStaminaRing"
                         AutomationProperties.Name="{x:Bind RingAutomationName, Mode=OneWay}"
                         Current="{x:Bind ViewModel.SelectedCurrent, Mode=OneWay}"
                         GameName="{x:Bind ViewModel.SelectedName, Mode=OneWay}"
@@ -99,6 +100,9 @@
                     </StackPanel>
                     <InfoBar
                         x:Uid="CompactErrorInfoBar"
+                        AutomationProperties.AutomationId="CompactErrorInfoBar"
+                        AutomationProperties.HelpText="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+                        AutomationProperties.LiveSetting="Assertive"
                         IsClosable="False"
                         IsOpen="{x:Bind local:CompactPage.HasText(ViewModel.ErrorMessage), Mode=OneWay}"
                         Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"

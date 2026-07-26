@@ -69,6 +69,11 @@ public sealed class NotificationSettingsViewModelTests
         StringAssert.Contains(
             viewModel.NotificationAvailabilityText,
             "アプリごとの設定");
+        Assert.IsTrue(viewModel.IsInfoBarOpen);
+        Assert.AreEqual(
+            InfoBarSeverity.Warning,
+            viewModel.InfoBarSeverity);
+        StringAssert.Contains(viewModel.InfoBarMessage, "通知設定");
     }
 
     [TestMethod]

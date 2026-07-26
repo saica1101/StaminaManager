@@ -1,5 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
+using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using StaminaManager.Core.Calculations;
@@ -98,6 +100,9 @@ public sealed partial class StaminaRing : UserControl
         set => SetValue(GameNameProperty, value);
     }
 
+    protected override AutomationPeer OnCreateAutomationPeer() =>
+        new StaminaRingAutomationPeer(this);
+
     private static void OnVisualPropertyChanged(
         DependencyObject dependencyObject,
         DependencyPropertyChangedEventArgs args)
@@ -165,5 +170,87 @@ public sealed partial class StaminaRing : UserControl
             $"{Current} / {Maximum}",
             StatusText);
         AutomationProperties.SetName(this, name);
+    }
+}
+
+internal readonly record struct StaminaAutomationInfo(
+    double Minimum,
+    double Maximum,
+    double Value,
+    string Name,
+    string HelpText);
+
+internal sealed class StaminaRingAutomationPeer
+    : FrameworkElementAutomationPeer, IRangeValueProvider
+{
+    private readonly StaminaRing _owner;
+
+    internal StaminaRingAutomationPeer(StaminaRing owner)
+        : base(owner)
+    {
+        _owner = owner;
+    }
+
+    public bool IsReadOnly => true;
+
+    public double LargeChange => 0d;
+
+    public double Maximum => Info.Maximum;
+
+    public double Minimum => Info.Minimum;
+
+    public double SmallChange => 0d;
+
+    public double Value => Info.Value;
+
+    private StaminaAutomationInfo Info => CreateInfo(
+        _owner.GameName,
+        _owner.Current,
+        _owner.Maximum,
+        _owner.Ratio,
+        _owner.StatusText);
+
+    public void SetValue(double value) => throw new InvalidOperationException(
+        "スタミナ表示は読み取り専用です。");
+
+    protected override string GetClassNameCore() => nameof(StaminaRing);
+
+    protected override AutomationControlType GetAutomationControlTypeCore() =>
+        AutomationControlType.ProgressBar;
+
+    protected override string GetHelpTextCore() => Info.HelpText;
+
+    protected override string GetNameCore() => Info.Name;
+
+    protected override object? GetPatternCore(
+        PatternInterface patternInterface) =>
+        patternInterface == PatternInterface.RangeValue
+            ? this
+            : base.GetPatternCore(patternInterface);
+
+    internal static StaminaAutomationInfo CreateInfo(
+        string gameName,
+        int current,
+        int maximum,
+        double ratio,
+        string statusText)
+    {
+        int safeMaximum = Math.Max(maximum, 1);
+        int percentage = (int)Math.Round(
+            Math.Clamp(ratio, 0d, 1d) * 100d,
+            MidpointRounding.AwayFromZero);
+        string subject = string.IsNullOrWhiteSpace(gameName)
+            ? "スタミナ"
+            : gameName;
+        string status = string.IsNullOrWhiteSpace(statusText)
+            ? "状態不明"
+            : statusText;
+        return new StaminaAutomationInfo(
+            Minimum: 0d,
+            Maximum: safeMaximum,
+            Value: Math.Clamp(current, 0, safeMaximum),
+            Name: $"{subject}、スタミナ {current} / {safeMaximum}、{status}",
+            HelpText: $"現在値 {current}、最大値 {safeMaximum}、"
+                + $"{percentage}%、{status}");
     }
 }

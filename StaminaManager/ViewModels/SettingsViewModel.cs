@@ -33,7 +33,8 @@ public sealed partial class SettingsViewModel : ObservableObject
     }
 
     private const string SaveFailureMessage =
-        "設定を保存できませんでした。以前の設定に戻しました。";
+        "設定を保存できませんでした。以前の設定に戻しました。"
+        + "もう一度お試しください。";
     private const string NotReadyMessage =
         "設定を読み込み中です。完了してからもう一度お試しください。";
     private const string InitializationFailureMessage =
@@ -561,6 +562,10 @@ public sealed partial class SettingsViewModel : ObservableObject
                     cancellationToken);
             WindowsNotificationState = status.State;
             AreWindowsNotificationsAvailable = status.IsAvailable;
+            if (!status.IsAvailable)
+            {
+                ShowNotificationPermissionMessage(status.State);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -574,7 +579,8 @@ public sealed partial class SettingsViewModel : ObservableObject
             WindowsNotificationState = NotificationPermissionState.Unsupported;
             AreWindowsNotificationsAvailable = false;
             ShowMessage(
-                "Windowsの通知状態を確認できませんでした。",
+                "Windowsの通知状態を確認できませんでした。"
+                + "Windowsの通知設定を確認してから再試行してください。",
                 InfoBarSeverity.Error);
         }
     }
@@ -589,7 +595,8 @@ public sealed partial class SettingsViewModel : ObservableObject
             if (!opened)
             {
                 ShowMessage(
-                    "Windowsの通知設定を開けませんでした。",
+                    "Windowsの通知設定を開けませんでした。"
+                    + "Windowsの設定から通知を手動で確認してください。",
                     InfoBarSeverity.Error);
             }
 
@@ -605,7 +612,8 @@ public sealed partial class SettingsViewModel : ObservableObject
                 "Notification settings launch failed: "
                 + exception.GetType().Name);
             ShowMessage(
-                "Windowsの通知設定を開けませんでした。",
+                "Windowsの通知設定を開けませんでした。"
+                + "Windowsの設定から通知を手動で確認してください。",
                 InfoBarSeverity.Error);
             return false;
         }
@@ -752,6 +760,12 @@ public sealed partial class SettingsViewModel : ObservableObject
     internal void ReportUnexpectedFailure() => ShowMessage(
         UnexpectedFailureMessage,
         InfoBarSeverity.Error);
+
+    internal void ReportBackupImportFailure() => ShowMessage(
+        "選択したバックアップを読み込めませんでした。"
+        + "別のバックアップを選んで再試行してください。",
+        InfoBarSeverity.Error,
+        "バックアップを読み込めませんでした");
 
     public void SynchronizeFromCurrentSettings(
         ThemeResult? themeResult = null,
@@ -924,6 +938,30 @@ public sealed partial class SettingsViewModel : ObservableObject
             "通知の同期が完了していません");
     }
 
+    private void ShowNotificationPermissionMessage(
+        NotificationPermissionState state)
+    {
+        string message = state switch
+        {
+            NotificationPermissionState.DisabledForApplication
+                or NotificationPermissionState.DisabledForUser =>
+                "Windows通知が無効です。Windowsの通知設定を開いて"
+                + "有効にしてください。",
+            NotificationPermissionState.DisabledByPolicy =>
+                "組織のポリシーによりWindows通知を利用できません。"
+                + "必要な場合は管理者へ確認してください。",
+            NotificationPermissionState.DisabledByManifest =>
+                "Windows通知のアプリ構成を利用できません。"
+                + "通知をオフにしてスタミナをアプリで確認してください。",
+            _ => "この環境ではWindows通知を利用できません。"
+                + "通知をオフにしてスタミナをアプリで確認してください。",
+        };
+        ShowMessage(
+            message,
+            InfoBarSeverity.Warning,
+            "Windows通知を利用できません");
+    }
+
     private void ReportPreparation(SettingsPreparationAction action)
     {
         PreparationRequested?.Invoke(action);
@@ -1005,7 +1043,8 @@ public sealed partial class SettingsViewModel : ObservableObject
                 "組織のポリシーによりWindowsログイン時起動を有効にできません。",
             StartupFailureReason.EnabledByPolicy =>
                 "組織のポリシーによりWindowsログイン時起動を無効にできません。",
-            _ => "Windowsログイン時起動を変更できませんでした。",
+            _ => "Windowsログイン時起動を変更できませんでした。"
+                + "時間をおいて再試行してください。",
         };
         ShowMessage(message, InfoBarSeverity.Warning);
     }

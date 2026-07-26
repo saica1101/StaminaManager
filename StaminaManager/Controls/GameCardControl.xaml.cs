@@ -50,6 +50,11 @@ public sealed partial class GameCardControl : UserControl, INotifyPropertyChange
             ? $"GameCard_{viewModel.Id:D}"
             : string.Empty;
 
+    public string RingAutomationId =>
+        CurrentViewModel is { } viewModel
+            ? $"StaminaRing_{viewModel.Id:D}"
+            : string.Empty;
+
     public string StatusText => CurrentViewModel is { } viewModel
         ? GetRequiredString(
             viewModel.Status switch
@@ -284,6 +289,9 @@ public sealed partial class GameCardControl : UserControl, INotifyPropertyChange
         PropertyChanged?.Invoke(
             this,
             new PropertyChangedEventArgs(nameof(CardAutomationId)));
+        PropertyChanged?.Invoke(
+            this,
+            new PropertyChangedEventArgs(nameof(RingAutomationId)));
         PropertyChanged?.Invoke(
             this,
             new PropertyChangedEventArgs(nameof(CardAutomationName)));

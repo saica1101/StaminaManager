@@ -1,5 +1,7 @@
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using StaminaManager.Application;
 using StaminaManager.Core.Models;
 using StaminaManager.Infrastructure.Storage;
@@ -41,6 +43,7 @@ public sealed partial class GameEditorDialog : ContentDialog
         InitializeComponent();
         Opened += OnOpened;
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+        UpdateDialogActions();
     }
 
     public GameEditorViewModel ViewModel { get; }
@@ -79,6 +82,7 @@ public sealed partial class GameEditorDialog : ContentDialog
 
     private void OnOpened(ContentDialog sender, ContentDialogOpenedEventArgs args)
     {
+        UpdateGeneratedButtonAutomation();
         Control target = _focusCurrentStamina
             ? CurrentStaminaInput
             : GameNameInput;
@@ -92,14 +96,13 @@ public sealed partial class GameEditorDialog : ContentDialog
         if (args.PropertyName == nameof(GameEditorViewModel.State)
             && ViewModel.State == GameEditorState.DeleteConfirmation)
         {
-            CloseButtonText = string.Empty;
+            UpdateDialogActions();
             _ = DispatcherQueue.TryEnqueue(
-                () => DeleteBackButton.Focus(
-                    FocusState.Programmatic));
+                () => FocusDialogAction("DeleteBackButton"));
         }
         else if (args.PropertyName == nameof(GameEditorViewModel.State))
         {
-            CloseButtonText = "キャンセル";
+            UpdateDialogActions();
             GameNameInput.Focus(FocusState.Programmatic);
         }
     }
@@ -143,12 +146,29 @@ public sealed partial class GameEditorDialog : ContentDialog
         }
     }
 
-    private async void GameEditorSaveButton_Click(
-        object sender,
-        RoutedEventArgs args)
+    private async void Dialog_PrimaryButtonClick(
+        ContentDialog sender,
+        ContentDialogButtonClickEventArgs args)
     {
+        ContentDialogButtonClickDeferral deferral = args.GetDeferral();
+        args.Cancel = true;
         try
         {
+            if (ViewModel.State == GameEditorState.DeleteConfirmation)
+            {
+                if (!await ViewModel.DeleteAsync(CancellationToken.None))
+                {
+                    ViewModel.ShowGeneralError(
+                        "ゲームは既に削除されています。"
+                        + "画面を閉じて一覧を確認してください。");
+                    return;
+                }
+
+                _result = GameEditorDialogResult.Deleted;
+                args.Cancel = false;
+                return;
+            }
+
             GameEntry? saved = await ViewModel.SaveAsync(
                 CancellationToken.None);
             if (saved is null)
@@ -157,7 +177,7 @@ public sealed partial class GameEditorDialog : ContentDialog
             }
 
             _result = GameEditorDialogResult.Saved;
-            Hide();
+            args.Cancel = false;
         }
         catch (Exception exception) when (
             exception is IOException
@@ -167,38 +187,119 @@ public sealed partial class GameEditorDialog : ContentDialog
         {
             // ViewModel が安全な表示文へ変換する。入力内容は保持する。
         }
-    }
-
-    private async void DeleteConfirmButton_Click(
-        object sender,
-        RoutedEventArgs args)
-    {
-        try
+        finally
         {
-            if (await ViewModel.DeleteAsync(CancellationToken.None))
-            {
-                _result = GameEditorDialogResult.Deleted;
-                Hide();
-            }
-            else
-            {
-                ViewModel.ShowGeneralError(
-                    "ゲームは既に削除されています。画面を閉じて一覧を確認してください。");
-            }
-        }
-        catch (Exception exception) when (
-            exception is IOException
-                or UnauthorizedAccessException
-                or InvalidOperationException)
-        {
-            // ViewModel が安全な表示文へ変換する。確認状態は維持する。
+            deferral.Complete();
         }
     }
 
     private void Dialog_CloseButtonClick(
         ContentDialog sender,
-        ContentDialogButtonClickEventArgs args) =>
+        ContentDialogButtonClickEventArgs args)
+    {
+        if (ViewModel.State == GameEditorState.DeleteConfirmation)
+        {
+            args.Cancel = true;
+            ViewModel.BackToEditingCommand.Execute(null);
+            return;
+        }
+
         _result = GameEditorDialogResult.Canceled;
+    }
+
+    private void UpdateDialogActions()
+    {
+        bool isDeleteConfirmation =
+            ViewModel.State == GameEditorState.DeleteConfirmation;
+        PrimaryButtonStyle = (Style)Resources[
+            isDeleteConfirmation
+                ? "DeleteConfirmButtonStyle"
+                : "GameEditorSaveButtonStyle"];
+        CloseButtonStyle = (Style)Resources[
+            isDeleteConfirmation
+                ? "DeleteBackButtonStyle"
+                : "GameEditorCancelButtonStyle"];
+        DefaultButton = isDeleteConfirmation
+            ? ContentDialogButton.Close
+            : ContentDialogButton.Primary;
+        UpdateGeneratedButtonAutomation();
+    }
+
+    private void UpdateGeneratedButtonAutomation()
+    {
+        bool isDeleteConfirmation =
+            ViewModel.State == GameEditorState.DeleteConfirmation;
+        if (GetTemplateChild("PrimaryButton") is Button primaryButton)
+        {
+            AutomationProperties.SetAutomationId(
+                primaryButton,
+                isDeleteConfirmation
+                    ? "DeleteConfirmButton"
+                    : "GameEditorSaveButton");
+            AutomationProperties.SetName(
+                primaryButton,
+                isDeleteConfirmation
+                    ? "このゲームを削除する"
+                    : ViewModel.IsNew
+                        ? "ゲームを追加する"
+                        : "ゲームの変更を保存する");
+        }
+
+        if (GetTemplateChild("CloseButton") is Button closeButton)
+        {
+            AutomationProperties.SetAutomationId(
+                closeButton,
+                isDeleteConfirmation
+                    ? "DeleteBackButton"
+                    : "GameEditorCancelButton");
+            AutomationProperties.SetName(
+                closeButton,
+                isDeleteConfirmation
+                    ? "削除せず編集へ戻る"
+                    : "編集をキャンセル");
+        }
+    }
+
+    private void FocusDialogAction(string automationId)
+    {
+        if (FindDescendantByAutomationId(this, automationId)
+            is Control control)
+        {
+            control.Focus(FocusState.Programmatic);
+            return;
+        }
+
+        Focus(FocusState.Programmatic);
+    }
+
+    private static DependencyObject? FindDescendantByAutomationId(
+        DependencyObject root,
+        string automationId)
+    {
+        int childCount = VisualTreeHelper.GetChildrenCount(root);
+        for (int index = 0; index < childCount; index++)
+        {
+            DependencyObject child = VisualTreeHelper.GetChild(root, index);
+            if (child is FrameworkElement element
+                && string.Equals(
+                    AutomationProperties.GetAutomationId(element),
+                    automationId,
+                    StringComparison.Ordinal))
+            {
+                return child;
+            }
+
+            DependencyObject? descendant = FindDescendantByAutomationId(
+                child,
+                automationId);
+            if (descendant is not null)
+            {
+                return descendant;
+            }
+        }
+
+        return null;
+    }
 
     private async Task CleanupAssetsAsync(
         CancellationToken cancellationToken)

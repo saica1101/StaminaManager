@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Windows.Storage.Pickers;
 using StaminaManager.Core.Abstractions;
@@ -203,10 +204,20 @@ public sealed partial class SettingsPage : Page
                 XamlRoot = XamlRoot,
                 Title = "バックアップを復元しますか？",
                 PrimaryButtonText = "現在データを置き換える",
+                PrimaryButtonStyle = (Style)Microsoft.UI.Xaml.Application
+                    .Current.Resources["RestoreDialogPrimaryButtonStyle"],
                 CloseButtonText = "キャンセル",
+                CloseButtonStyle = (Style)Microsoft.UI.Xaml.Application
+                    .Current.Resources["RestoreDialogCancelButtonStyle"],
                 DefaultButton = ContentDialogButton.Close,
                 Content = CreateRestorePreview(prepared.Preview),
             };
+            AutomationProperties.SetAutomationId(
+                confirmation,
+                "RestoreBackupDialog");
+            AutomationProperties.SetName(
+                confirmation,
+                "バックアップの復元確認");
             ContentDialogResult result = await confirmation.ShowAsync();
             if (result != ContentDialogResult.Primary)
             {
@@ -243,7 +254,7 @@ public sealed partial class SettingsPage : Page
             Debug.WriteLine(
                 "Backup restore preparation failed: "
                 + exception.GetType().Name);
-            ViewModel.ReportUnexpectedFailure();
+            ViewModel.ReportBackupImportFailure();
         }
     }
 
