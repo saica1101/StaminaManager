@@ -38,6 +38,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         "設定を読み込み中です。完了してからもう一度お試しください。";
     private const string InitializationFailureMessage =
         "設定を読み込めませんでした。アプリを再起動してください。";
+    private const string BackupBusyMessage =
+        "バックアップ処理中です。完了してからもう一度お試しください。";
     private const string UnexpectedFailureMessage =
         "設定を変更できませんでした。もう一度お試しください。";
     private readonly GameManager _gameManager;
@@ -640,12 +642,25 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
     }
 
-    public Task<BackupPreview> PreviewRestoreAsync(
+    public async Task<BackupPreview> PreviewRestoreAsync(
         string sourcePath,
-        CancellationToken cancellationToken = default) =>
-        GetBackupCoordinator().PreviewRestoreAsync(
-            sourcePath,
-            cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        EnsureBackupIsIdle();
+        AppCoordinator coordinator = GetBackupCoordinator();
+        IsBackupBusy = true;
+        BackupStatusText = "バックアップの内容を確認しています…";
+        try
+        {
+            return await coordinator.PreviewRestoreAsync(
+                sourcePath,
+                cancellationToken);
+        }
+        finally
+        {
+            IsBackupBusy = false;
+        }
+    }
 
     public async Task RestoreBackupAsync(
         string sourcePath,
@@ -1093,6 +1108,15 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     private bool EnsureReady()
     {
+        if (IsBackupBusy)
+        {
+            ShowMessage(
+                BackupBusyMessage,
+                InfoBarSeverity.Warning,
+                "バックアップ処理中です");
+            return false;
+        }
+
         if (IsReady && _gameManager.IsInitialized)
         {
             return true;

@@ -199,14 +199,27 @@ public sealed class AppCoordinator
                     "初期化状態を復元できません。");
             }
 
+            BackupRestoreResult? resumedRestore = null;
             if (_restoreCoordinator is not null)
             {
-                _ = await _restoreCoordinator.ResumeAsync(cancellationToken)
+                resumedRestore = await _restoreCoordinator.ResumeAsync(
+                        cancellationToken)
                     .ConfigureAwait(false);
             }
 
-            await ReconcileDerivedStateAsync(cancellationToken)
-                .ConfigureAwait(false);
+            if (resumedRestore is null)
+            {
+                await ReconcileDerivedStateAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                await ReconcileRestoredDerivedStateAsync(
+                        resumedRestore.Data.Settings.StartupEnabled,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
             await AcknowledgeRestoreIfReconciledAsync(cancellationToken)
                 .ConfigureAwait(false);
             IsInitialized = true;
