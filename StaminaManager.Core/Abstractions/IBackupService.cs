@@ -29,7 +29,13 @@ public sealed record BackupRestoreResult(
     BackupPreview Preview,
     DataEnvelope Data,
     string PreviousSnapshotPath,
-    bool RequiresDerivedStateRetry);
+    bool RequiresDerivedStateRetry,
+    bool IsCommitted,
+    bool IsPartial);
+
+public sealed record PreparedBackupRestore(
+    string SessionId,
+    BackupPreview Preview);
 
 public interface IBackupService
 {
@@ -37,18 +43,12 @@ public interface IBackupService
         string destinationPath,
         CancellationToken cancellationToken);
 
-    Task<BackupPreview> PreviewAsync(
+    Task<PreparedBackupRestore> PrepareRestoreAsync(
         string sourcePath,
         CancellationToken cancellationToken);
 
-    Task<BackupRestoreResult> RestoreAsync(
-        string sourcePath,
-        CancellationToken cancellationToken);
-
-    Task<BackupRestoreResult> RestoreAndPublishAsync(
-        string sourcePath,
-        Func<DataEnvelope, CancellationToken, Task>
-            publishCommittedDataAsync,
+    Task CancelPreparedRestoreAsync(
+        string sessionId,
         CancellationToken cancellationToken);
 
     Task<BackupRestoreResult?> ResumeAsync(

@@ -245,6 +245,43 @@ public sealed class SafeZipReaderTests
         Assert.AreEqual("Light", backup.Preview.Theme);
     }
 
+    [TestMethod]
+    public async Task ReadToStageAsync_画像100件でもmanagedBufferを累積保持しない()
+    {
+        List<int> retainedBytes = [];
+        string root = Path.Combine(
+            Path.GetTempPath(),
+            "StaminaManager.StreamingBackupTests",
+            Guid.NewGuid().ToString("N"));
+        string assets = Path.Combine(root, "Assets");
+        Directory.CreateDirectory(assets);
+        try
+        {
+            await using MemoryStream archive =
+                await CreateImageArchiveAsync(assetCount: 100);
+
+            ValidatedBackup backup = await new SafeZipReader(
+                retainedBytes.Add).ReadToStageAsync(
+                    archive,
+                    assets,
+                    CancellationToken.None);
+
+            Assert.HasCount(100, backup.Assets);
+            Assert.AreEqual(100, Directory.EnumerateFiles(assets).Count());
+            Assert.IsLessThanOrEqualTo(
+                4 * 1024 * 1024,
+                retainedBytes.Max());
+            Assert.AreEqual(0, retainedBytes[^1]);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
     private static MemoryStream CreateArchive(
         params (string Name, string Content)[] entries) =>
         CreateArchive(CompressionLevel.Optimal, entries);
@@ -279,6 +316,97 @@ public sealed class SafeZipReaderTests
         $$"""
         {"schemaVersion":1,"dataSchemaVersion":1,"dataFile":"data.json","assets":[{"assetId":"{{assetId}}","entryPath":"assets/{{assetId}}.png","mediaType":"image/png"}]}
         """;
+
+    private static async Task<MemoryStream> CreateImageArchiveAsync(
+        int assetCount)
+    {
+        string fixturePath = Path.Combine(
+            AppContext.BaseDirectory,
+            "TestData",
+            "Images",
+            "valid-1x1.png.base64");
+        byte[] image = Convert.FromBase64String(
+            await File.ReadAllTextAsync(fixturePath));
+        string[] assetIds = Enumerable.Range(0, assetCount)
+            .Select(_ => Guid.NewGuid().ToString("N"))
+            .ToArray();
+        string manifest = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            schemaVersion = 1,
+            dataSchemaVersion = 1,
+            dataFile = "data.json",
+            assets = assetIds.Select(assetId => new
+            {
+                assetId,
+                entryPath = $"assets/{assetId}.png",
+                mediaType = "image/png",
+            }),
+        });
+        string data = CreateDataWithAssetIds(assetIds);
+        MemoryStream stream = new();
+        using (ZipArchive archive = new(
+            stream,
+            ZipArchiveMode.Create,
+            leaveOpen: true))
+        {
+            WriteTextEntry(archive, "manifest.json", manifest);
+            WriteTextEntry(archive, "data.json", data);
+            foreach (string assetId in assetIds)
+            {
+                ZipArchiveEntry entry = archive.CreateEntry(
+                    $"assets/{assetId}.png",
+                    CompressionLevel.NoCompression);
+                await using Stream output = entry.Open();
+                await output.WriteAsync(image);
+            }
+        }
+
+        stream.Position = 0;
+        return stream;
+    }
+
+    private static void WriteTextEntry(
+        ZipArchive archive,
+        string name,
+        string content)
+    {
+        ZipArchiveEntry entry = archive.CreateEntry(
+            name,
+            CompressionLevel.NoCompression);
+        using StreamWriter writer = new(
+            entry.Open(),
+            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        writer.Write(content);
+    }
+
+    private static string CreateDataWithAssetIds(
+        IReadOnlyList<string> assetIds) =>
+        System.Text.Json.JsonSerializer.Serialize(new
+        {
+            schemaVersion = 1,
+            games = assetIds.Select((assetId, index) => new
+            {
+                id = Guid.NewGuid(),
+                name = $"game{index}",
+                baseStamina = 1,
+                maxStamina = 100,
+                recoveryMinutes = 5,
+                recordedAtUtc = "2026-01-01T00:00:00+00:00",
+                imageAssetId = assetId,
+                sortOrder = index,
+            }),
+            settings = new
+            {
+                theme = "Light",
+                backdrop = "Mica",
+                notificationsEnabled = true,
+                notificationLeadMinutes = 15,
+                closeBehavior = "MinimizeToTray",
+                startupEnabled = false,
+                lastDisplayMode = "Standard",
+                selectedCompactGameId = (Guid?)null,
+            },
+        });
 
     private static void PatchCentralDirectorySizes(
         MemoryStream archive,

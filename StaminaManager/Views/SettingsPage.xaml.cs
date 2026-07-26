@@ -192,9 +192,11 @@ public sealed partial class SettingsPage : Page
             return;
         }
 
+        PreparedBackupRestore? prepared = null;
+        bool isCommitRequested = false;
         try
         {
-            BackupPreview preview = await ViewModel.PreviewRestoreAsync(
+            prepared = await ViewModel.PreviewRestoreAsync(
                 selected.Path);
             ContentDialog confirmation = new()
             {
@@ -203,21 +205,41 @@ public sealed partial class SettingsPage : Page
                 PrimaryButtonText = "現在データを置き換える",
                 CloseButtonText = "キャンセル",
                 DefaultButton = ContentDialogButton.Close,
-                Content = CreateRestorePreview(preview),
+                Content = CreateRestorePreview(prepared.Preview),
             };
             ContentDialogResult result = await confirmation.ShowAsync();
             if (result != ContentDialogResult.Primary)
             {
+                await ViewModel.CancelPreparedRestoreAsync(
+                    prepared.SessionId);
+                prepared = null;
                 return;
             }
 
+            isCommitRequested = true;
             await ExecuteSettingChangeAsync(() =>
                 ViewModel.RestoreBackupAsync(
-                    selected.Path,
+                    prepared.SessionId,
                     isReplacementConfirmed: true));
+            prepared = null;
         }
         catch (Exception exception)
         {
+            if (prepared is not null && !isCommitRequested)
+            {
+                try
+                {
+                    await ViewModel.CancelPreparedRestoreAsync(
+                        prepared.SessionId);
+                }
+                catch (Exception cleanupException)
+                {
+                    Debug.WriteLine(
+                        "Prepared restore cleanup failed: "
+                        + cleanupException.GetType().Name);
+                }
+            }
+
             Debug.WriteLine(
                 "Backup restore preparation failed: "
                 + exception.GetType().Name);

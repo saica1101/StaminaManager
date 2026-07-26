@@ -5,6 +5,7 @@ namespace StaminaManager.Application;
 public sealed class RestoreCoordinator
 {
     private readonly IBackupService _backupService;
+    private readonly IPreparedBackupCommitter _backupCommitter;
     private readonly GameManager _gameManager;
 
     public RestoreCoordinator(
@@ -14,6 +15,10 @@ public sealed class RestoreCoordinator
         ArgumentNullException.ThrowIfNull(backupService);
         ArgumentNullException.ThrowIfNull(gameManager);
         _backupService = backupService;
+        _backupCommitter = backupService as IPreparedBackupCommitter
+            ?? throw new ArgumentException(
+                "The backup service cannot commit prepared restores.",
+                nameof(backupService));
         _gameManager = gameManager;
     }
 
@@ -22,13 +27,13 @@ public sealed class RestoreCoordinator
         CancellationToken cancellationToken) =>
         _backupService.ExportAsync(destinationPath, cancellationToken);
 
-    public Task<BackupPreview> PreviewAsync(
+    public Task<PreparedBackupRestore> PrepareAsync(
         string sourcePath,
         CancellationToken cancellationToken) =>
-        _backupService.PreviewAsync(sourcePath, cancellationToken);
+        _backupService.PrepareRestoreAsync(sourcePath, cancellationToken);
 
-    public async Task<BackupRestoreResult> RestoreAsync(
-        string sourcePath,
+    public async Task<BackupRestoreResult> CommitPreparedAsync(
+        string sessionId,
         bool isReplacementConfirmed,
         CancellationToken cancellationToken)
     {
@@ -40,13 +45,20 @@ public sealed class RestoreCoordinator
 
         return await _gameManager.CommitRestoreAsync(
                 (publish, token) =>
-                    _backupService.RestoreAndPublishAsync(
-                        sourcePath,
+                    _backupCommitter.CommitPreparedRestoreAsync(
+                        sessionId,
                         publish,
                         token),
                 cancellationToken)
             .ConfigureAwait(false);
     }
+
+    public Task CancelPreparedAsync(
+        string sessionId,
+        CancellationToken cancellationToken) =>
+        _backupService.CancelPreparedRestoreAsync(
+            sessionId,
+            cancellationToken);
 
     public async Task<BackupRestoreResult?> ResumeAsync(
         CancellationToken cancellationToken)

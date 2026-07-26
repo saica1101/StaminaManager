@@ -1,5 +1,4 @@
 using StaminaManager.Infrastructure.Persistence;
-using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using Windows.Graphics.Imaging;
 using Windows.Storage.Streams;
@@ -31,8 +30,6 @@ public sealed class AssetStore
 
     private const string AssetsDirectoryName = "Assets";
     private const int CopyBufferSize = 80 * 1024;
-    private static readonly ConcurrentDictionary<string, SemaphoreSlim>
-        OperationGates = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _operationGate;
     private readonly IAppDataPathProvider _pathProvider;
 
@@ -40,11 +37,7 @@ public sealed class AssetStore
     {
         ArgumentNullException.ThrowIfNull(pathProvider);
         _pathProvider = pathProvider;
-        string assetsPath = Path.TrimEndingDirectorySeparator(
-            Path.GetFullPath(GetAssetsPath()));
-        _operationGate = OperationGates.GetOrAdd(
-            assetsPath,
-            static _ => new SemaphoreSlim(1, 1));
+        _operationGate = AppAssetGate.Get(pathProvider);
     }
 
     public async Task<StoredAsset> SaveAsync(

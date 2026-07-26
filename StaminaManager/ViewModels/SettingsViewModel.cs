@@ -642,7 +642,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
     }
 
-    public async Task<BackupPreview> PreviewRestoreAsync(
+    public async Task<PreparedBackupRestore> PreviewRestoreAsync(
         string sourcePath,
         CancellationToken cancellationToken = default)
     {
@@ -662,8 +662,29 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
     }
 
-    public async Task RestoreBackupAsync(
-        string sourcePath,
+    public async Task CancelPreparedRestoreAsync(
+        string sessionId,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureBackupIsIdle();
+        AppCoordinator coordinator = GetBackupCoordinator();
+        IsBackupBusy = true;
+        BackupStatusText = "復元の準備を取り消しています…";
+        try
+        {
+            await coordinator.CancelPreparedRestoreAsync(
+                sessionId,
+                cancellationToken);
+            BackupStatusText = string.Empty;
+        }
+        finally
+        {
+            IsBackupBusy = false;
+        }
+    }
+
+    public async Task<BackupRestoreResult> RestoreBackupAsync(
+        string sessionId,
         bool isReplacementConfirmed,
         CancellationToken cancellationToken = default)
     {
@@ -673,21 +694,15 @@ public sealed partial class SettingsViewModel : ObservableObject
         BackupStatusText = "バックアップを復元しています…";
         try
         {
-            _ = await coordinator.RestoreBackupAsync(
-                sourcePath,
+            BackupRestoreResult result = await coordinator.RestoreBackupAsync(
+                sessionId,
                 isReplacementConfirmed,
                 cancellationToken);
-            AppSettings restored = _gameManager.CurrentData.Settings;
-            Theme = restored.Theme;
-            SelectedBackdrop = restored.Backdrop;
-            ActualBackdrop = coordinator.LastBackdropResult?.ActualBackdrop
-                ?? restored.Backdrop;
-            CloseBehavior = restored.CloseBehavior;
-            IsStartupEnabled = restored.StartupEnabled;
-            AreNotificationsEnabled = restored.NotificationsEnabled;
-            NotificationLeadMinutes = restored.NotificationLeadMinutes;
+            SynchronizeFromCurrentData(coordinator);
 
-            bool hasRetry = coordinator.LastThemeResult?.IsApplied != true
+            bool hasRetry = result.IsPartial
+                || result.RequiresDerivedStateRetry
+                || coordinator.LastThemeResult?.IsApplied != true
                 || coordinator.LastBackdropResult?.ErrorMessage is not null
                 || !coordinator.IsStartupSynchronized
                 || coordinator.LastNotificationReconcileResult?.HasFailures
@@ -703,9 +718,11 @@ public sealed partial class SettingsViewModel : ObservableObject
                 hasRetry
                     ? "データは復元済みです"
                     : "復元が完了しました");
+            return result;
         }
         finally
         {
+            SynchronizeFromCurrentData(coordinator);
             IsBackupBusy = false;
         }
     }
@@ -927,6 +944,19 @@ public sealed partial class SettingsViewModel : ObservableObject
             throw new InvalidOperationException(
                 "バックアップ処理は既に実行中です。");
         }
+    }
+
+    private void SynchronizeFromCurrentData(AppCoordinator coordinator)
+    {
+        AppSettings restored = _gameManager.CurrentData.Settings;
+        Theme = restored.Theme;
+        SelectedBackdrop = restored.Backdrop;
+        ActualBackdrop = coordinator.LastBackdropResult?.ActualBackdrop
+            ?? restored.Backdrop;
+        CloseBehavior = restored.CloseBehavior;
+        IsStartupEnabled = restored.StartupEnabled;
+        AreNotificationsEnabled = restored.NotificationsEnabled;
+        NotificationLeadMinutes = restored.NotificationLeadMinutes;
     }
 
     private async Task<bool> RollbackStartupAsync(bool previousEnabled)

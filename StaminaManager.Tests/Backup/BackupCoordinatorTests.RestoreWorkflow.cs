@@ -51,8 +51,11 @@ public sealed class BackupCoordinatorTests_RestoreWorkflow
             services);
         await app.InitializeAsync(CancellationToken.None);
 
+        PreparedBackupRestore prepared = await app.PreviewRestoreAsync(
+            backupPath,
+            CancellationToken.None);
         _ = await app.RestoreBackupAsync(
-                backupPath,
+                prepared.SessionId,
                 isReplacementConfirmed: true,
                 CancellationToken.None)
             .WaitAsync(TimeSpan.FromSeconds(5));
@@ -179,8 +182,11 @@ public sealed class BackupCoordinatorTests_RestoreWorkflow
         services.Calls.Clear();
         overviewRefreshCount = 0;
 
-        _ = await app.RestoreBackupAsync(
+        PreparedBackupRestore prepared = await app.PreviewRestoreAsync(
             backupPath,
+            CancellationToken.None);
+        _ = await app.RestoreBackupAsync(
+            prepared.SessionId,
             isReplacementConfirmed: true,
             CancellationToken.None);
 
@@ -220,8 +226,11 @@ public sealed class BackupCoordinatorTests_RestoreWorkflow
             new RecordingDerivedServices());
         await app.InitializeAsync(CancellationToken.None);
         startup.SetRequests.Clear();
-        _ = await app.RestoreBackupAsync(
+        PreparedBackupRestore prepared = await app.PreviewRestoreAsync(
             backupPath,
+            CancellationToken.None);
+        _ = await app.RestoreBackupAsync(
+            prepared.SessionId,
             isReplacementConfirmed: true,
             CancellationToken.None);
         return new WorkflowResult(source, destination, manager, backup, app);

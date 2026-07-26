@@ -374,13 +374,20 @@ public sealed class AppCoordinator
             destinationPath,
             cancellationToken);
 
-    public Task<BackupPreview> PreviewRestoreAsync(
+    public Task<PreparedBackupRestore> PreviewRestoreAsync(
         string sourcePath,
         CancellationToken cancellationToken = default) =>
-        GetRestoreCoordinator().PreviewAsync(sourcePath, cancellationToken);
+        GetRestoreCoordinator().PrepareAsync(sourcePath, cancellationToken);
+
+    public Task CancelPreparedRestoreAsync(
+        string sessionId,
+        CancellationToken cancellationToken = default) =>
+        GetRestoreCoordinator().CancelPreparedAsync(
+            sessionId,
+            cancellationToken);
 
     public async Task<BackupRestoreResult> RestoreBackupAsync(
-        string sourcePath,
+        string sessionId,
         bool isReplacementConfirmed,
         CancellationToken cancellationToken = default)
     {
@@ -389,18 +396,42 @@ public sealed class AppCoordinator
         try
         {
             BackupRestoreResult result = await GetRestoreCoordinator()
-                .RestoreAsync(
-                    sourcePath,
+                .CommitPreparedAsync(
+                    sessionId,
                     isReplacementConfirmed,
                     cancellationToken)
                 .ConfigureAwait(false);
-            await ReconcileRestoredDerivedStateAsync(
-                    result.Data.Settings.StartupEnabled,
-                    cancellationToken)
-                .ConfigureAwait(false);
-            await AcknowledgeRestoreIfReconciledAsync(cancellationToken)
-                .ConfigureAwait(false);
-            return result;
+            try
+            {
+                await ReconcileRestoredDerivedStateAsync(
+                        result.Data.Settings.StartupEnabled,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                bool acknowledged =
+                    await AcknowledgeRestoreIfReconciledAsync(
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                return result with
+                {
+                    IsPartial = !acknowledged,
+                    RequiresDerivedStateRetry = !acknowledged,
+                };
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception) when (!IsProcessFatal(exception))
+            {
+                Debug.WriteLine(
+                    "Post-commit restore reconciliation failed: "
+                    + exception.GetType().Name);
+                return result with
+                {
+                    IsPartial = true,
+                    RequiresDerivedStateRetry = true,
+                };
+            }
         }
         finally
         {
@@ -499,7 +530,7 @@ public sealed class AppCoordinator
                 : change.FailureReason;
     }
 
-    private async Task AcknowledgeRestoreIfReconciledAsync(
+    private async Task<bool> AcknowledgeRestoreIfReconciledAsync(
         CancellationToken cancellationToken)
     {
         if (_restoreCoordinator is null
@@ -508,11 +539,26 @@ public sealed class AppCoordinator
             || LastBackdropResult?.ErrorMessage is not null
             || LastNotificationReconcileResult?.HasFailures == true)
         {
-            return;
+            return false;
         }
 
-        await _restoreCoordinator.AcknowledgeDerivedStateAsync(
-            cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await _restoreCoordinator.AcknowledgeDerivedStateAsync(
+                cancellationToken).ConfigureAwait(false);
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Restore acknowledgement failed: "
+                + exception.GetType().Name);
+            return false;
+        }
     }
 
     private RestoreCoordinator GetRestoreCoordinator() =>

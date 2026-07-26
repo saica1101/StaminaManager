@@ -59,22 +59,48 @@ public sealed class BackupCoordinatorTests
                 throw new InjectedRestoreException(stage);
             }
         });
+        GameManager manager = new(
+            destination.Store,
+            new FakeClock(DateTimeOffset.UtcNow),
+            AppSettings.CreateDefault(AppTheme.Light));
+        await manager.InitializeAsync(
+            (await destination.Store.LoadAsync(
+                CancellationToken.None)).Envelope!,
+            CancellationToken.None);
+        RestoreCoordinator restore = new(coordinator, manager);
 
-        if (failureStage == RestoreJournalStage.Completed)
+        if (failureStage is RestoreJournalStage.Validated
+            or RestoreJournalStage.Staged)
         {
-            _ = await coordinator.RestoreAsync(
-                backupPath,
-                CancellationToken.None);
             await Assert.ThrowsExactlyAsync<InjectedRestoreException>(
-                () => coordinator.AcknowledgeDerivedStateAsync(
+                () => coordinator.PrepareRestoreAsync(
+                    backupPath,
                     CancellationToken.None));
         }
         else
         {
-            await Assert.ThrowsExactlyAsync<InjectedRestoreException>(
-                () => coordinator.RestoreAsync(
-                    backupPath,
-                    CancellationToken.None));
+            PreparedBackupRestore prepared =
+                await coordinator.PrepareRestoreAsync(
+                backupPath,
+                CancellationToken.None);
+            if (failureStage == RestoreJournalStage.LocalCommitted)
+            {
+                await Assert.ThrowsExactlyAsync<InjectedRestoreException>(
+                    () => restore.CommitPreparedAsync(
+                        prepared.SessionId,
+                        isReplacementConfirmed: true,
+                        CancellationToken.None));
+            }
+            else
+            {
+                _ = await restore.CommitPreparedAsync(
+                    prepared.SessionId,
+                    isReplacementConfirmed: true,
+                    CancellationToken.None);
+                await Assert.ThrowsExactlyAsync<InjectedRestoreException>(
+                    () => coordinator.AcknowledgeDerivedStateAsync(
+                        CancellationToken.None));
+            }
         }
 
         DataLoadResult load = await destination.Store.LoadAsync(
@@ -108,9 +134,22 @@ public sealed class BackupCoordinatorTests
                 throw new InjectedRestoreException(stage);
             }
         });
-        await Assert.ThrowsExactlyAsync<InjectedRestoreException>(
-            () => failing.RestoreAsync(
-                backupPath,
+        PreparedBackupRestore prepared = await failing.PrepareRestoreAsync(
+            backupPath,
+            CancellationToken.None);
+        GameManager manager = new(
+            destination.Store,
+            new FakeClock(DateTimeOffset.UtcNow),
+            AppSettings.CreateDefault(AppTheme.Light));
+        await manager.InitializeAsync(
+            (await destination.Store.LoadAsync(
+                CancellationToken.None)).Envelope!,
+            CancellationToken.None);
+        RestoreCoordinator restore = new(failing, manager);
+        await Assert.ThrowsExactlyAsync<InjectedRestoreException>(() =>
+            restore.CommitPreparedAsync(
+                prepared.SessionId,
+                isReplacementConfirmed: true,
                 CancellationToken.None));
 
         BackupRestoreResult? resumed =
@@ -160,8 +199,11 @@ public sealed class BackupCoordinatorTests
             restore);
         await app.InitializeAsync(CancellationToken.None);
 
-        _ = await app.RestoreBackupAsync(
+        PreparedBackupRestore prepared = await app.PreviewRestoreAsync(
             backupPath,
+            CancellationToken.None);
+        _ = await app.RestoreBackupAsync(
+            prepared.SessionId,
             isReplacementConfirmed: true,
             CancellationToken.None);
 

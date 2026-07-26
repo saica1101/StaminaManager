@@ -186,23 +186,21 @@ internal static class BackupArchiveValidator
         }
     }
 
-    public static async Task ValidateImageAsync(
-        byte[] content,
+    public static async Task ValidateImageFileAsync(
+        string filePath,
         string mediaType,
         CancellationToken cancellationToken)
     {
-        using InMemoryRandomAccessStream input = new();
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         try
         {
-            using (DataWriter writer = new(input))
-            {
-                writer.WriteBytes(content);
-                await writer.StoreAsync().AsTask(cancellationToken)
+            global::Windows.Storage.StorageFile file =
+                await global::Windows.Storage.StorageFile.GetFileFromPathAsync(
+                        Path.GetFullPath(filePath))
+                    .AsTask(cancellationToken).ConfigureAwait(false);
+            using IRandomAccessStreamWithContentType input =
+                await file.OpenReadAsync().AsTask(cancellationToken)
                     .ConfigureAwait(false);
-                writer.DetachStream();
-            }
-
-            input.Seek(0);
             BitmapDecoder decoder = await BitmapDecoder.CreateAsync(input)
                 .AsTask(cancellationToken).ConfigureAwait(false);
             Guid expectedCodec = mediaType == "image/png"

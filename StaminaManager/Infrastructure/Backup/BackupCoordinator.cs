@@ -1,10 +1,9 @@
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Persistence;
 using StaminaManager.Core.Validation;
+using StaminaManager.Application;
 using StaminaManager.Infrastructure.Persistence;
 using System.Collections.Concurrent;
-using System.IO.Compression;
-using System.Text.Json;
 
 namespace StaminaManager.Infrastructure.Backup;
 
@@ -16,10 +15,11 @@ public enum RestoreJournalStage
     Completed,
 }
 
-public sealed class BackupCoordinator : IBackupService
+public sealed partial class BackupCoordinator
+    : IBackupService,
+      IPreparedBackupCommitter
 {
     private const string BackupExtension = ".staminabackup";
-    private const string DataFileName = "data.json";
     private static readonly ConcurrentDictionary<string, SemaphoreSlim>
         OperationGates = new(StringComparer.OrdinalIgnoreCase);
     private readonly SafeZipReader _reader;
@@ -28,6 +28,7 @@ public sealed class BackupCoordinator : IBackupService
     private readonly BackupTransactionStore _transactions;
     private readonly SemaphoreSlim _operationGate;
     private readonly SemaphoreSlim _dataWriteGate;
+    private readonly SemaphoreSlim _assetGate;
 
     public BackupCoordinator(
         SafeZipReader reader,
@@ -43,6 +44,7 @@ public sealed class BackupCoordinator : IBackupService
         _failureInjector = failureInjector;
         _transactions = new BackupTransactionStore(pathProvider);
         _dataWriteGate = AppDataWriteGate.Get(pathProvider);
+        _assetGate = AppAssetGate.Get(pathProvider);
         string root = Path.TrimEndingDirectorySeparator(
             Path.GetFullPath(pathProvider.DataRootPath));
         _operationGate = OperationGates.GetOrAdd(
@@ -50,96 +52,8 @@ public sealed class BackupCoordinator : IBackupService
             static _ => new SemaphoreSlim(1, 1));
     }
 
-    public async Task ExportAsync(
-        string destinationPath,
-        CancellationToken cancellationToken)
-    {
-        ValidateBackupPath(destinationPath, mustExist: false);
-        await _operationGate.WaitAsync(cancellationToken)
-            .ConfigureAwait(false);
-        string fullDestination = Path.GetFullPath(destinationPath);
-        string temporaryPath = fullDestination + $".{Guid.NewGuid():N}.tmp";
-        try
-        {
-            DataLoadResult loaded = await _dataStore.LoadAsync(
-                cancellationToken).ConfigureAwait(false);
-            DataEnvelope data = loaded.Envelope
-                ?? throw new InvalidOperationException(
-                    "バックアップ対象のデータがありません。");
-            IReadOnlyList<ExportAsset> assets = ResolveExportAssets(data);
-            Directory.CreateDirectory(
-                Path.GetDirectoryName(fullDestination)
-                ?? throw new InvalidOperationException(
-                    "The destination directory is invalid."));
-            await WriteArchiveAsync(
-                temporaryPath,
-                data,
-                assets,
-                cancellationToken).ConfigureAwait(false);
-
-            await using (FileStream verification = OpenRead(temporaryPath))
-            {
-                _ = await _reader.ReadAsync(
-                    verification,
-                    cancellationToken).ConfigureAwait(false);
-            }
-
-            FileInfo backupInfo = new(temporaryPath);
-            if (backupInfo.Length > BackupLimits.MaxBackupBytes)
-            {
-                throw new InvalidDataException(
-                    "The backup file is too large.");
-            }
-
-            File.Move(temporaryPath, fullDestination, overwrite: true);
-        }
-        finally
-        {
-            if (File.Exists(temporaryPath))
-            {
-                File.Delete(temporaryPath);
-            }
-
-            _operationGate.Release();
-        }
-    }
-
-    public async Task<BackupPreview> PreviewAsync(
+    public async Task<PreparedBackupRestore> PrepareRestoreAsync(
         string sourcePath,
-        CancellationToken cancellationToken)
-    {
-        ValidateBackupPath(sourcePath, mustExist: true);
-        await using FileStream stream = OpenRead(sourcePath);
-        ValidatedBackup backup = await _reader.ReadAsync(
-            stream,
-            cancellationToken).ConfigureAwait(false);
-        return backup.Preview;
-    }
-
-    public Task<BackupRestoreResult> RestoreAsync(
-        string sourcePath,
-        CancellationToken cancellationToken) => RestoreCoreAsync(
-            sourcePath,
-            publishCommittedDataAsync: null,
-            cancellationToken);
-
-    public Task<BackupRestoreResult> RestoreAndPublishAsync(
-        string sourcePath,
-        Func<DataEnvelope, CancellationToken, Task>
-            publishCommittedDataAsync,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(publishCommittedDataAsync);
-        return RestoreCoreAsync(
-            sourcePath,
-            publishCommittedDataAsync,
-            cancellationToken);
-    }
-
-    private async Task<BackupRestoreResult> RestoreCoreAsync(
-        string sourcePath,
-        Func<DataEnvelope, CancellationToken, Task>?
-            publishCommittedDataAsync,
         CancellationToken cancellationToken)
     {
         ValidateBackupPath(sourcePath, mustExist: true);
@@ -147,52 +61,93 @@ public sealed class BackupCoordinator : IBackupService
             .ConfigureAwait(false);
         try
         {
-            await _transactions.RecoverPreCommitAsync(cancellationToken)
+            await RecoverPreCommitWithGatesAsync(cancellationToken)
                 .ConfigureAwait(false);
+            string sessionId = Guid.NewGuid().ToString("N");
+            _transactions.BeginStage();
             ValidatedBackup backup;
             await using (FileStream stream = OpenRead(sourcePath))
             {
-                backup = await _reader.ReadAsync(
+                backup = await _reader.ReadToStageAsync(
                     stream,
+                    _transactions.StageAssetsDirectory,
                     cancellationToken).ConfigureAwait(false);
             }
 
             await _transactions.WriteJournalAsync(
                 new RestoreJournal(
                     RestoreJournalStage.Validated,
-                    Path.GetFullPath(sourcePath),
+                    sessionId,
                     RequiresDerivedStateRetry: false),
                 cancellationToken).ConfigureAwait(false);
             InjectFailure(RestoreJournalStage.Validated);
-
-            await _transactions.StageAsync(backup, cancellationToken)
-                .ConfigureAwait(false);
+            await _transactions.WriteStagedDataAsync(
+                backup.Data,
+                cancellationToken).ConfigureAwait(false);
             await _transactions.WriteJournalAsync(
                 new RestoreJournal(
                     RestoreJournalStage.Staged,
-                    Path.GetFullPath(sourcePath),
+                    sessionId,
                     RequiresDerivedStateRetry: false),
                 cancellationToken).ConfigureAwait(false);
             InjectFailure(RestoreJournalStage.Staged);
+            return new PreparedBackupRestore(sessionId, backup.Preview);
+        }
+        catch
+        {
+            await RecoverAfterFailureWithGatesAsync()
+                .ConfigureAwait(false);
+            throw;
+        }
+        finally
+        {
+            _operationGate.Release();
+        }
+    }
 
+    async Task<BackupRestoreResult>
+        IPreparedBackupCommitter.CommitPreparedRestoreAsync(
+        string sessionId,
+        Func<DataEnvelope, CancellationToken, Task>
+            publishCommittedDataAsync,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        ArgumentNullException.ThrowIfNull(publishCommittedDataAsync);
+        await _operationGate.WaitAsync(cancellationToken)
+            .ConfigureAwait(false);
+        try
+        {
+            await _transactions.EnsurePreparedSessionAsync(
+                sessionId,
+                cancellationToken).ConfigureAwait(false);
+            DataEnvelope data = await _transactions.ReadStagedDataAsync(
+                cancellationToken).ConfigureAwait(false);
+            BackupArchiveValidator.ValidateData(data);
             await _dataWriteGate.WaitAsync(cancellationToken)
                 .ConfigureAwait(false);
             try
             {
-                await _transactions.CommitAsync(cancellationToken)
+                await _assetGate.WaitAsync(cancellationToken)
                     .ConfigureAwait(false);
-                await _transactions.WriteJournalAsync(
-                    new RestoreJournal(
-                        RestoreJournalStage.LocalCommitted,
-                        Path.GetFullPath(sourcePath),
-                        RequiresDerivedStateRetry: true),
-                    cancellationToken).ConfigureAwait(false);
-                InjectFailure(RestoreJournalStage.LocalCommitted);
-                if (publishCommittedDataAsync is not null)
+                try
                 {
-                    await publishCommittedDataAsync(
-                        backup.Data,
+                    await _transactions.CommitAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                    await _transactions.WriteJournalAsync(
+                        new RestoreJournal(
+                            RestoreJournalStage.LocalCommitted,
+                            sessionId,
+                            RequiresDerivedStateRetry: true),
                         cancellationToken).ConfigureAwait(false);
+                    InjectFailure(RestoreJournalStage.LocalCommitted);
+                    await publishCommittedDataAsync(
+                        data,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    _assetGate.Release();
                 }
             }
             finally
@@ -200,13 +155,34 @@ public sealed class BackupCoordinator : IBackupService
                 _dataWriteGate.Release();
             }
 
-            return CreateResult(backup, requiresDerivedStateRetry: true);
+            return CreateResult(data, requiresDerivedStateRetry: true);
         }
         catch
         {
-            await _transactions.RecoverAfterFailureAsync()
+            await RecoverAfterFailureWithGatesAsync()
                 .ConfigureAwait(false);
             throw;
+        }
+        finally
+        {
+            _operationGate.Release();
+        }
+    }
+
+    public async Task CancelPreparedRestoreAsync(
+        string sessionId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        await _operationGate.WaitAsync(cancellationToken)
+            .ConfigureAwait(false);
+        try
+        {
+            await _transactions.EnsurePreparedSessionAsync(
+                sessionId,
+                cancellationToken).ConfigureAwait(false);
+            await RecoverPreCommitWithGatesAsync(cancellationToken)
+                .ConfigureAwait(false);
         }
         finally
         {
@@ -225,6 +201,16 @@ public sealed class BackupCoordinator : IBackupService
                 cancellationToken).ConfigureAwait(false);
             if (journal is null)
             {
+                await RecoverPreCommitWithGatesAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                return null;
+            }
+
+            if (journal.Stage == RestoreJournalStage.Completed
+                && !journal.RequiresDerivedStateRetry)
+            {
+                await _transactions.AcknowledgeAsync(cancellationToken)
+                    .ConfigureAwait(false);
                 return null;
             }
 
@@ -234,7 +220,7 @@ public sealed class BackupCoordinator : IBackupService
                     && journal.Stage == RestoreJournalStage.Staged;
             if (!isCommitted)
             {
-                await _transactions.RecoverPreCommitAsync(cancellationToken)
+                await RecoverPreCommitWithGatesAsync(cancellationToken)
                     .ConfigureAwait(false);
                 return null;
             }
@@ -252,7 +238,9 @@ public sealed class BackupCoordinator : IBackupService
                 preview,
                 data,
                 _transactions.PreviousDirectory,
-                RequiresDerivedStateRetry: true);
+                RequiresDerivedStateRetry: true,
+                IsCommitted: true,
+                IsPartial: true);
         }
         finally
         {
@@ -290,128 +278,67 @@ public sealed class BackupCoordinator : IBackupService
         }
     }
 
-    private async Task WriteArchiveAsync(
-        string path,
-        DataEnvelope data,
-        IReadOnlyList<ExportAsset> assets,
-        CancellationToken cancellationToken)
-    {
-        await using FileStream output = new(
-            path,
-            FileMode.CreateNew,
-            FileAccess.ReadWrite,
-            FileShare.None,
-            80 * 1024,
-            FileOptions.Asynchronous);
-        using ZipArchive archive = new(
-            output,
-            ZipArchiveMode.Create,
-            leaveOpen: true);
-        BackupManifest manifest = new(
-            BackupManifest.CurrentSchemaVersion,
-            DataEnvelope.CurrentSchemaVersion,
-            DataFileName,
-            assets.Select(static asset => new BackupAssetManifest(
-                asset.AssetId,
-                asset.EntryPath,
-                asset.MediaType)).ToArray());
-        await WriteJsonEntryAsync(
-            archive,
-            "manifest.json",
-            manifest,
-            cancellationToken).ConfigureAwait(false);
-        ZipArchiveEntry dataEntry = archive.CreateEntry(
-            DataFileName,
-            CompressionLevel.NoCompression);
-        await using (Stream dataStream = dataEntry.Open())
-        {
-            await JsonSerializer.SerializeAsync(
-                dataStream,
-                data,
-                JsonSerializationContext.Configured.DataEnvelope,
-                cancellationToken).ConfigureAwait(false);
-        }
-
-        foreach (ExportAsset asset in assets)
-        {
-            ZipArchiveEntry entry = archive.CreateEntry(
-                asset.EntryPath,
-                CompressionLevel.NoCompression);
-            await using Stream destination = entry.Open();
-            await using FileStream source = OpenRead(asset.SourcePath);
-            await source.CopyToAsync(destination, cancellationToken)
-                .ConfigureAwait(false);
-        }
-    }
-
-    private static async Task WriteJsonEntryAsync<T>(
-        ZipArchive archive,
-        string entryName,
-        T value,
-        CancellationToken cancellationToken)
-    {
-        ZipArchiveEntry entry = archive.CreateEntry(
-            entryName,
-            CompressionLevel.NoCompression);
-        await using Stream stream = entry.Open();
-        await JsonSerializer.SerializeAsync(
-            stream,
-            value,
-            SerializerOptions,
-            cancellationToken).ConfigureAwait(false);
-    }
-
-    private IReadOnlyList<ExportAsset> ResolveExportAssets(
-        DataEnvelope data)
-    {
-        string assetsDirectory = _transactions.CurrentAssetsDirectory;
-        List<ExportAsset> assets = [];
-        foreach (string assetId in data.Games
-            .Select(static game => game.ImageAssetId)
-            .Where(static assetId => assetId is not null)
-            .Select(static assetId => assetId!)
-            .Distinct(StringComparer.Ordinal))
-        {
-            string png = Path.Combine(assetsDirectory, assetId + ".png");
-            string jpeg = Path.Combine(assetsDirectory, assetId + ".jpg");
-            string sourcePath;
-            string extension;
-            string mediaType;
-            if (File.Exists(png) && !File.Exists(jpeg))
-            {
-                sourcePath = png;
-                extension = ".png";
-                mediaType = "image/png";
-            }
-            else if (File.Exists(jpeg) && !File.Exists(png))
-            {
-                sourcePath = jpeg;
-                extension = ".jpg";
-                mediaType = "image/jpeg";
-            }
-            else
-            {
-                throw new InvalidDataException(
-                    "A referenced image is missing or ambiguous.");
-            }
-
-            assets.Add(new ExportAsset(
-                assetId,
-                $"assets/{assetId}{extension}",
-                mediaType,
-                sourcePath));
-        }
-
-        return assets;
-    }
-
     private BackupRestoreResult CreateResult(
-        ValidatedBackup backup,
+        DataEnvelope data,
         bool requiresDerivedStateRetry) => new(
-            backup.Preview,
-            backup.Data,
+            BackupPreview.From(
+                data.Settings,
+                data.Games.Length,
+                CountReferencedAssets(data)),
+            data,
             _transactions.PreviousDirectory,
-            requiresDerivedStateRetry);
+            requiresDerivedStateRetry,
+            IsCommitted: true,
+            IsPartial: requiresDerivedStateRetry);
+
+    private async Task RecoverPreCommitWithGatesAsync(
+        CancellationToken cancellationToken)
+    {
+        await _dataWriteGate.WaitAsync(cancellationToken)
+            .ConfigureAwait(false);
+        try
+        {
+            await _assetGate.WaitAsync(cancellationToken)
+                .ConfigureAwait(false);
+            try
+            {
+                await _transactions.RecoverPreCommitAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                _assetGate.Release();
+            }
+        }
+        finally
+        {
+            _dataWriteGate.Release();
+        }
+    }
+
+    private async Task RecoverAfterFailureWithGatesAsync()
+    {
+        await _dataWriteGate.WaitAsync(CancellationToken.None)
+            .ConfigureAwait(false);
+        try
+        {
+            await _assetGate.WaitAsync(CancellationToken.None)
+                .ConfigureAwait(false);
+            try
+            {
+                await _transactions.RecoverAfterFailureAsync()
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                _assetGate.Release();
+            }
+        }
+        finally
+        {
+            _dataWriteGate.Release();
+        }
+    }
 
     private static void ValidateBackupPath(string path, bool mustExist)
     {
@@ -460,15 +387,4 @@ public sealed class BackupCoordinator : IBackupService
     private void InjectFailure(RestoreJournalStage stage) =>
         _failureInjector?.Invoke(stage);
 
-    private sealed record ExportAsset(
-        string AssetId,
-        string EntryPath,
-        string MediaType,
-        string SourcePath);
-
-    private static JsonSerializerOptions SerializerOptions { get; } = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        RespectRequiredConstructorParameters = true,
-    };
 }

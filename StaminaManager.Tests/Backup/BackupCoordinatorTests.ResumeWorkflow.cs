@@ -158,9 +158,22 @@ public sealed class BackupCoordinatorTests_ResumeWorkflow
                     throw new InvalidOperationException("simulated crash");
                 }
             });
-        await Assert.ThrowsExactlyAsync<InvalidOperationException>(
-            () => crashingBackup.RestoreAsync(
+        PreparedBackupRestore prepared =
+            await crashingBackup.PrepareRestoreAsync(
                 backupPath,
+                CancellationToken.None);
+        GameManager crashingManager = destination.CreateManager();
+        await crashingManager.InitializeAsync(
+            (await destination.Store.LoadAsync(
+                CancellationToken.None)).Envelope!,
+            CancellationToken.None);
+        RestoreCoordinator crashingRestore = new(
+            crashingBackup,
+            crashingManager);
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            crashingRestore.CommitPreparedAsync(
+                prepared.SessionId,
+                isReplacementConfirmed: true,
                 CancellationToken.None));
 
         GameManager manager = destination.CreateManager();

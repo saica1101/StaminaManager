@@ -6,7 +6,7 @@ namespace StaminaManager.Infrastructure.Backup;
 
 internal sealed record RestoreJournal(
     RestoreJournalStage Stage,
-    string SourcePath,
+    string SessionId,
     bool RequiresDerivedStateRetry);
 
 internal sealed class BackupTransactionStore
@@ -37,25 +37,42 @@ internal sealed class BackupTransactionStore
         GetStatePath(StageDirectoryName),
         DataFileName);
 
-    public async Task StageAsync(
-        ValidatedBackup backup,
+    public string StageDirectory => GetStatePath(StageDirectoryName);
+
+    public string StageAssetsDirectory => Path.Combine(
+        StageDirectory,
+        AssetsDirectoryName);
+
+    public void BeginStage()
+    {
+        ResetDirectory(StageDirectory);
+        Directory.CreateDirectory(StageAssetsDirectory);
+    }
+
+    public Task WriteStagedDataAsync(
+        DataEnvelope data,
+        CancellationToken cancellationToken) => WriteDataAsync(
+            StageDataPath,
+            data,
+            cancellationToken);
+
+    public async Task<DataEnvelope> ReadStagedDataAsync(
         CancellationToken cancellationToken)
     {
-        string stage = GetStatePath(StageDirectoryName);
-        ResetDirectory(stage);
-        string assets = Path.Combine(stage, AssetsDirectoryName);
-        Directory.CreateDirectory(assets);
-        await WriteDataAsync(
-            Path.Combine(stage, DataFileName),
-            backup.Data,
-            cancellationToken).ConfigureAwait(false);
-        foreach (ValidatedBackupAsset asset in backup.Assets)
-        {
-            await File.WriteAllBytesAsync(
-                Path.Combine(assets, Path.GetFileName(asset.EntryPath)),
-                asset.Content,
-                cancellationToken).ConfigureAwait(false);
-        }
+        await using FileStream stream = new(
+            StageDataPath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            16 * 1024,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
+        return await JsonSerializer.DeserializeAsync(
+                stream,
+                JsonSerializationContext.Configured.DataEnvelope,
+                cancellationToken)
+            .ConfigureAwait(false)
+            ?? throw new InvalidDataException(
+                "The staged restore data is empty.");
     }
 
     public async Task CommitAsync(CancellationToken cancellationToken)
@@ -147,6 +164,9 @@ internal sealed class BackupTransactionStore
         if (!isCommitted)
         {
             RollbackAssets(GetStatePath(RollbackDirectoryName));
+            DeleteDirectoryIfExists(GetStatePath(StageDirectoryName));
+            DeleteDirectoryIfExists(GetStatePath(PendingDirectoryName));
+            DeleteFileIfExists(GetJournalPath());
         }
     }
 
@@ -163,7 +183,27 @@ internal sealed class BackupTransactionStore
 
         RollbackAssets(GetStatePath(RollbackDirectoryName));
         DeleteDirectoryIfExists(GetStatePath(StageDirectoryName));
+        DeleteDirectoryIfExists(GetStatePath(PendingDirectoryName));
         DeleteFileIfExists(GetJournalPath());
+    }
+
+    public async Task EnsurePreparedSessionAsync(
+        string sessionId,
+        CancellationToken cancellationToken)
+    {
+        RestoreJournal? journal = await ReadJournalAsync(cancellationToken)
+            .ConfigureAwait(false);
+        if (journal?.Stage != RestoreJournalStage.Staged
+            || !string.Equals(
+                journal.SessionId,
+                sessionId,
+                StringComparison.Ordinal)
+            || !File.Exists(StageDataPath)
+            || !Directory.Exists(StageAssetsDirectory))
+        {
+            throw new InvalidOperationException(
+                "The prepared restore session is unavailable.");
+        }
     }
 
     public async Task WriteJournalAsync(

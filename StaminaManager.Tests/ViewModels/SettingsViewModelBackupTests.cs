@@ -16,7 +16,7 @@ public sealed class SettingsViewModelBackupTests
     {
         await using PreviewContext context = await PreviewContext.CreateAsync();
 
-        Task<BackupPreview> previewTask = context.ViewModel
+        Task<PreparedBackupRestore> previewTask = context.ViewModel
             .PreviewRestoreAsync("backup.staminabackup");
 
         Assert.IsTrue(context.ViewModel.IsBackupBusy);
@@ -48,7 +48,7 @@ public sealed class SettingsViewModelBackupTests
     public async Task PreviewRestoreAsync_例外後に設定操作を再び有効にする()
     {
         await using PreviewContext context = await PreviewContext.CreateAsync();
-        Task<BackupPreview> previewTask = context.ViewModel
+        Task<PreparedBackupRestore> previewTask = context.ViewModel
             .PreviewRestoreAsync("backup.staminabackup");
         await context.Backup.PreviewStarted.Task.WaitAsync(
             TimeSpan.FromSeconds(5));
@@ -67,7 +67,7 @@ public sealed class SettingsViewModelBackupTests
     {
         await using PreviewContext context = await PreviewContext.CreateAsync();
         using CancellationTokenSource cancellation = new();
-        Task<BackupPreview> previewTask = context.ViewModel
+        Task<PreparedBackupRestore> previewTask = context.ViewModel
             .PreviewRestoreAsync(
                 "backup.staminabackup",
                 cancellation.Token);
@@ -80,6 +80,29 @@ public sealed class SettingsViewModelBackupTests
 
         await Assert.ThrowsAsync<OperationCanceledException>(
             () => previewTask);
+        Assert.IsFalse(context.ViewModel.IsBackupBusy);
+        Assert.IsTrue(context.ViewModel.IsSettingsInteractionEnabled);
+    }
+
+    [TestMethod]
+    public async Task CancelPreparedRestoreAsync_previewのsessionIdを破棄する()
+    {
+        await using PreviewContext context = await PreviewContext.CreateAsync();
+        Task<PreparedBackupRestore> previewTask = context.ViewModel
+            .PreviewRestoreAsync("backup.staminabackup");
+        await context.Backup.PreviewStarted.Task.WaitAsync(
+            TimeSpan.FromSeconds(5));
+        context.Backup.CompletePreview();
+        PreparedBackupRestore prepared = await previewTask;
+
+        await context.ViewModel.CancelPreparedRestoreAsync(
+            prepared.SessionId,
+            CancellationToken.None);
+
+        Assert.AreEqual(1, context.Backup.CancelCount);
+        Assert.AreEqual(
+            prepared.SessionId,
+            context.Backup.LastCanceledSessionId);
         Assert.IsFalse(context.ViewModel.IsBackupBusy);
         Assert.IsTrue(context.ViewModel.IsSettingsInteractionEnabled);
     }
@@ -174,7 +197,9 @@ public sealed class SettingsViewModelBackupTests
             throw new NotSupportedException();
     }
 
-    private sealed class BlockingBackupService : IBackupService
+    private sealed class BlockingBackupService
+        : IBackupService,
+          IPreparedBackupCommitter
     {
         private readonly TaskCompletionSource<BackupPreview>
             _previewCompletion = new(
@@ -186,6 +211,10 @@ public sealed class SettingsViewModelBackupTests
         public int ExportCount { get; private set; }
 
         public int RestoreCount { get; private set; }
+
+        public int CancelCount { get; private set; }
+
+        public string? LastCanceledSessionId { get; private set; }
 
         public Task ExportAsync(
             string destinationPath,
@@ -203,22 +232,29 @@ public sealed class SettingsViewModelBackupTests
             return await _previewCompletion.Task.WaitAsync(cancellationToken);
         }
 
-        public Task<BackupRestoreResult> RestoreAsync(
+        public async Task<PreparedBackupRestore> PrepareRestoreAsync(
             string sourcePath,
-            CancellationToken cancellationToken)
-        {
-            RestoreCount++;
-            throw new NotSupportedException();
-        }
+            CancellationToken cancellationToken) => new(
+                "test-session",
+                await PreviewAsync(sourcePath, cancellationToken));
 
-        public Task<BackupRestoreResult> RestoreAndPublishAsync(
-            string sourcePath,
+        public Task<BackupRestoreResult> CommitPreparedRestoreAsync(
+            string sessionId,
             Func<DataEnvelope, CancellationToken, Task>
                 publishCommittedDataAsync,
             CancellationToken cancellationToken)
         {
             RestoreCount++;
             throw new NotSupportedException();
+        }
+
+        public Task CancelPreparedRestoreAsync(
+            string sessionId,
+            CancellationToken cancellationToken)
+        {
+            CancelCount++;
+            LastCanceledSessionId = sessionId;
+            return Task.CompletedTask;
         }
 
         public Task<BackupRestoreResult?> ResumeAsync(

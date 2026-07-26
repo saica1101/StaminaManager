@@ -1,14 +1,9 @@
 using StaminaManager.Core.Abstractions;
-using StaminaManager.Core.Models;
 using StaminaManager.Core.Persistence;
 using StaminaManager.Core.Validation;
-using StaminaManager.Infrastructure.Persistence;
 using System.Collections.Immutable;
 using System.IO.Compression;
-using System.Runtime.InteropServices;
 using System.Text.Json;
-using Windows.Graphics.Imaging;
-using Windows.Storage.Streams;
 
 namespace StaminaManager.Infrastructure.Backup;
 
@@ -16,7 +11,8 @@ public sealed record ValidatedBackupAsset(
     string AssetId,
     string EntryPath,
     string MediaType,
-    byte[] Content);
+    string StagedFilePath,
+    long Length);
 
 public sealed record ValidatedBackup(
     DataEnvelope Data,
@@ -27,12 +23,47 @@ public sealed class SafeZipReader
 {
     private const string ManifestEntryName = "manifest.json";
     private const int CopyBufferSize = 80 * 1024;
+    private readonly Action<int>? _bufferedBytesObserver;
+
+    public SafeZipReader(Action<int>? bufferedBytesObserver = null)
+    {
+        _bufferedBytesObserver = bufferedBytesObserver;
+    }
 
     public async Task<ValidatedBackup> ReadAsync(
         Stream source,
         CancellationToken cancellationToken)
     {
+        string temporaryRoot = Path.Combine(
+            Path.GetTempPath(),
+            "StaminaManager.BackupValidation",
+            Guid.NewGuid().ToString("N"));
+        string assets = Path.Combine(temporaryRoot, "Assets");
+        Directory.CreateDirectory(assets);
+        try
+        {
+            return await ReadToStageAsync(
+                    source,
+                    assets,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            if (Directory.Exists(temporaryRoot))
+            {
+                Directory.Delete(temporaryRoot, recursive: true);
+            }
+        }
+    }
+
+    public async Task<ValidatedBackup> ReadToStageAsync(
+        Stream source,
+        string stagedAssetsDirectory,
+        CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(source);
+        ArgumentException.ThrowIfNullOrWhiteSpace(stagedAssetsDirectory);
         if (!source.CanRead)
         {
             throw new ArgumentException(
@@ -63,8 +94,11 @@ public sealed class SafeZipReader
             manifestEntry,
             BackupLimits.MaxManifestBytes,
             cancellationToken).ConfigureAwait(false);
+        _bufferedBytesObserver?.Invoke(manifestBytes.Length);
         BackupManifest manifest =
             BackupArchiveValidator.DeserializeManifest(manifestBytes);
+        manifestBytes = [];
+        _bufferedBytesObserver?.Invoke(0);
         BackupArchiveValidator.ValidateManifest(manifest);
 
         ZipArchiveEntry dataEntry = GetRequiredEntry(
@@ -79,13 +113,17 @@ public sealed class SafeZipReader
             dataEntry,
             BackupLimits.MaxDataJsonBytes,
             cancellationToken).ConfigureAwait(false);
+        _bufferedBytesObserver?.Invoke(dataBytes.Length);
         DataEnvelope data = BackupArchiveValidator.DeserializeData(dataBytes);
+        dataBytes = [];
+        _bufferedBytesObserver?.Invoke(0);
         BackupArchiveValidator.ValidateData(data);
 
         ImmutableArray<ValidatedBackupAsset> assets =
             await ReadAssetsAsync(
                 manifest,
                 entries,
+                stagedAssetsDirectory,
                 cancellationToken).ConfigureAwait(false);
         BackupArchiveValidator.ValidateContents(entries, manifest);
         BackupArchiveValidator.ValidateAssetReferences(data, assets);
@@ -99,10 +137,11 @@ public sealed class SafeZipReader
                 assets.Length));
     }
 
-    private static async Task<ImmutableArray<ValidatedBackupAsset>>
+    private async Task<ImmutableArray<ValidatedBackupAsset>>
         ReadAssetsAsync(
             BackupManifest manifest,
             IReadOnlyDictionary<string, ZipArchiveEntry> entries,
+            string stagedAssetsDirectory,
             CancellationToken cancellationToken)
     {
         ImmutableArray<ValidatedBackupAsset>.Builder builder =
@@ -116,19 +155,24 @@ public sealed class SafeZipReader
                 throw new InvalidDataException("A backup image is too large.");
             }
 
-            byte[] content = await ReadBoundedAsync(
+            string stagedPath = Path.Combine(
+                stagedAssetsDirectory,
+                Path.GetFileName(asset.EntryPath));
+            await CopyBoundedAsync(
                 entry,
+                stagedPath,
                 BackupLimits.MaxImageBytes,
                 cancellationToken).ConfigureAwait(false);
-            await BackupArchiveValidator.ValidateImageAsync(
-                content,
+            await BackupArchiveValidator.ValidateImageFileAsync(
+                stagedPath,
                 asset.MediaType,
                 cancellationToken).ConfigureAwait(false);
             builder.Add(new ValidatedBackupAsset(
                 asset.AssetId,
                 asset.EntryPath,
                 asset.MediaType,
-                content));
+                stagedPath,
+                entry.Length));
         }
 
         return builder.MoveToImmutable();
@@ -166,6 +210,58 @@ public sealed class SafeZipReader
             await output.WriteAsync(
                 buffer.AsMemory(0, read),
                 cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task CopyBoundedAsync(
+        ZipArchiveEntry entry,
+        string destinationPath,
+        int maxBytes,
+        CancellationToken cancellationToken)
+    {
+        await using Stream input = entry.Open();
+        await using FileStream output = new(
+            destinationPath,
+            FileMode.CreateNew,
+            FileAccess.Write,
+            FileShare.None,
+            CopyBufferSize,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
+        byte[] buffer = new byte[CopyBufferSize];
+        _bufferedBytesObserver?.Invoke(buffer.Length);
+        try
+        {
+            int total = 0;
+            while (true)
+            {
+                int read = await input.ReadAsync(
+                    buffer.AsMemory(0, Math.Min(
+                        buffer.Length,
+                        maxBytes + 1 - total)),
+                    cancellationToken).ConfigureAwait(false);
+                if (read == 0)
+                {
+                    await output.FlushAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                    output.Flush(flushToDisk: true);
+                    return;
+                }
+
+                total += read;
+                if (total > maxBytes)
+                {
+                    throw new InvalidDataException(
+                        "A backup entry exceeds its size limit.");
+                }
+
+                await output.WriteAsync(
+                    buffer.AsMemory(0, read),
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            _bufferedBytesObserver?.Invoke(0);
         }
     }
 
