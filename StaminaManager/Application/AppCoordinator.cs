@@ -28,6 +28,7 @@ public sealed class AppCoordinator
     private readonly INotificationReconciler _notificationReconciler;
     private readonly RestoreCoordinator? _restoreCoordinator;
     private readonly SemaphoreSlim _initializationGate = new(1, 1);
+    private volatile bool _isInteractiveRestoreInProgress;
 
     public AppCoordinator(
         ILocalDataStore dataStore,
@@ -371,17 +372,118 @@ public sealed class AppCoordinator
         CancellationToken cancellationToken = default)
     {
         EnsureInitialized();
-        BackupRestoreResult result = await GetRestoreCoordinator()
-            .RestoreAsync(
-                sourcePath,
-                isReplacementConfirmed,
+        _isInteractiveRestoreInProgress = true;
+        try
+        {
+            BackupRestoreResult result = await GetRestoreCoordinator()
+                .RestoreAsync(
+                    sourcePath,
+                    isReplacementConfirmed,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            await ReconcileRestoredDerivedStateAsync(
+                    result.Data.Settings.StartupEnabled,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            await AcknowledgeRestoreIfReconciledAsync(cancellationToken)
+                .ConfigureAwait(false);
+            return result;
+        }
+        finally
+        {
+            _isInteractiveRestoreInProgress = false;
+        }
+    }
+
+    private async Task ReconcileRestoredDerivedStateAsync(
+        bool desiredStartupEnabled,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await _uiDispatcher.InvokeAsync(
+            () =>
+            {
+                AppSettings settings = _gameManager.CurrentData.Settings;
+                LastThemeResult = _themeService.Apply(settings.Theme);
+                LastBackdropResult = _backdropService.Apply(
+                    settings.Backdrop);
+            },
+            cancellationToken).ConfigureAwait(false);
+        await RestoreModeAsync(cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        await ApplyRestoredStartupAsync(
+                desiredStartupEnabled,
                 cancellationToken)
             .ConfigureAwait(false);
-        await ReconcileDerivedStateAsync(cancellationToken)
+        await ReconcileNotificationsAsync(cancellationToken)
             .ConfigureAwait(false);
-        await AcknowledgeRestoreIfReconciledAsync(cancellationToken)
-            .ConfigureAwait(false);
-        return result;
+    }
+
+    private async Task ApplyRestoredStartupAsync(
+        bool desiredStartupEnabled,
+        CancellationToken cancellationToken)
+    {
+        IsStartupSynchronized = false;
+        StartupReconcileFailureReason = StartupFailureReason.OperationFailed;
+        StartupChangeResult change;
+        try
+        {
+            change = await _startupService.SetEnabledAsync(
+                    desiredStartupEnabled,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Restored StartupTask apply failed: "
+                + exception.GetType().Name);
+            return;
+        }
+
+        LastStartupStatus = change.Status;
+        bool actualEnabled = change.Status.IsEnabled;
+        if (_gameManager.CurrentData.Settings.StartupEnabled
+            != actualEnabled)
+        {
+            try
+            {
+                await _gameManager.UpdateSettingsAsync(
+                        settings => settings with
+                        {
+                            StartupEnabled = actualEnabled,
+                        },
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception) when (!IsProcessFatal(exception))
+            {
+                Debug.WriteLine(
+                    "Restored StartupTask correction save failed: "
+                    + exception.GetType().Name);
+                return;
+            }
+        }
+
+        if (change.IsApplied && actualEnabled == desiredStartupEnabled)
+        {
+            IsStartupSynchronized = true;
+            StartupReconcileFailureReason = StartupFailureReason.None;
+            return;
+        }
+
+        StartupReconcileFailureReason = change.FailureReason
+            == StartupFailureReason.None
+                ? StartupFailureReason.OperationFailed
+                : change.FailureReason;
     }
 
     private async Task AcknowledgeRestoreIfReconciledAsync(
@@ -493,7 +595,7 @@ public sealed class AppCoordinator
     private async Task OnGamesChangedAsync(
         CancellationToken cancellationToken)
     {
-        if (!IsInitialized)
+        if (!IsInitialized || _isInteractiveRestoreInProgress)
         {
             return;
         }

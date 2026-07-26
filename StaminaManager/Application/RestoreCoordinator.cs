@@ -38,13 +38,14 @@ public sealed class RestoreCoordinator
                 "復元には現在データを置き換える明示確認が必要です。");
         }
 
-        BackupRestoreResult result = await _backupService.RestoreAsync(
-            sourcePath,
-            cancellationToken).ConfigureAwait(false);
-        await _gameManager.ReplaceFromRestoreAsync(
-            result.Data,
-            cancellationToken).ConfigureAwait(false);
-        return result;
+        return await _gameManager.CommitRestoreAsync(
+                (publish, token) =>
+                    _backupService.RestoreAndPublishAsync(
+                        sourcePath,
+                        publish,
+                        token),
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 
     public async Task<BackupRestoreResult?> ResumeAsync(

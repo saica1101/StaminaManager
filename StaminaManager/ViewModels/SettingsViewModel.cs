@@ -126,6 +126,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsFailed))]
     [NotifyPropertyChangedFor(nameof(LoadingVisibility))]
     [NotifyPropertyChangedFor(nameof(FailedVisibility))]
+    [NotifyPropertyChangedFor(nameof(IsSettingsInteractionEnabled))]
     public partial SettingsInitializationState InitializationState
     {
         get;
@@ -192,6 +193,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(BackupStatusVisibility))]
+    [NotifyPropertyChangedFor(nameof(IsSettingsInteractionEnabled))]
     public partial bool IsBackupBusy { get; private set; }
 
     [ObservableProperty]
@@ -203,6 +205,8 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public bool IsReady =>
         InitializationState == SettingsInitializationState.Ready;
+
+    public bool IsSettingsInteractionEnabled => IsReady && !IsBackupBusy;
 
     public bool IsLoading =>
         InitializationState == SettingsInitializationState.Loading;
@@ -615,6 +619,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         string destinationPath,
         CancellationToken cancellationToken = default)
     {
+        EnsureBackupIsIdle();
         AppCoordinator coordinator = GetBackupCoordinator();
         IsBackupBusy = true;
         BackupStatusText = "バックアップを作成しています…";
@@ -647,6 +652,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         bool isReplacementConfirmed,
         CancellationToken cancellationToken = default)
     {
+        EnsureBackupIsIdle();
         AppCoordinator coordinator = GetBackupCoordinator();
         IsBackupBusy = true;
         BackupStatusText = "バックアップを復元しています…";
@@ -898,6 +904,15 @@ public sealed partial class SettingsViewModel : ObservableObject
     private AppCoordinator GetBackupCoordinator() =>
         _appCoordinator ?? throw new InvalidOperationException(
             "バックアップ機能を利用できません。");
+
+    private void EnsureBackupIsIdle()
+    {
+        if (IsBackupBusy)
+        {
+            throw new InvalidOperationException(
+                "バックアップ処理は既に実行中です。");
+        }
+    }
 
     private async Task<bool> RollbackStartupAsync(bool previousEnabled)
     {

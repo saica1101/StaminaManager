@@ -69,7 +69,7 @@
             <ContentControl
                 x:Name="SettingsControls"
                 HorizontalContentAlignment="Stretch"
-                IsEnabled="{x:Bind ViewModel.IsReady, Mode=OneWay}">
+                IsEnabled="{x:Bind ViewModel.IsSettingsInteractionEnabled, Mode=OneWay}">
                 <StackPanel Spacing="{StaticResource Spacing32}">
             <StackPanel Spacing="{StaticResource Spacing12}">
                 <TextBlock

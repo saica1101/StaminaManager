@@ -45,6 +45,12 @@ public interface IBackupService
         string sourcePath,
         CancellationToken cancellationToken);
 
+    Task<BackupRestoreResult> RestoreAndPublishAsync(
+        string sourcePath,
+        Func<DataEnvelope, CancellationToken, Task>
+            publishCommittedDataAsync,
+        CancellationToken cancellationToken);
+
     Task<BackupRestoreResult?> ResumeAsync(
         CancellationToken cancellationToken);
 

@@ -2,7 +2,6 @@ using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
 using StaminaManager.Core.Persistence;
 using StaminaManager.Core.Validation;
-using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Text.Json;
 
@@ -15,8 +14,6 @@ public sealed class LocalDataStore : ILocalDataStore
     private const string PrimaryFileName = "data.json";
     private const string RecoveryFileName = "data.recovery.json";
     private const string TemporaryFileName = "data.json.tmp";
-    private static readonly ConcurrentDictionary<string, SemaphoreSlim>
-        WriteGates = new(StringComparer.OrdinalIgnoreCase);
     private readonly IAppDataPathProvider _pathProvider;
     private readonly SemaphoreSlim _writeGate;
 
@@ -24,11 +21,7 @@ public sealed class LocalDataStore : ILocalDataStore
     {
         ArgumentNullException.ThrowIfNull(pathProvider);
         _pathProvider = pathProvider;
-        string dataRootPath = Path.TrimEndingDirectorySeparator(
-            Path.GetFullPath(pathProvider.DataRootPath));
-        _writeGate = WriteGates.GetOrAdd(
-            dataRootPath,
-            static _ => new SemaphoreSlim(1, 1));
+        _writeGate = AppDataWriteGate.Get(pathProvider);
     }
 
     public async Task<DataLoadResult> LoadAsync(

@@ -187,6 +187,49 @@ public sealed class SafeZipReaderTests
     }
 
     [TestMethod]
+    public async Task ReadAsync_展開後合計512MiB超をmetadataだけで拒否する()
+    {
+        await using MemoryStream archive = CreateArchive(
+            CompressionLevel.NoCompression,
+            ("manifest.json", ValidManifest),
+            ("data.json", ValidData));
+        PatchCentralDirectorySizes(
+            archive,
+            "manifest.json",
+            compressedSize: 4 * 1024 * 1024,
+            expandedSize: 300 * 1024 * 1024);
+        PatchCentralDirectorySizes(
+            archive,
+            "data.json",
+            compressedSize: 4 * 1024 * 1024,
+            expandedSize: 300 * 1024 * 1024);
+
+        await Assert.ThrowsExactlyAsync<InvalidDataException>(
+            () => new SafeZipReader().ReadAsync(
+                archive,
+                CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task ReadAsync_圧縮0かつ展開後非0をmetadataだけで拒否する()
+    {
+        await using MemoryStream archive = CreateArchive(
+            CompressionLevel.NoCompression,
+            ("manifest.json", ValidManifest),
+            ("data.json", ValidData));
+        PatchCentralDirectorySizes(
+            archive,
+            "data.json",
+            compressedSize: 0,
+            expandedSize: 1);
+
+        await Assert.ThrowsExactlyAsync<InvalidDataException>(
+            () => new SafeZipReader().ReadAsync(
+                archive,
+                CancellationToken.None));
+    }
+
+    [TestMethod]
     public async Task ReadAsync_正常なbackupからpreviewを返す()
     {
         await using MemoryStream archive = CreateArchive(
@@ -236,6 +279,42 @@ public sealed class SafeZipReaderTests
         $$"""
         {"schemaVersion":1,"dataSchemaVersion":1,"dataFile":"data.json","assets":[{"assetId":"{{assetId}}","entryPath":"assets/{{assetId}}.png","mediaType":"image/png"}]}
         """;
+
+    private static void PatchCentralDirectorySizes(
+        MemoryStream archive,
+        string entryName,
+        uint compressedSize,
+        uint expandedSize)
+    {
+        const uint centralDirectorySignature = 0x02014b50;
+        byte[] bytes = archive.GetBuffer();
+        int length = checked((int)archive.Length);
+        for (int offset = 0; offset <= length - 46; offset++)
+        {
+            if (BitConverter.ToUInt32(bytes, offset)
+                    != centralDirectorySignature)
+            {
+                continue;
+            }
+
+            ushort nameLength = BitConverter.ToUInt16(bytes, offset + 28);
+            string name = Encoding.UTF8.GetString(
+                bytes,
+                offset + 46,
+                nameLength);
+            if (!string.Equals(name, entryName, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            BitConverter.GetBytes(compressedSize).CopyTo(bytes, offset + 20);
+            BitConverter.GetBytes(expandedSize).CopyTo(bytes, offset + 24);
+            archive.Position = 0;
+            return;
+        }
+
+        Assert.Fail($"Central directory entry not found: {entryName}");
+    }
 
     private static string CreateDataWithGames(
         int gameCount,

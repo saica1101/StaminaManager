@@ -27,6 +27,7 @@ public sealed class BackupCoordinator : IBackupService
     private readonly Action<RestoreJournalStage>? _failureInjector;
     private readonly BackupTransactionStore _transactions;
     private readonly SemaphoreSlim _operationGate;
+    private readonly SemaphoreSlim _dataWriteGate;
 
     public BackupCoordinator(
         SafeZipReader reader,
@@ -41,6 +42,7 @@ public sealed class BackupCoordinator : IBackupService
         _dataStore = dataStore;
         _failureInjector = failureInjector;
         _transactions = new BackupTransactionStore(pathProvider);
+        _dataWriteGate = AppDataWriteGate.Get(pathProvider);
         string root = Path.TrimEndingDirectorySeparator(
             Path.GetFullPath(pathProvider.DataRootPath));
         _operationGate = OperationGates.GetOrAdd(
@@ -114,8 +116,30 @@ public sealed class BackupCoordinator : IBackupService
         return backup.Preview;
     }
 
-    public async Task<BackupRestoreResult> RestoreAsync(
+    public Task<BackupRestoreResult> RestoreAsync(
         string sourcePath,
+        CancellationToken cancellationToken) => RestoreCoreAsync(
+            sourcePath,
+            publishCommittedDataAsync: null,
+            cancellationToken);
+
+    public Task<BackupRestoreResult> RestoreAndPublishAsync(
+        string sourcePath,
+        Func<DataEnvelope, CancellationToken, Task>
+            publishCommittedDataAsync,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(publishCommittedDataAsync);
+        return RestoreCoreAsync(
+            sourcePath,
+            publishCommittedDataAsync,
+            cancellationToken);
+    }
+
+    private async Task<BackupRestoreResult> RestoreCoreAsync(
+        string sourcePath,
+        Func<DataEnvelope, CancellationToken, Task>?
+            publishCommittedDataAsync,
         CancellationToken cancellationToken)
     {
         ValidateBackupPath(sourcePath, mustExist: true);
@@ -151,15 +175,30 @@ public sealed class BackupCoordinator : IBackupService
                 cancellationToken).ConfigureAwait(false);
             InjectFailure(RestoreJournalStage.Staged);
 
-            await _transactions.CommitAsync(cancellationToken)
+            await _dataWriteGate.WaitAsync(cancellationToken)
                 .ConfigureAwait(false);
-            await _transactions.WriteJournalAsync(
-                new RestoreJournal(
-                    RestoreJournalStage.LocalCommitted,
-                    Path.GetFullPath(sourcePath),
-                    RequiresDerivedStateRetry: true),
-                cancellationToken).ConfigureAwait(false);
-            InjectFailure(RestoreJournalStage.LocalCommitted);
+            try
+            {
+                await _transactions.CommitAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                await _transactions.WriteJournalAsync(
+                    new RestoreJournal(
+                        RestoreJournalStage.LocalCommitted,
+                        Path.GetFullPath(sourcePath),
+                        RequiresDerivedStateRetry: true),
+                    cancellationToken).ConfigureAwait(false);
+                InjectFailure(RestoreJournalStage.LocalCommitted);
+                if (publishCommittedDataAsync is not null)
+                {
+                    await publishCommittedDataAsync(
+                        backup.Data,
+                        cancellationToken).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                _dataWriteGate.Release();
+            }
 
             return CreateResult(backup, requiresDerivedStateRetry: true);
         }

@@ -309,6 +309,48 @@ public sealed class GameManager
         await NotifyGamesChangedAsync().ConfigureAwait(false);
     }
 
+    internal async Task<BackupRestoreResult> CommitRestoreAsync(
+        Func<
+            Func<DataEnvelope, CancellationToken, Task>,
+            CancellationToken,
+            Task<BackupRestoreResult>> commitAsync,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(commitAsync);
+        BackupRestoreResult result;
+        bool wasPublished = false;
+        await _mutationGate.WaitAsync(cancellationToken)
+            .ConfigureAwait(false);
+        try
+        {
+            EnsureInitialized();
+            result = await commitAsync(
+                    (data, _) =>
+                    {
+                        _data = data with
+                        {
+                            Games = NormalizeOrder(data.Games),
+                        };
+                        wasPublished = true;
+                        return Task.CompletedTask;
+                    },
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (!wasPublished)
+            {
+                throw new InvalidOperationException(
+                    "復元データがメモリへ反映されませんでした。");
+            }
+        }
+        finally
+        {
+            _mutationGate.Release();
+        }
+
+        await NotifyGamesChangedAsync().ConfigureAwait(false);
+        return result;
+    }
+
     private static void EnsureValid(
         GameDraft draft,
         DateTimeOffset recordedAtUtc)

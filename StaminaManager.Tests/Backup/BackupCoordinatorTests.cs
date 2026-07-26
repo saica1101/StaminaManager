@@ -203,8 +203,11 @@ public sealed class BackupCoordinatorTests
 
         public Task<StartupChangeResult> SetEnabledAsync(
             bool isEnabled,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
+            CancellationToken cancellationToken) => Task.FromResult(new
+                StartupChangeResult(
+                    new StartupStatus(StartupState.DisabledByUser),
+                    IsApplied: false,
+                    StartupFailureReason.DisabledByUser));
     }
 
     private sealed class PassThroughWindow : IWindowStateService
