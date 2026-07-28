@@ -10,6 +10,8 @@
     mc:Ignorable="d">
 
     <ScrollViewer
+        x:Name="SettingsScrollViewer"
+        AutomationProperties.AutomationId="SettingsScrollViewer"
         HorizontalScrollBarVisibility="Disabled"
         HorizontalScrollMode="Disabled"
         VerticalScrollBarVisibility="Auto"

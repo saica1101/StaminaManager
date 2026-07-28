@@ -64,18 +64,30 @@ public sealed partial class OverviewPage : Page
     public static Visibility BoolToVisibility(bool value) =>
         value ? Visibility.Visible : Visibility.Collapsed;
 
-    private void OverviewItems_SizeChanged(
+    private void OverviewRoot_SizeChanged(
         object sender,
         SizeChangedEventArgs args)
     {
-        double contentWidth = args.NewSize.Width;
+        _ = DispatcherQueue.TryEnqueue(UpdateOverviewLayout);
+    }
+
+    private void UpdateOverviewLayout()
+    {
+        double contentWidth = OverviewScrollViewer.ActualWidth;
+        if (contentWidth <= 0d)
+        {
+            return;
+        }
+
         int columns = OverviewLayoutPolicy.GetColumns(contentWidth);
         const double gap = 12d;
         double totalGap = gap * (columns - 1);
+        OverviewItems.Width = contentWidth;
         OverviewUniformGridLayout.MaximumRowsOrColumns = columns;
         OverviewUniformGridLayout.MinItemWidth = Math.Max(
             1d,
             (contentWidth - totalGap) / columns);
+        OverviewItems.InvalidateMeasure();
     }
 
     private Task WaitForLoadedAsync()

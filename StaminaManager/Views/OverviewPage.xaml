@@ -55,7 +55,10 @@
             GameTemplate="{StaticResource GameCardTemplate}" />
     </Page.Resources>
 
-    <Grid Padding="{StaticResource PagePadding}">
+    <Grid
+        x:Name="OverviewRoot"
+        Padding="{StaticResource PagePadding}"
+        SizeChanged="OverviewRoot_SizeChanged">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -144,6 +147,7 @@
             x:Name="OverviewScrollViewer"
             Grid.Row="3"
             Margin="0,20,0,0"
+            AutomationProperties.AutomationId="OverviewScrollViewer"
             HorizontalContentAlignment="Stretch"
             HorizontalScrollBarVisibility="Disabled"
             HorizontalScrollMode="Disabled"
@@ -156,7 +160,6 @@
                 AutomationProperties.AutomationId="OverviewItems"
                 ItemTemplate="{StaticResource OverviewItemTemplateSelector}"
                 ItemsSource="{x:Bind ViewModel.OverviewItems, Mode=OneWay}"
-                SizeChanged="OverviewItems_SizeChanged"
                 TabFocusNavigation="Local">
                 <ItemsRepeater.Layout>
                     <UniformGridLayout
