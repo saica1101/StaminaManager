@@ -502,7 +502,7 @@ Each card shows image/fallback, ring, game name, `current / maximum`, explicit s
 
 Run unit tests, launch detached, resize to content widths 840/839/560/559, capture screenshots using `winapp ui screenshot`, and inspect for clipping/overlap.
 
-- [ ] **Step 6: コミットする**
+- [x] **Step 6: コミットする**
 
 ```powershell
 git add StaminaManager.Core StaminaManager StaminaManager.Tests
@@ -779,13 +779,13 @@ git commit -m "fix: アクセシビリティとエラー表示を仕上げ"
 - Create: `tests/ui/StaminaManager.UiTests.ps1`
 - Create: `tests/ui/README.md`
 - Create at runtime only: `tests/ui/results/*.json`
-- Create at runtime only: `tests/ui/results/screenshots/*.png`
+- Create at runtime only: `tests/ui/results/screenshots/<runId>/*.png`
 
-- [ ] **Step 1: 1パスのUI試験スクリプトを書く**
+- [x] **Step 1: 1パスのUI試験スクリプトを書く**
 
 Script parameter is `[int]$AppPid`, never `$Pid`. Cover navigation, empty add card, add/edit/delete-back/save, 3/2/1 columns, compact switch/restore, persisted compact mode/selected game across relaunch, theme, five backdrops, close behavior setting, notification toggle/lead rescheduling, disabled-notification settings button, backup picker cancel, and every required AutomationId.
 
-- [ ] **Step 2: アクセシビリティ監査をスクリプトへ追加する**
+- [x] **Step 2: アクセシビリティ監査をスクリプトへ追加する**
 
 Use `winapp ui inspect --interactive --json`; fail if app-owned Button/TextBox/NumberBox/ComboBox/ToggleSwitch lacks AutomationId or accessible name. Exclude system caption controls and picker hosts.
 
@@ -793,7 +793,11 @@ Use `winapp ui inspect --interactive --json`; fail if app-owned Button/TextBox/N
 
 Capture empty Overview, 3-card wide, 2-column, 1-column, editor validation, compact, Settings Light/Dark, each backdrop, High Contrast, and 200% text. Save under ignored `tests/ui/results/screenshots`.
 
-- [ ] **Step 4: 起動してUIスイートを実行する**
+1列、High Contrast、200%テキスト以外の自動取得は完了。1列は Standard の
+最小幅では境界へ到達できず、残る2項目はOS全体の設定変更を伴うため、手動の
+release gateとして残す。
+
+- [x] **Step 4: 起動してUIスイートを実行する**
 
 ```powershell
 .\BuildAndRun.ps1 StaminaManager/StaminaManager.csproj -Detach
@@ -802,7 +806,7 @@ Capture empty Overview, 3-card wide, 2-column, 1-column, editor validation, comp
 
 Expected: script exits 0 and result JSON has zero failures.
 
-- [ ] **Step 5: 全スクリーンショットを目視する**
+- [x] **Step 5: 取得済みスクリーンショットを目視する**
 
 Fail the task for clipping, overlap, unintended ellipsis/scrollbar, dead zones, unreadable transparent surfaces, missing focus, or inconsistent spacing. Fix and rerun at most two complete cycles.
 

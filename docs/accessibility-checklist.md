@@ -56,13 +56,18 @@
 - [x] Overview の ItemsRepeater に `TabFocusNavigation="Local"` を設定し、
   専用の静的契約テストと Release UIA 実機確認で、Tab／Shift+Tab が
   ゲームカードと追加カードを左から右／右から左の順に辿ることを確認した。
-- [ ] Overview、カード、追加、Settings、各入力、バックアップ、ダイアログの
+- [x] Overview、カード、追加、Settings、各入力、バックアップ、ダイアログの
   保存／戻る／キャンセルを含む 1 パスの UIA スクリプトを実行する。
-- [ ] 3列、2列、1列と各境界幅、Compact、Settings、入力エラー、各 Backdrop の
-  スクリーンショットを取得し、クリップ、重なり、省略、スクロールバー、
-  空白、フォーカス、余白を目視する。
-- [ ] アプリ所有の全操作要素について AutomationId、Name、role、value、state を
-  スクリプトで監査する。
+- [x] 3列／2列の境界幅、Compact、Settings、入力エラー、Light／Dark、5種類の
+  Backdrop のスクリーンショットを取得し、クリップ、重なり、省略、
+  スクロールバー、空白、フォーカス、余白を目視する。
+- [ ] 1列、High Contrast、200%テキストのスクリーンショットを手動取得する。
+  1列は Standard の最小幅520pxでは到達できないため、最小幅方針を変更する場合に
+  再確認する。
+- [x] 表示したアプリ所有の操作要素について AutomationId、Name、role を
+  スクリプトで監査し、主要な value／state は各操作シナリオで照合する。
+- [ ] 状態依存で表示されなかった操作要素の value／state は、該当 fixture または
+  手動 release gate で確認する。
 
 ## リリース前の手動 release gate（未実施）
 
