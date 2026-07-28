@@ -1,6 +1,8 @@
 [CmdletBinding()]
 param()
 
+# Edgeの描画結果はバージョン間でbyte単位の再現性を保証しない。
+# 配布入力はコミット済みPNG/ICOとし、再生成後は必ず画像と差分をレビューする。
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -28,6 +30,17 @@ $temporaryDirectory = Join-Path (
     [System.IO.Path]::GetTempPath()
 ) ("stamina-brand-{0}" -f [guid]::NewGuid().ToString('N'))
 [System.IO.Directory]::CreateDirectory($temporaryDirectory) | Out-Null
+$stagingDirectory = Join-Path $temporaryDirectory 'GeneratedAssets'
+[System.IO.Directory]::CreateDirectory($stagingDirectory) | Out-Null
+
+$scaleFactors = [ordered]@{
+    100 = 1.0
+    125 = 1.25
+    150 = 1.5
+    200 = 2.0
+    400 = 4.0
+}
+$targetSizes = @(16, 20, 24, 30, 32, 36, 40, 48, 60, 64, 72, 80, 96, 256)
 
 function New-ThemeSource {
     param(
@@ -96,14 +109,31 @@ function Convert-SvgToBitmap {
         "--screenshot=$OutputPath"
         $uri
     )
-    $process = Start-Process `
-        -FilePath $edgePath `
-        -ArgumentList $arguments `
-        -Wait `
-        -PassThru `
-        -WindowStyle Hidden
 
-    if ($process.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $OutputPath)) {
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $edgePath
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    foreach ($argument in $arguments) {
+        # ArgumentListへ個別追加し、空白入りのscreenshot pathも安全にquoteする。
+        $startInfo.ArgumentList.Add($argument)
+    }
+
+    $process = [System.Diagnostics.Process]::new()
+    try {
+        $process.StartInfo = $startInfo
+        if (-not $process.Start()) {
+            throw "Microsoft Edgeを起動できませんでした: $edgePath"
+        }
+
+        $process.WaitForExit()
+        $exitCode = $process.ExitCode
+    }
+    finally {
+        $process.Dispose()
+    }
+
+    if ($exitCode -ne 0 -or -not (Test-Path -LiteralPath $OutputPath)) {
         throw "SVGのPNG変換に失敗しました: $SvgPath"
     }
 }
@@ -193,14 +223,6 @@ function Save-ScaleSet {
         [double] $ContentRatio = 1.0
     )
 
-    $scaleFactors = [ordered]@{
-        100 = 1.0
-        125 = 1.25
-        150 = 1.5
-        200 = 2.0
-        400 = 4.0
-    }
-
     foreach ($scale in $scaleFactors.GetEnumerator()) {
         $width = [Math]::Round(
             $BaseWidth * $scale.Value,
@@ -210,7 +232,7 @@ function Save-ScaleSet {
             $BaseHeight * $scale.Value,
             [MidpointRounding]::AwayFromZero
         )
-        $outputPath = Join-Path $assetsDirectory (
+        $outputPath = Join-Path $stagingDirectory (
             '{0}.scale-{1}.png' -f $BaseName, $scale.Key
         )
         Save-ScaledPng `
@@ -273,7 +295,103 @@ function Save-Ico {
     }
 }
 
+function Get-ExpectedAssetNames {
+    $names = [System.Collections.Generic.List[string]]::new()
+    $scaleBaseNames = @(
+        'Square150x150Logo'
+        'Wide310x150Logo'
+        'SplashScreen'
+        'Square44x44Logo'
+        'StoreLogo'
+    )
+    foreach ($baseName in $scaleBaseNames) {
+        foreach ($scale in $scaleFactors.Keys) {
+            $names.Add("$baseName.scale-$scale.png")
+        }
+    }
+
+    foreach ($size in $targetSizes) {
+        $names.Add("Square44x44Logo.targetsize-$size.png")
+        $names.Add(
+            "Square44x44Logo.targetsize-${size}_altform-unplated.png"
+        )
+        $names.Add(
+            "Square44x44Logo.targetsize-${size}_altform-lightunplated.png"
+        )
+    }
+
+    $names.Add('StoreLogo.png')
+    $names.Add('LockScreenLogo.scale-200.png')
+    $names.Add('AppIcon.ico')
+    return $names.ToArray()
+}
+
+function Assert-GeneratedAssets {
+    param(
+        [Parameter(Mandatory)]
+        [string] $Directory,
+
+        [Parameter(Mandatory)]
+        [string[]] $ExpectedNames
+    )
+
+    $actualFiles = @(Get-ChildItem -LiteralPath $Directory -File)
+    $actualNames = @($actualFiles.Name)
+    $missingNames = @($ExpectedNames | Where-Object { $_ -notin $actualNames })
+    $unexpectedNames = @($actualNames | Where-Object { $_ -notin $ExpectedNames })
+    $emptyNames = @($actualFiles | Where-Object Length -eq 0 | ForEach-Object Name)
+
+    if (
+        $actualFiles.Count -ne $ExpectedNames.Count -or
+        $missingNames.Count -gt 0 -or
+        $unexpectedNames.Count -gt 0 -or
+        $emptyNames.Count -gt 0
+    ) {
+        throw (
+            '生成assetの検証に失敗しました。expected={0}, actual={1}, ' +
+            'missing=[{2}], unexpected=[{3}], empty=[{4}]' -f
+                $ExpectedNames.Count,
+                $actualFiles.Count,
+                ($missingNames -join ', '),
+                ($unexpectedNames -join ', '),
+                ($emptyNames -join ', ')
+        )
+    }
+}
+
+function Publish-GeneratedAssets {
+    param(
+        [Parameter(Mandatory)]
+        [string] $SourceDirectory,
+
+        [Parameter(Mandatory)]
+        [string] $DestinationDirectory,
+
+        [Parameter(Mandatory)]
+        [string[]] $AssetNames
+    )
+
+    foreach ($assetName in $AssetNames) {
+        $sourceAssetPath = Join-Path $SourceDirectory $assetName
+        $destinationAssetPath = Join-Path $DestinationDirectory $assetName
+        [System.IO.File]::Copy(
+            $sourceAssetPath,
+            $destinationAssetPath,
+            $true
+        )
+    }
+}
+
 try {
+    $edgeVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo(
+        $edgePath
+    ).ProductVersion
+    Write-Output "Microsoft Edge version: $edgeVersion"
+    Write-Output (
+        'Edge更新によりraster byteが変わる可能性があります。' +
+        'コミット済みPNG/ICOを配布入力とし、再生成差分をレビューしてください。'
+    )
+
     $renderedPaths = @{}
     foreach ($theme in @('Default', 'Dark', 'Light')) {
         $themeSourcePath = New-ThemeSource -Theme $theme
@@ -317,15 +435,14 @@ try {
             -BaseWidth 50 `
             -BaseHeight 50
 
-        $targetSizes = @(16, 20, 24, 30, 32, 36, 40, 48, 60, 64, 72, 80, 96, 256)
         foreach ($size in $targetSizes) {
-            $defaultPath = Join-Path $assetsDirectory (
+            $defaultPath = Join-Path $stagingDirectory (
                 "Square44x44Logo.targetsize-$size.png"
             )
-            $darkPath = Join-Path $assetsDirectory (
+            $darkPath = Join-Path $stagingDirectory (
                 "Square44x44Logo.targetsize-${size}_altform-unplated.png"
             )
-            $lightPath = Join-Path $assetsDirectory (
+            $lightPath = Join-Path $stagingDirectory (
                 "Square44x44Logo.targetsize-${size}_altform-lightunplated.png"
             )
             Save-ScaledPng `
@@ -349,29 +466,38 @@ try {
             -Source $defaultImage `
             -Width 50 `
             -Height 50 `
-            -OutputPath (Join-Path $assetsDirectory 'StoreLogo.png')
+            -OutputPath (Join-Path $stagingDirectory 'StoreLogo.png')
         Save-ScaledPng `
             -Source $darkImage `
             -Width 48 `
             -Height 48 `
             -OutputPath (
-                Join-Path $assetsDirectory 'LockScreenLogo.scale-200.png'
+                Join-Path $stagingDirectory 'LockScreenLogo.scale-200.png'
             )
 
         $icoPngPaths = @(16, 24, 32, 48, 256) | ForEach-Object {
-            Join-Path $assetsDirectory (
+            Join-Path $stagingDirectory (
                 "Square44x44Logo.targetsize-$_.png"
             )
         }
         Save-Ico `
             -PngPaths $icoPngPaths `
-            -OutputPath (Join-Path $assetsDirectory 'AppIcon.ico')
+            -OutputPath (Join-Path $stagingDirectory 'AppIcon.ico')
     }
     finally {
         $defaultImage.Dispose()
         $darkImage.Dispose()
         $lightImage.Dispose()
     }
+
+    $expectedAssetNames = @(Get-ExpectedAssetNames)
+    Assert-GeneratedAssets `
+        -Directory $stagingDirectory `
+        -ExpectedNames $expectedAssetNames
+    Publish-GeneratedAssets `
+        -SourceDirectory $stagingDirectory `
+        -DestinationDirectory $assetsDirectory `
+        -AssetNames $expectedAssetNames
 }
 finally {
     if (Test-Path -LiteralPath $temporaryDirectory) {
@@ -379,4 +505,4 @@ finally {
     }
 }
 
-Write-Output 'ブランド資産を再生成しました。'
+Write-Output '70個のブランド配布assetを検証後に反映しました。'

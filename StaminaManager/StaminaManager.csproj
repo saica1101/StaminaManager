@@ -18,8 +18,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Remove="Assets\Brand\**\*" />
     <Content Include="Assets\*.png" />
     <Content Include="Assets\AppIcon.ico" />
+    <None Update="Assets\Brand\**\*">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
