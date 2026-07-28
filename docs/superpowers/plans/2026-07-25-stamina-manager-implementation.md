@@ -859,10 +859,20 @@ Generate a temporary development certificate outside Git tracking and package th
 
 ```powershell
 if ([string]::IsNullOrWhiteSpace($env:STAMINA_CERT_PASSWORD)) { throw 'STAMINA_CERT_PASSWORDをこのセッションへ設定してください。' }
-$releaseLayouts = @(Get-ChildItem -LiteralPath 'StaminaManager/bin/x64/Release' -Directory -Recurse | Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'AppxManifest.xml') })
+$releaseLayouts = @(
+    Get-ChildItem -LiteralPath 'StaminaManager/bin/x64/Release' -Directory -Recurse |
+        Where-Object {
+            $_.Name -eq 'AppX' -and
+            $_.Parent.Name -eq 'win-x64' -and
+            (Test-Path -LiteralPath (Join-Path $_.FullName 'AppxManifest.xml')) -and
+            (Test-Path -LiteralPath (Join-Path $_.FullName 'StaminaManager.exe')) -and
+            (Test-Path -LiteralPath (Join-Path $_.FullName 'Assets'))
+        }
+)
 if ($releaseLayouts.Count -ne 1) { throw "Release layoutが一意ではありません: $($releaseLayouts.Count)" }
-winapp cert generate --manifest StaminaManager/Package.appxmanifest --output artifacts/devcert.pfx --password $env:STAMINA_CERT_PASSWORD --if-exists skip
-winapp package $releaseLayouts[0].FullName --manifest StaminaManager/Package.appxmanifest --cert artifacts/devcert.pfx --cert-password $env:STAMINA_CERT_PASSWORD --output artifacts/StaminaManager.msix
+$releaseManifest = Join-Path $releaseLayouts[0].FullName 'AppxManifest.xml'
+winapp cert generate --manifest $releaseManifest --output artifacts/devcert.pfx --password $env:STAMINA_CERT_PASSWORD --if-exists skip
+winapp package $releaseLayouts[0].FullName --manifest $releaseManifest --cert artifacts/devcert.pfx --cert-password $env:STAMINA_CERT_PASSWORD --output artifacts/StaminaManager.msix
 ```
 
 Never commit or print the password/PFX. Install/trust only with explicit user approval because certificate trust changes machine state.

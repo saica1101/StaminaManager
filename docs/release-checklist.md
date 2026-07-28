@@ -11,10 +11,14 @@
 - [x] `Directory.Build.props` とアプリプロジェクトの build target が
   `x64` / `win-x64` に固定されている。
 - [x] `win-x64.pubxml` が `Release`、`x64`、`win-x64`、self-contained、
-  ReadyToRun を指定している。
+  ReadyToRun を指定している。ここでの self-contained は .NET runtime を指し、
+  Windows App SDK runtime は manifest の framework dependency を利用する。
 - [x] Release unit test が 408 passed / 0 failed で完了している。
 - [x] `BuildAndRun.ps1 -SkipRun` による x64 Release build が、
   0 warnings / 0 errors で成功している。
+- [x] パッケージ起動した Release build の UI 自動試験が
+  16 passed / 0 failed / 17 conditional skipped で完了し、試験前後で
+  Data と Settings のパス・サイズ・SHA-256 が一致している。
 - [x] Release 出力に意図しない x86 / ARM64 バイナリが含まれていない。
 
 ## ブランド資産
