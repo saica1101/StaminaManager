@@ -54,7 +54,8 @@ settings を保持した `games=[]` fixture と空の通知 ledger を書き、�
 - Overview と Settings の往復
 - 空の Overview と、空のゲーム名で保存できないこと
 - 3ゲームの追加、編集、削除確認から戻る、保存
-- content 720 effective pxで3列、719 effective pxで2列となるカード bounds
+- content 720 effective pxで3列、719 effective pxとStandard最小幅で2列となる
+  カード bounds
   （UI Automation の物理pxをウィンドウDPIで換算）
 - コンパクト表示、選択ゲームと bounds の再起動永続化、通常 bounds の復帰
 - Light / Dark と Mica / Acrylic / Blur / Transparent / Solid
@@ -85,16 +86,20 @@ Transparent は `--capture-screen` を使います。それでも環境によっ
 結果 JSON と状態を確認して完全な1パスを再実行し、失敗画像だけを合成しないで
 ください。
 
-## 手動確認として記録する項目
+## OS状態を変更して確認する項目
 
-次の項目は OS 全体の状態変更、またはアプリの最小幅制約のため、JSON に `SKIP`
-を記録します。
+次の項目は OS 全体の状態変更を伴うため、通常状態の実行では JSON に `SKIP` を
+記録します。
 
-- 1列表示。`WindowBoundsPolicy` の Standard 最小幅520pxでは content が約464px
-  となり、`OverviewLayoutPolicy` の1列条件である412px未満へ縮小できない
 - High Contrast
 - 200% テキストスケール
-- Windows 通知設定画面への遷移と OS 側設定
+- Windows 通知無効状態
+
+Windows通知が実際に無効な状態で実行した場合、スクリプトは
+`OpenWindowsNotificationSettingsButton` の表示、AutomationIdとName、
+Windows通知設定ページへの遷移を自動確認します。この実行では通知予約を生成せず、
+通知ledgerの予約試験だけを理由付きで `SKIP` にします。通知が有効な通常実行では、
+従来どおり通知ledgerの抑止、予約、リード時間変更による再予約を確認します。
 
 これらを確認するときは、元の OS 設定を記録してから変更し、各状態の画像を
 追加で保存した後、必ず元へ戻してください。

@@ -476,7 +476,7 @@ git commit -m "feat: Fluentシェルとデザイン基盤を追加"
 - Modify: `StaminaManager/ViewModels/OverviewViewModel.cs`
 - Test: `StaminaManager.Tests/Calculations/OverviewLayoutPolicyTests.cs`
 
-- [ ] **Step 1: 719/720 pxと最小2列の失敗テストを書く**
+- [x] **Step 1: 719/720 pxと最小2列の失敗テストを書く**
 
 ```csharp
 [DataRow(720, 3)]
@@ -794,7 +794,7 @@ button, backup picker cancel, and every required AutomationId.
 
 Use `winapp ui inspect --interactive --json`; fail if app-owned Button/TextBox/NumberBox/ComboBox/ToggleSwitch lacks AutomationId or accessible name. Exclude system caption controls and picker hosts.
 
-- [ ] **Step 3: 意味のある状態をスクリーンショット化する**
+- [x] **Step 3: 意味のある状態をスクリーンショット化する**
 
 Capture empty Overview, 3-card wide, 2-column, minimum-width 2-column, editor validation,
 compact, Settings Light/Dark, each backdrop, High Contrast, and 200% text. Save under ignored

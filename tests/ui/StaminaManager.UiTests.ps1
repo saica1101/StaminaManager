@@ -40,6 +40,7 @@ $thirdGameName = "$testGameName third"
 $testGameIds = [Collections.Generic.List[Guid]]::new()
 $originalWindowBounds = $null
 $originalDisplayMode = $null
+$threeColumnMinimumWidth = 720
 
 if (-not ('StaminaManagerUiTestNative' -as [type])) {
     Add-Type -TypeDefinition @'
@@ -425,6 +426,24 @@ function Test-UiElement {
     return $LASTEXITCODE -eq 0
 }
 
+function Wait-WindowsNotificationSettings {
+    $deadline = [DateTime]::UtcNow.AddSeconds(10)
+    do {
+        $hosts = @(Get-Process ApplicationFrameHost -ErrorAction SilentlyContinue)
+        foreach ($hostProcess in $hosts) {
+            if (Test-UiElement $hostProcess.Id `
+                    SystemSettings_Notifications_ShowAppNotifications_ToggleSwitch `
+                    500) {
+                return $hostProcess.Id
+            }
+        }
+
+        Start-Sleep -Milliseconds 100
+    } while ([DateTime]::UtcNow -lt $deadline)
+
+    throw 'Windows notification settings did not open within 10 seconds.'
+}
+
 function Wait-AppReady {
     param([int]$ProcessId)
 
@@ -804,6 +823,40 @@ function Set-OverviewContentWidth {
         [double]$actual.width * 96d / $dpi)
     throw "Content width target=$EffectiveWidth, " +
         "actual=$actualEffectiveWidth effective pixels (DPI=$dpi)."
+}
+
+function Set-WindowToStandardMinimumWidth {
+    $window = Get-MainWindowInfo
+    $handle = [IntPtr]$window.hwnd
+    $dpi = [StaminaManagerUiTestNative]::GetDpiForWindow($handle)
+    if ($dpi -eq 0) {
+        throw 'GetDpiForWindow returned zero.'
+    }
+
+    [StaminaManagerUiTestNative]::ShowWindow($handle, 9) | Out-Null
+    $moved = [StaminaManagerUiTestNative]::MoveWindow(
+        $handle,
+        [int]$window.x,
+        [int]$window.y,
+        1,
+        [int]$window.height,
+        $true)
+    if (-not $moved) {
+        throw 'MoveWindow failed for the Standard minimum width.'
+    }
+
+    Start-Sleep -Milliseconds 500
+    $content = Get-ElementMatch OverviewScrollViewer
+    $effectiveWidth = [int][Math]::Round(
+        [double]$content.width * 96d / $dpi)
+    if ($effectiveWidth -ge $threeColumnMinimumWidth) {
+        throw "Minimum content width stayed too wide: $effectiveWidth."
+    }
+
+    return [pscustomobject]@{
+        Element = $content
+        EffectiveWidth = $effectiveWidth
+    }
 }
 
 function Assert-CardColumns {
@@ -1209,14 +1262,10 @@ New-Item -ItemType Directory -Force -Path $OutputDirectory |
 New-Item -ItemType Directory -Force -Path $screenshotDirectory |
     Out-Null
 
-Add-Result Manual '1列の境界幅' SKIP `
-    'Standard MinWidth=520ではcontent約464となり、1列閾値412未満へ縮小不可。'
 Add-Result Manual 'High Contrast' SKIP `
     'OSのHigh Contrast状態変更が必要なため手動確認。'
 Add-Result Manual '200%テキスト' SKIP `
     'OSのテキストスケール変更が必要なため手動確認。'
-Add-Result Manual 'Windows通知設定画面' SKIP `
-    'OS設定を変更または遷移する操作は自動化対象外。'
 
 try {
     $identity = Get-VerifiedAppIdentity $AppPid
@@ -1372,7 +1421,7 @@ try {
         Get-DataGame $editedGameName | Out-Null
     }
 
-    Invoke-UiTest Overview '3ゲームと3列・2列境界' {
+    Invoke-UiTest Overview '3ゲームと3列・2列・最小幅2列' {
         $script:testGameIds.Add((Add-TestGame $secondGameName))
         $script:testGameIds.Add((Add-TestGame $thirdGameName))
         if ($testGameIds.Count -ne 3) {
@@ -1388,7 +1437,16 @@ try {
         Start-Sleep -Milliseconds 750
         Assert-CardColumns 2 $testGameIds.ToArray()
         Save-Screenshot '05-columns-2-content719'
+        $minimumWidth = Set-WindowToStandardMinimumWidth
+        Assert-CardColumns 2 $testGameIds.ToArray()
+        Save-Screenshot '06-columns-2-minimum'
+        if ($minimumWidth.EffectiveWidth -ge $threeColumnMinimumWidth) {
+            throw 'The Standard minimum width did not exercise two columns.'
+        }
         Collect-AuditSnapshot ThreeCards
+        Set-OverviewContentWidth 719 | Out-Null
+        Invoke-WinApp ui wait-for NavSettings -a $AppPid -t 5000 |
+            Out-Null
     }
 
     Invoke-UiTest Compact '選択・boundsの再起動永続化と復帰' {
@@ -1475,55 +1533,81 @@ try {
         Collect-AuditSnapshot SettingsGeneral
     }
 
-    Invoke-UiTest Settings '通知ledgerの抑止・再予約・lead変更' {
-        Scroll-ToSettingsControl NotificationLeadInput
-        Invoke-WinApp ui wait-for NotificationLeadInput -a $AppPid `
-            -t 5000 | Out-Null
-        $initialNotifications = Get-ControlValue NotificationsToggle
-        $initialLead = [int](Get-ControlValue InputBox)
-        if ($initialNotifications -eq 'On') {
+    $isWindowsNotificationDisabled = Test-UiElement $AppPid `
+        OpenWindowsNotificationSettingsButton 1000
+    if ($isWindowsNotificationDisabled) {
+        Invoke-UiTest Settings 'Windows通知無効の案内と設定遷移' {
+            Scroll-ToSettingsControl OpenWindowsNotificationSettingsButton
+            Invoke-WinApp ui wait-for `
+                OpenWindowsNotificationSettingsButton -a $AppPid `
+                -t 5000 | Out-Null
+            Collect-AuditSnapshot SettingsNotificationsDisabled
+            Save-Screenshot '08-notifications-disabled'
+            Invoke-WinApp ui invoke `
+                OpenWindowsNotificationSettingsButton -a $AppPid |
+                Out-Null
+            $settingsPid = Wait-WindowsNotificationSettings
+            if ($settingsPid -le 0) {
+                throw 'Windows notification settings PID is invalid.'
+            }
+            Invoke-WinApp ui focus NavSettings -a $AppPid | Out-Null
+        }
+        Add-Result Settings '通知ledgerの抑止・再予約・lead変更' SKIP `
+            'Windows側でStaminaManagerの通知が無効なため予約生成を行わない。'
+    }
+    else {
+        Add-Result Manual 'Windows通知無効状態' SKIP `
+            'OS側でStaminaManagerの通知を無効にした場合のみ確認。'
+        Invoke-UiTest Settings '通知ledgerの抑止・再予約・lead変更' {
+            Scroll-ToSettingsControl NotificationLeadInput
+            Invoke-WinApp ui wait-for NotificationLeadInput -a $AppPid `
+                -t 5000 | Out-Null
+            $initialNotifications = Get-ControlValue NotificationsToggle
+            $initialLead = [int](Get-ControlValue InputBox)
+            if ($initialNotifications -eq 'On') {
+                Invoke-WinApp ui invoke NotificationsToggle -a $AppPid |
+                    Out-Null
+                Invoke-WinApp ui wait-for NotificationsToggle -a $AppPid `
+                    --value Off -t 5000 | Out-Null
+            }
+
+            Wait-LedgerEntry $testGameId Suppressed $initialLead | Out-Null
+            Invoke-WinApp ui invoke NotificationsToggle -a $AppPid | Out-Null
+            Invoke-WinApp ui wait-for NotificationsToggle -a $AppPid `
+                --value On -t 5000 | Out-Null
+            $scheduled = Wait-LedgerEntry `
+                $testGameId Scheduled $initialLead
+
+            $changedLead = if ($initialLead -lt 525600) {
+                $initialLead + 1
+            } else { $initialLead - 1 }
+            Invoke-WinApp ui set-value InputBox $changedLead `
+                -a $AppPid | Out-Null
+            Invoke-WinApp ui focus NavSettings -a $AppPid | Out-Null
+            Invoke-WinApp ui wait-for InputBox -a $AppPid `
+                --value $changedLead -t 5000 | Out-Null
+            $rescheduled = Wait-LedgerEntry `
+                $testGameId Scheduled $changedLead
+            if ($scheduled.key -eq $rescheduled.key -and
+                [int]$scheduled.leadMinutes -eq
+                    [int]$rescheduled.leadMinutes) {
+                throw 'Notification ledger did not change after lead update.'
+            }
+
+            Invoke-WinApp ui set-value InputBox $initialLead `
+                -a $AppPid | Out-Null
+            Invoke-WinApp ui focus NavSettings -a $AppPid | Out-Null
+            Invoke-WinApp ui wait-for InputBox -a $AppPid `
+                --value $initialLead -t 5000 | Out-Null
+            Wait-LedgerEntry $testGameId Scheduled $initialLead | Out-Null
+
             Invoke-WinApp ui invoke NotificationsToggle -a $AppPid |
                 Out-Null
             Invoke-WinApp ui wait-for NotificationsToggle -a $AppPid `
                 --value Off -t 5000 | Out-Null
+            Wait-LedgerEntry $testGameId Suppressed $initialLead | Out-Null
+            Collect-AuditSnapshot SettingsNotifications
         }
-
-        Wait-LedgerEntry $testGameId Suppressed $initialLead | Out-Null
-        Invoke-WinApp ui invoke NotificationsToggle -a $AppPid | Out-Null
-        Invoke-WinApp ui wait-for NotificationsToggle -a $AppPid `
-            --value On -t 5000 | Out-Null
-        $scheduled = Wait-LedgerEntry `
-            $testGameId Scheduled $initialLead
-
-        $changedLead = if ($initialLead -lt 525600) {
-            $initialLead + 1
-        } else { $initialLead - 1 }
-        Invoke-WinApp ui set-value InputBox $changedLead `
-            -a $AppPid | Out-Null
-        Invoke-WinApp ui focus NavSettings -a $AppPid | Out-Null
-        Invoke-WinApp ui wait-for InputBox -a $AppPid `
-            --value $changedLead -t 5000 | Out-Null
-        $rescheduled = Wait-LedgerEntry `
-            $testGameId Scheduled $changedLead
-        if ($scheduled.key -eq $rescheduled.key -and
-            [int]$scheduled.leadMinutes -eq
-                [int]$rescheduled.leadMinutes) {
-            throw 'Notification ledger did not change after lead update.'
-        }
-
-        Invoke-WinApp ui set-value InputBox $initialLead `
-            -a $AppPid | Out-Null
-        Invoke-WinApp ui focus NavSettings -a $AppPid | Out-Null
-        Invoke-WinApp ui wait-for InputBox -a $AppPid `
-            --value $initialLead -t 5000 | Out-Null
-        Wait-LedgerEntry $testGameId Scheduled $initialLead | Out-Null
-
-        Invoke-WinApp ui invoke NotificationsToggle -a $AppPid |
-            Out-Null
-        Invoke-WinApp ui wait-for NotificationsToggle -a $AppPid `
-            --value Off -t 5000 | Out-Null
-        Wait-LedgerEntry $testGameId Suppressed $initialLead | Out-Null
-        Collect-AuditSnapshot SettingsNotifications
     }
 
     Invoke-UiTest Settings 'バックアップpickerをキャンセル' {

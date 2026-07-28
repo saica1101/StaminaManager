@@ -3,7 +3,6 @@ namespace StaminaManager.Core.Calculations;
 public static class OverviewLayoutPolicy
 {
     public const double ThreeColumnMinimumWidth = 720d;
-    public const double TwoColumnMinimumWidth = 412d;
 
     public static int GetColumns(double contentWidth)
     {
@@ -17,6 +16,6 @@ public static class OverviewLayoutPolicy
             return 3;
         }
 
-        return contentWidth >= TwoColumnMinimumWidth ? 2 : 1;
+        return 2;
     }
 }

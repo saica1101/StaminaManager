@@ -1,5 +1,6 @@
-using Microsoft.Windows.AppNotifications;
 using StaminaManager.Core.Abstractions;
+using Windows.ApplicationModel;
+using Windows.UI.Notifications;
 
 namespace StaminaManager.Infrastructure.Notifications;
 
@@ -26,15 +27,15 @@ public sealed class NotificationPermissionService
         cancellationToken.ThrowIfCancellationRequested();
         NotificationPermissionState state = _adapter.GetSetting() switch
         {
-            AppNotificationSetting.Enabled =>
+            NotificationSetting.Enabled =>
                 NotificationPermissionState.Enabled,
-            AppNotificationSetting.DisabledForApplication =>
+            NotificationSetting.DisabledForApplication =>
                 NotificationPermissionState.DisabledForApplication,
-            AppNotificationSetting.DisabledForUser =>
+            NotificationSetting.DisabledForUser =>
                 NotificationPermissionState.DisabledForUser,
-            AppNotificationSetting.DisabledByGroupPolicy =>
+            NotificationSetting.DisabledByGroupPolicy =>
                 NotificationPermissionState.DisabledByPolicy,
-            AppNotificationSetting.DisabledByManifest =>
+            NotificationSetting.DisabledByManifest =>
                 NotificationPermissionState.DisabledByManifest,
             _ => NotificationPermissionState.Unsupported,
         };
@@ -44,12 +45,15 @@ public sealed class NotificationPermissionService
 
 internal interface INotificationSettingsAdapter
 {
-    AppNotificationSetting GetSetting();
+    NotificationSetting GetSetting();
 }
 
 internal sealed class NotificationSettingsAdapter
     : INotificationSettingsAdapter
 {
-    public AppNotificationSetting GetSetting() =>
-        AppNotificationManager.Default.Setting;
+    private readonly ToastNotifier _notifier =
+        ToastNotificationManager.CreateToastNotifier(
+            AppInfo.Current.AppUserModelId);
+
+    public NotificationSetting GetSetting() => _notifier.Setting;
 }

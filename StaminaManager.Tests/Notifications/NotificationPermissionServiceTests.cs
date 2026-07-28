@@ -1,6 +1,6 @@
-using Microsoft.Windows.AppNotifications;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Infrastructure.Notifications;
+using Windows.UI.Notifications;
 
 namespace StaminaManager.Tests.Notifications;
 
@@ -9,31 +9,31 @@ public sealed class NotificationPermissionServiceTests
 {
     [TestMethod]
     [DataRow(
-        AppNotificationSetting.Enabled,
+        NotificationSetting.Enabled,
         NotificationPermissionState.Enabled,
         true)]
     [DataRow(
-        AppNotificationSetting.DisabledForApplication,
+        NotificationSetting.DisabledForApplication,
         NotificationPermissionState.DisabledForApplication,
         false)]
     [DataRow(
-        AppNotificationSetting.DisabledForUser,
+        NotificationSetting.DisabledForUser,
         NotificationPermissionState.DisabledForUser,
         false)]
     [DataRow(
-        AppNotificationSetting.DisabledByGroupPolicy,
+        NotificationSetting.DisabledByGroupPolicy,
         NotificationPermissionState.DisabledByPolicy,
         false)]
     [DataRow(
-        AppNotificationSetting.DisabledByManifest,
+        NotificationSetting.DisabledByManifest,
         NotificationPermissionState.DisabledByManifest,
         false)]
     [DataRow(
-        AppNotificationSetting.Unsupported,
+        (NotificationSetting)int.MaxValue,
         NotificationPermissionState.Unsupported,
         false)]
     public async Task GetStatusAsync_MapsWindowsSetting(
-        AppNotificationSetting platformSetting,
+        NotificationSetting platformSetting,
         NotificationPermissionState expectedState,
         bool expectedAvailable)
     {
@@ -48,9 +48,9 @@ public sealed class NotificationPermissionServiceTests
     }
 
     private sealed class FakeNotificationSettingsAdapter(
-        AppNotificationSetting setting)
+        NotificationSetting setting)
         : INotificationSettingsAdapter
     {
-        public AppNotificationSetting GetSetting() => setting;
+        public NotificationSetting GetSetting() => setting;
     }
 }

@@ -9,8 +9,8 @@ public sealed class OverviewLayoutPolicyTests
     [DataRow(720d, 3)]
     [DataRow(719d, 2)]
     [DataRow(412d, 2)]
-    [DataRow(411d, 1)]
-    [DataRow(0d, 1)]
+    [DataRow(411d, 2)]
+    [DataRow(0d, 2)]
     public void GetColumns_UsesSpecifiedBreakpoints(
         double width,
         int expected)

@@ -5,6 +5,7 @@ using StaminaManager.Core.Abstractions;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using Windows.ApplicationModel;
 using Windows.Data.Xml.Dom;
 using Windows.UI.Notifications;
 
@@ -290,7 +291,8 @@ internal sealed class WindowsNotificationPlatformAdapter
     private readonly AppNotificationManager _manager =
         AppNotificationManager.Default;
     private readonly ToastNotifier _notifier =
-        ToastNotificationManager.CreateToastNotifier();
+        ToastNotificationManager.CreateToastNotifier(
+            AppInfo.Current.AppUserModelId);
 
     public event EventHandler<string>? ActivationReceived;
 
