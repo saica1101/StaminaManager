@@ -476,13 +476,12 @@ git commit -m "feat: Fluentシェルとデザイン基盤を追加"
 - Modify: `StaminaManager/ViewModels/OverviewViewModel.cs`
 - Test: `StaminaManager.Tests/Calculations/OverviewLayoutPolicyTests.cs`
 
-- [ ] **Step 1: 839/840と559/560 pxの失敗テストを書く**
+- [ ] **Step 1: 719/720 pxと最小2列の失敗テストを書く**
 
 ```csharp
-[DataRow(840, 3)]
-[DataRow(839, 2)]
-[DataRow(560, 2)]
-[DataRow(559, 1)]
+[DataRow(720, 3)]
+[DataRow(719, 2)]
+[DataRow(0, 2)]
 public void GetColumns_UsesSpecifiedBreakpoints(double width, int expected)
 ```
 
@@ -500,7 +499,9 @@ Each card shows image/fallback, ring, game name, `current / maximum`, explicit s
 
 - [ ] **Step 5: テスト、起動、3幅スクリーンショットを確認する**
 
-Run unit tests, launch detached, resize to content widths 840/839/560/559, capture screenshots using `winapp ui screenshot`, and inspect for clipping/overlap.
+Run unit tests, launch detached, resize to content widths 720/719 and the Standard minimum width,
+and assert `3 / 2 / 2` columns. Capture screenshots using `winapp ui screenshot`, and inspect
+for clipping/overlap.
 
 - [x] **Step 6: コミットする**
 
@@ -783,7 +784,11 @@ git commit -m "fix: アクセシビリティとエラー表示を仕上げ"
 
 - [x] **Step 1: 1パスのUI試験スクリプトを書く**
 
-Script parameter is `[int]$AppPid`, never `$Pid`. Cover navigation, empty add card, add/edit/delete-back/save, 3/2/1 columns, compact switch/restore, persisted compact mode/selected game across relaunch, theme, five backdrops, close behavior setting, notification toggle/lead rescheduling, disabled-notification settings button, backup picker cancel, and every required AutomationId.
+Script parameter is `[int]$AppPid`, never `$Pid`. Cover navigation, empty add card,
+add/edit/delete-back/save, 3/2 columns and minimum-width 2-column retention, compact
+switch/restore, persisted compact mode/selected game across relaunch, theme, five backdrops,
+close behavior setting, notification toggle/lead rescheduling, disabled-notification settings
+button, backup picker cancel, and every required AutomationId.
 
 - [x] **Step 2: アクセシビリティ監査をスクリプトへ追加する**
 
@@ -791,11 +796,13 @@ Use `winapp ui inspect --interactive --json`; fail if app-owned Button/TextBox/N
 
 - [ ] **Step 3: 意味のある状態をスクリーンショット化する**
 
-Capture empty Overview, 3-card wide, 2-column, 1-column, editor validation, compact, Settings Light/Dark, each backdrop, High Contrast, and 200% text. Save under ignored `tests/ui/results/screenshots`.
+Capture empty Overview, 3-card wide, 2-column, minimum-width 2-column, editor validation,
+compact, Settings Light/Dark, each backdrop, High Contrast, and 200% text. Save under ignored
+`tests/ui/results/screenshots`.
 
-1列、High Contrast、200%テキスト以外の自動取得は完了。1列は Standard の
-最小幅では境界へ到達できず、残る2項目はOS全体の設定変更を伴うため、手動の
-release gateとして残す。
+通常表示は1行2～3件を正式仕様とし、1列確認は対象外とする。High Contrastと
+200%テキストはOS全体の設定変更を伴うため、変更前状態を保存・復元する手動の
+release gateとして実施する。
 
 - [x] **Step 4: 起動してUIスイートを実行する**
 
