@@ -77,7 +77,9 @@ public partial class App : Microsoft.UI.Xaml.Application
             }
 
             CreateCompositionRoot();
-            DataLoadResult loadResult = await _coordinator!.InitializeAsync(
+            DataLoadResult loadResult = await InitializeForLaunchAsync(
+                _coordinator!,
+                _overviewViewModel!,
                 CancellationToken.None);
             ActivationRouter.Attach(HandleRedirectedActivation);
             _window!.Activate();
@@ -90,7 +92,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             }
 
             _settingsViewModel!.SynchronizeFromCurrentSettings(
-                _coordinator.LastThemeResult,
+                _coordinator!.LastThemeResult,
                 _coordinator.LastBackdropResult,
                 _coordinator.LastStartupStatus,
                 _coordinator.IsStartupSynchronized);
@@ -106,6 +108,21 @@ public partial class App : Microsoft.UI.Xaml.Application
             _settingsViewModel?.MarkFailed();
             await HandleLaunchFailureAsync(exception);
         }
+    }
+
+    internal static async Task<DataLoadResult> InitializeForLaunchAsync(
+        AppCoordinator coordinator,
+        OverviewViewModel overviewViewModel,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(coordinator);
+        ArgumentNullException.ThrowIfNull(overviewViewModel);
+        DataLoadResult result = await coordinator.InitializeAsync(
+            cancellationToken);
+        await overviewViewModel.ShowStartupRecoveryAsync(
+            coordinator.StartupRecovery,
+            cancellationToken);
+        return result;
     }
 
     private void HandleRedirectedActivation(

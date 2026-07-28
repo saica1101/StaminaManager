@@ -281,6 +281,55 @@ public sealed class AccessibilityPrivacyContractTests
         StringAssert.Contains(pageSource, "RestoreBackupDialog");
     }
 
+    [TestMethod]
+    public void RecoveryInfoBar_HasAccessiblePersistentContract()
+    {
+        string root = FindRepositoryRoot();
+        XElement infoBar = XDocument.Load(Path.Combine(
+                root,
+                "StaminaManager",
+                "Views",
+                "OverviewPage.xaml"))
+            .Descendants()
+            .Single(element =>
+                element.Name.LocalName == "InfoBar"
+                && AttributeValue(element, "Name") == "RecoveryInfoBar");
+
+        Assert.AreEqual(
+            "OverviewRecoveryInfoBar",
+            AttributeValue(infoBar, "AutomationProperties.AutomationId"));
+        Assert.AreEqual(
+            "Polite",
+            AttributeValue(infoBar, "AutomationProperties.LiveSetting"));
+        Assert.AreEqual("True", AttributeValue(infoBar, "IsClosable"));
+        Assert.IsFalse(string.IsNullOrWhiteSpace(
+            AttributeValue(infoBar, "Closed")));
+
+        HashSet<string> localizedNames = LoadLocalizedAutomationNames(
+            Path.Combine(root, "StaminaManager"));
+        Assert.Contains("OverviewRecoveryInfoBar", localizedNames);
+    }
+
+    [TestMethod]
+    public void OverviewItems_AllowsSequentialTabNavigationWithinCards()
+    {
+        string root = FindRepositoryRoot();
+        XElement itemsRepeater = XDocument.Load(Path.Combine(
+                root,
+                "StaminaManager",
+                "Views",
+                "OverviewPage.xaml"))
+            .Descendants()
+            .Single(element =>
+                element.Name.LocalName == "ItemsRepeater"
+                && AttributeValue(element, "Name") == "OverviewItems");
+
+        Assert.AreEqual(
+            "Local",
+            AttributeValue(itemsRepeater, "TabFocusNavigation"),
+            "ゲームカードと追加カードを視覚順にTab移動できる必要があります。");
+    }
+
     private static string? AttributeValue(
         XElement element,
         string localName) => element.Attributes()

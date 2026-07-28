@@ -28,6 +28,12 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(HasError))]
     public partial string? ErrorMessage { get; private set; }
 
+    [ObservableProperty]
+    public partial bool IsRecoveryInfoBarOpen { get; private set; }
+
+    [ObservableProperty]
+    public partial string RecoveryMessage { get; private set; } = string.Empty;
+
     public OverviewViewModel(
         GameManager gameManager,
         IClock clock,
@@ -105,6 +111,33 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
             () => ErrorMessage =
                 "通知の対象ゲームは削除されているため表示できません。",
             cancellationToken);
+
+    public Task ShowStartupRecoveryAsync(
+        StartupRecoveryStatus status,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(status);
+        return _uiDispatcher.InvokeAsync(
+            () =>
+            {
+                if (status.Kind != StartupRecoveryKind.Promoted)
+                {
+                    RecoveryMessage = string.Empty;
+                    IsRecoveryInfoBarOpen = false;
+                    return;
+                }
+
+                RecoveryMessage = status.IsDiagnosticPreserved
+                    ? "前回正常データで回復しました。破損元は診断用に保全しました。"
+                        + "内容を確認した後、バックアップを書き出してください。"
+                    : "前回正常データで回復し、通常保存へ戻しました。"
+                        + "内容を確認した後、バックアップを書き出してください。";
+                IsRecoveryInfoBarOpen = true;
+            },
+            cancellationToken);
+    }
+
+    public void CloseRecoveryInfoBar() => IsRecoveryInfoBarOpen = false;
 
     public Task ClearErrorAsync(
         CancellationToken cancellationToken = default) =>

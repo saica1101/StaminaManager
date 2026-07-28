@@ -160,6 +160,38 @@ public sealed class SettingsViewModelTests
     }
 
     [TestMethod]
+    [DataRow(BackdropFallbackReason.HighContrast, "コントラスト テーマ")]
+    [DataRow(BackdropFallbackReason.TransparencyDisabled, "透明効果")]
+    [DataRow(BackdropFallbackReason.RemoteSession, "リモート接続を終了")]
+    [DataRow(BackdropFallbackReason.Unsupported, "別の背景")]
+    [DataRow(BackdropFallbackReason.ApplyFailed, "再試行")]
+    public async Task SetBackdropAsync_Fallback理由別の次アクションを案内して保存設定を維持する(
+        BackdropFallbackReason reason,
+        string expectedAction)
+    {
+        Context context = await Context.CreateAsync();
+        context.BackdropService.NextResult = new BackdropResult(
+            BackdropKind.Acrylic,
+            BackdropKind.Solid,
+            reason,
+            "選択した背景を適用できませんでした。");
+        SettingsViewModel viewModel = context.CreateViewModel();
+
+        bool applied = await viewModel.SetBackdropAsync(
+            BackdropKind.Acrylic,
+            CancellationToken.None);
+
+        Assert.IsFalse(applied);
+        StringAssert.Contains(viewModel.InfoBarMessage, expectedAction);
+        Assert.AreEqual(
+            BackdropKind.Mica,
+            context.Manager.CurrentData.Settings.Backdrop);
+        Assert.AreEqual(BackdropKind.Mica, viewModel.SelectedBackdrop);
+        Assert.AreEqual(BackdropKind.Solid, viewModel.ActualBackdrop);
+        Assert.AreEqual(0, context.Store.SaveCount);
+    }
+
+    [TestMethod]
     public async Task SetBackdropAsync_SaveFailureRollsBackAppliedBackdrop()
     {
         Context context = await Context.CreateAsync();

@@ -19,6 +19,10 @@ public sealed partial class OverviewPage : Page
 
     public void ShowStartupError() => StartupErrorInfoBar.IsOpen = true;
 
+    private void RecoveryInfoBar_Closed(
+        InfoBar sender,
+        InfoBarClosedEventArgs args) => ViewModel.CloseRecoveryInfoBar();
+
     public async Task<bool> FocusGameAsync(Guid gameId)
     {
         if (!IsLoaded)

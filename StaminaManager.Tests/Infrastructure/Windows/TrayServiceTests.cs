@@ -6,6 +6,28 @@ namespace StaminaManager.Tests.Infrastructure.Windows;
 public sealed class TrayServiceTests
 {
     [TestMethod]
+    public void CreateDefinitions_動的項目へ実値のAutomation情報を定義する()
+    {
+        IReadOnlyList<TrayMenuItemDefinition> definitions =
+            TrayMenuItemFactory.CreateDefinitions(
+                (_, fallback) => fallback);
+
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                new TrayMenuItemDefinition(
+                    "開く",
+                    "TrayOpenMenuItem",
+                    "Stamina Managerを開く"),
+                new TrayMenuItemDefinition(
+                    "終了",
+                    "TrayExitMenuItem",
+                    "Stamina Managerを終了する"),
+            },
+            definitions.ToArray());
+    }
+
+    [TestMethod]
     public void Initialize_一度だけtrayを作成して操作を転送する()
     {
         FakeTrayPlatformAdapter adapter = new();

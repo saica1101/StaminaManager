@@ -93,6 +93,17 @@
             Margin="0,16,0,0"
             Spacing="{StaticResource Spacing8}">
             <InfoBar
+                x:Name="RecoveryInfoBar"
+                x:Uid="OverviewRecoveryInfoBar"
+                AutomationProperties.AutomationId="OverviewRecoveryInfoBar"
+                AutomationProperties.HelpText="{x:Bind ViewModel.RecoveryMessage, Mode=OneWay}"
+                AutomationProperties.LiveSetting="Polite"
+                Closed="RecoveryInfoBar_Closed"
+                IsClosable="True"
+                IsOpen="{x:Bind ViewModel.IsRecoveryInfoBarOpen, Mode=OneWay}"
+                Message="{x:Bind ViewModel.RecoveryMessage, Mode=OneWay}"
+                Severity="Warning" />
+            <InfoBar
                 x:Name="StartupErrorInfoBar"
                 x:Uid="OverviewStartupErrorInfoBar"
                 AutomationProperties.AutomationId="OverviewStartupErrorInfoBar"

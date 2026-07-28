@@ -343,8 +343,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             {
                 SelectedBackdrop = previousBackdrop;
                 ShowMessage(
-                    result.ErrorMessage
-                    ?? "選択した背景を使用できないため、単色背景を使用します。",
+                    GetBackdropFallbackMessage(result),
                     InfoBarSeverity.Warning,
                     "背景を単色表示へ切り替えました");
                 return false;
@@ -799,8 +798,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (backdropResult is { IsRequestedBackdropApplied: false })
         {
             ShowMessage(
-                backdropResult.ErrorMessage
-                ?? "保存済みの背景を使用できないため、単色背景を使用します。",
+                GetBackdropFallbackMessage(backdropResult),
                 InfoBarSeverity.Warning,
                 "背景を単色表示へ切り替えました");
             return;
@@ -1040,13 +1038,40 @@ public sealed partial class SettingsViewModel : ObservableObject
                 "ユーザーがWindowsのスタートアップ設定で無効にしています。"
                 + "Windowsの設定から有効にしてください。",
             StartupFailureReason.DisabledByPolicy =>
-                "組織のポリシーによりWindowsログイン時起動を有効にできません。",
+                "組織のポリシーによりWindowsログイン時起動を有効にできません。"
+                + "必要な場合は組織の管理者へ確認してください。",
             StartupFailureReason.EnabledByPolicy =>
-                "組織のポリシーによりWindowsログイン時起動を無効にできません。",
+                "組織のポリシーによりWindowsログイン時起動を無効にできません。"
+                + "必要な場合は組織の管理者へ確認してください。",
             _ => "Windowsログイン時起動を変更できませんでした。"
                 + "時間をおいて再試行してください。",
         };
         ShowMessage(message, InfoBarSeverity.Warning);
+    }
+
+    private static string GetBackdropFallbackMessage(
+        BackdropResult result)
+    {
+        string detail = result.ErrorMessage
+            ?? "選択した背景を使用できないため、単色背景を使用します。";
+        string nextAction = result.FallbackReason switch
+        {
+            BackdropFallbackReason.HighContrast =>
+                "Windowsのコントラスト テーマ設定を確認するか、"
+                + "単色表示を続けてください。",
+            BackdropFallbackReason.TransparencyDisabled =>
+                "Windowsの透明効果設定を確認するか、"
+                + "単色表示を続けてください。",
+            BackdropFallbackReason.RemoteSession =>
+                "リモート接続を終了後に再確認するか、"
+                + "単色表示を続けてください。",
+            BackdropFallbackReason.Unsupported =>
+                "単色表示を続けるか、別の背景を選択してください。",
+            BackdropFallbackReason.ApplyFailed =>
+                "単色表示を続けるか、別の背景を選択して再試行してください。",
+            _ => "単色表示を続けるか、別の背景を選択してください。",
+        };
+        return detail + " " + nextAction;
     }
 
     private static bool IsPersistenceFailure(Exception exception) =>

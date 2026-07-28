@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.Windows.ApplicationModel.Resources;
 using StaminaManager.Core.Abstractions;
 using System.Diagnostics;
@@ -169,17 +170,14 @@ internal sealed class WinUiExTrayPlatformAdapter : ITrayPlatformAdapter
     {
         bool shouldExit = false;
         MenuFlyout flyout = new();
-        MenuFlyoutItem openItem = new()
-        {
-            Text = GetResourceText("TrayOpenText", "開く"),
-        };
-        openItem.Click += (_, _) =>
-            OpenRequested?.Invoke(this, EventArgs.Empty);
-        MenuFlyoutItem exitItem = new()
-        {
-            Text = GetResourceText("TrayExitText", "終了"),
-        };
-        exitItem.Click += (_, _) => shouldExit = true;
+        IReadOnlyList<TrayMenuItemDefinition> definitions =
+            TrayMenuItemFactory.CreateDefinitions(GetResourceText);
+        MenuFlyoutItem openItem = TrayMenuItemFactory.Create(
+            definitions[0],
+            () => OpenRequested?.Invoke(this, EventArgs.Empty));
+        MenuFlyoutItem exitItem = TrayMenuItemFactory.Create(
+            definitions[1],
+            () => shouldExit = true);
         flyout.Closed += (_, _) =>
         {
             if (shouldExit)
@@ -211,5 +209,45 @@ internal sealed class WinUiExTrayPlatformAdapter : ITrayPlatformAdapter
                 + exception.GetType().Name);
             return fallback;
         }
+    }
+}
+
+internal sealed record TrayMenuItemDefinition(
+    string Text,
+    string AutomationId,
+    string AutomationName);
+
+internal static class TrayMenuItemFactory
+{
+    internal static IReadOnlyList<TrayMenuItemDefinition> CreateDefinitions(
+        Func<string, string, string> resolveText)
+    {
+        ArgumentNullException.ThrowIfNull(resolveText);
+        return
+        [
+            new TrayMenuItemDefinition(
+                resolveText("TrayOpenText", "開く"),
+                "TrayOpenMenuItem",
+                "Stamina Managerを開く"),
+            new TrayMenuItemDefinition(
+                resolveText("TrayExitText", "終了"),
+                "TrayExitMenuItem",
+                "Stamina Managerを終了する"),
+        ];
+    }
+
+    internal static MenuFlyoutItem Create(
+        TrayMenuItemDefinition definition,
+        Action execute)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        ArgumentNullException.ThrowIfNull(execute);
+        MenuFlyoutItem item = new() { Text = definition.Text };
+        AutomationProperties.SetAutomationId(
+            item,
+            definition.AutomationId);
+        AutomationProperties.SetName(item, definition.AutomationName);
+        item.Click += (_, _) => execute();
+        return item;
     }
 }

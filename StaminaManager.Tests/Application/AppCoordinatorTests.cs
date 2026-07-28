@@ -2,6 +2,7 @@ using StaminaManager.Application;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
 using StaminaManager.Core.Persistence;
+using StaminaManager.Core.Validation;
 using StaminaManager.Tests.TestDoubles;
 using StaminaManager.ViewModels;
 using System.Collections.Immutable;
@@ -19,6 +20,119 @@ public sealed class AppCoordinatorTests
         0,
         0,
         TimeSpan.Zero);
+
+    [TestMethod]
+    public async Task InitializeForLaunchAsync_Recoveryを恒久昇格して案内後も保存できる()
+    {
+        DataEnvelope recovered = CreateEnvelope("Recovered");
+        CoordinatorDataStore store = new(new DataLoadResult(
+            DataLoadStatus.Recovery,
+            recovered,
+            "private-primary-path",
+            "private-recovery-path"))
+        {
+            PromotionResult = new RecoveryPromotionResult(
+                recovered,
+                "private-primary-path",
+                "private-recovery-path",
+                "private-diagnostic-path"),
+        };
+        GameManager manager = CreateManager(store);
+        RecordingUiDispatcher dispatcher = new();
+        AppCoordinator coordinator = new(store, manager, dispatcher);
+        OverviewViewModel overview = new(manager, new FakeClock(NowUtc), dispatcher);
+
+        await global::StaminaManager.App.InitializeForLaunchAsync(
+            coordinator,
+            overview,
+            CancellationToken.None);
+
+        Assert.AreEqual(1, store.PromoteCount);
+        Assert.IsTrue(coordinator.IsInitialized);
+        Assert.AreEqual(
+            StartupRecoveryKind.Promoted,
+            coordinator.StartupRecovery.Kind);
+        Assert.IsTrue(coordinator.StartupRecovery.IsDiagnosticPreserved);
+        Assert.IsTrue(overview.IsRecoveryInfoBarOpen);
+        StringAssert.Contains(overview.RecoveryMessage, "前回正常データ");
+        StringAssert.Contains(overview.RecoveryMessage, "破損元");
+        StringAssert.Contains(overview.RecoveryMessage, "バックアップ");
+        Assert.IsFalse(overview.RecoveryMessage.Contains(
+            "private-",
+            StringComparison.Ordinal));
+
+        int saveCountBeforeAdd = store.SaveCount;
+        await manager.AddAsync(
+            new GameDraft("After recovery", 1, 100, 5, null),
+            CancellationToken.None);
+        Assert.AreEqual(saveCountBeforeAdd + 1, store.SaveCount);
+    }
+
+    [TestMethod]
+    public async Task InitializeForLaunchAsync_Recovery昇格失敗は起動失敗として伝播する()
+    {
+        CoordinatorDataStore store = new(new DataLoadResult(
+            DataLoadStatus.Recovery,
+            CreateEnvelope("Recovered"),
+            "primary",
+            "recovery"))
+        {
+            PromotionException = new IOException("private path detail"),
+        };
+        GameManager manager = CreateManager(store);
+        RecordingUiDispatcher dispatcher = new();
+        AppCoordinator coordinator = new(store, manager, dispatcher);
+        OverviewViewModel overview = new(manager, new FakeClock(NowUtc), dispatcher);
+
+        await Assert.ThrowsExactlyAsync<IOException>(
+            () => global::StaminaManager.App.InitializeForLaunchAsync(
+                coordinator,
+                overview,
+                CancellationToken.None));
+
+        Assert.IsFalse(coordinator.IsInitialized);
+        Assert.IsTrue(overview.IsLoading);
+        Assert.IsFalse(overview.IsRecoveryInfoBarOpen);
+    }
+
+    [TestMethod]
+    public async Task InitializeAsync_Recovery昇格失敗後の再試行でも恒久昇格する()
+    {
+        DataEnvelope recovered = CreateEnvelope("Recovered");
+        CoordinatorDataStore store = new(new DataLoadResult(
+            DataLoadStatus.Recovery,
+            recovered,
+            "primary",
+            "recovery"))
+        {
+            PromotionResult = new RecoveryPromotionResult(
+                recovered,
+                "primary",
+                "recovery",
+                "diagnostic"),
+            PromotionException = new IOException("temporary failure"),
+        };
+        GameManager manager = CreateManager(store);
+        AppCoordinator coordinator = new(
+            store,
+            manager,
+            new RecordingUiDispatcher());
+
+        await Assert.ThrowsExactlyAsync<IOException>(
+            () => coordinator.InitializeAsync(CancellationToken.None));
+
+        store.PromotionException = null;
+        DataLoadResult result = await coordinator.InitializeAsync(
+            CancellationToken.None);
+
+        Assert.AreEqual(2, store.PromoteCount);
+        Assert.AreEqual(DataLoadStatus.Recovery, result.Status);
+        Assert.AreEqual(DataLoadStatus.Primary, coordinator.LastLoadResult?.Status);
+        Assert.AreEqual(
+            StartupRecoveryKind.Promoted,
+            coordinator.StartupRecovery.Kind);
+        Assert.IsTrue(coordinator.IsInitialized);
+    }
 
     [TestMethod]
     public async Task InitializeAsync_SetsInitializedOnlyAfterReconciliation()
@@ -463,6 +577,8 @@ public sealed class AppCoordinatorTests
 
         public RecoveryPromotionResult? PromotionResult { get; init; }
 
+        public Exception? PromotionException { get; set; }
+
         public int PromoteCount { get; private set; }
 
         public int LoadCount { get; private set; }
@@ -502,6 +618,12 @@ public sealed class AppCoordinatorTests
             CancellationToken cancellationToken)
         {
             PromoteCount++;
+            if (PromotionException is not null)
+            {
+                return Task.FromException<RecoveryPromotionResult>(
+                    PromotionException);
+            }
+
             return Task.FromResult(
                 PromotionResult ?? throw new NotSupportedException());
         }

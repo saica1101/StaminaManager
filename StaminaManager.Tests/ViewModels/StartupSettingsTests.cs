@@ -53,6 +53,27 @@ public sealed class StartupSettingsTests
         Assert.IsFalse(viewModel.IsStartupEnabled);
         Assert.AreEqual(0, context.Store.SaveCount);
         StringAssert.Contains(viewModel.InfoBarMessage, "ポリシー");
+        StringAssert.Contains(viewModel.InfoBarMessage, "管理者");
+    }
+
+    [TestMethod]
+    public async Task SetStartupEnabledAsync_強制有効ポリシー拒否は管理者確認を案内する()
+    {
+        Context context = await Context.CreateAsync();
+        context.StartupService.Results.Enqueue(new StartupChangeResult(
+            new StartupStatus(StartupState.EnabledByPolicy),
+            IsApplied: false,
+            StartupFailureReason.EnabledByPolicy));
+        SettingsViewModel viewModel = context.CreateViewModel();
+
+        bool changed = await viewModel.SetStartupEnabledAsync(
+            isEnabled: false,
+            CancellationToken.None);
+
+        Assert.IsFalse(changed);
+        Assert.IsTrue(viewModel.IsStartupEnabled);
+        Assert.AreEqual(0, context.Store.SaveCount);
+        StringAssert.Contains(viewModel.InfoBarMessage, "管理者");
     }
 
     [TestMethod]

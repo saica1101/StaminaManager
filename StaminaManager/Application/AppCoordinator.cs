@@ -16,6 +16,21 @@ public sealed record AppNavigationRequest(
     AppDisplayMode DisplayMode,
     Guid? GameId);
 
+public enum StartupRecoveryKind
+{
+    None,
+    Promoted,
+}
+
+public sealed record StartupRecoveryStatus(
+    StartupRecoveryKind Kind,
+    bool IsDiagnosticPreserved)
+{
+    public static StartupRecoveryStatus None { get; } = new(
+        StartupRecoveryKind.None,
+        IsDiagnosticPreserved: false);
+}
+
 public sealed class AppCoordinator
 {
     private readonly ILocalDataStore _dataStore;
@@ -133,6 +148,9 @@ public sealed class AppCoordinator
 
     public DataLoadResult? LastLoadResult { get; private set; }
 
+    public StartupRecoveryStatus StartupRecovery { get; private set; } =
+        StartupRecoveryStatus.None;
+
     public ThemeResult? LastThemeResult { get; private set; }
 
     public BackdropResult? LastBackdropResult { get; private set; }
@@ -197,6 +215,22 @@ public sealed class AppCoordinator
             {
                 result = LastLoadResult ?? throw new InvalidOperationException(
                     "初期化状態を復元できません。");
+            }
+
+            if (result.Status == DataLoadStatus.Recovery)
+            {
+                RecoveryPromotionResult promotion =
+                    await _gameManager.PromoteRecoveryAsync(
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                StartupRecovery = new StartupRecoveryStatus(
+                    StartupRecoveryKind.Promoted,
+                    promotion.DiagnosticBackupPath is not null);
+                LastLoadResult = new DataLoadResult(
+                    DataLoadStatus.Primary,
+                    promotion.Envelope,
+                    promotion.PrimaryPath,
+                    promotion.RecoveryPath);
             }
 
             BackupRestoreResult? resumedRestore = null;
