@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="1024"
+  height="1024"
+  viewBox="0 0 1024 1024"
+  role="img"
+  aria-labelledby="title description">
+  <title id="title">Stamina Manager app icon</title>
+  <desc id="description">
+    A Fluent instrument cluster with one stamina arc and one center tick.
+  </desc>
+  <rect
+    id="plate"
+    x="64"
+    y="64"
+    width="896"
+    height="896"
+    rx="208"
+    fill="#0B1F33" />
+  <path
+    id="stamina-arc"
+    d="M 251 731 A 340 340 0 1 1 773 731"
+    fill="none"
+    stroke="#58B5F5"
+    stroke-width="112"
+    stroke-linecap="round" />
+  <path
+    id="center-tick"
+    d="M 512 584 L 512 356"
+    fill="none"
+    stroke="#FFFFFF"
+    stroke-width="96"
+    stroke-linecap="round" />
+</svg>

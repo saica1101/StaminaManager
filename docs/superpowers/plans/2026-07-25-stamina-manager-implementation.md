@@ -836,15 +836,15 @@ git commit -m "test: 主要画面のUI自動試験を追加"
 - Runtime only: `artifacts/*.msixupload`
 - Runtime only: `artifacts/wack-report.xml`
 
-- [ ] **Step 1: オリジナルのアプリアイコンとStore画像を作る**
+- [x] **Step 1: オリジナルのアプリアイコンとStore画像を作る**
 
 Use the Instrument Cluster motif: one circular stamina arc, one clear center tick, Windows accent plus semantic red/orange/green only where legible. Generate all manifest-required scales; inspect light/dark taskbar and Store tile previews. Do not use game publisher marks.
 
-- [ ] **Step 2: manifestをx64 Store方針へ固定する**
+- [x] **Step 2: manifestをx64 Store方針へ固定する**
 
 Keep a development identity locally. Remove x86/ARM64 build targets from solution/publish configuration without deleting generated profiles until the user confirms removal. Set display name, Japanese description, logos, app notifications, StartupTask, and no network capability.
 
-- [ ] **Step 3: Release unit/UI testsを再実行する**
+- [x] **Step 3: Release unit/UI testsを再実行する**
 
 ```powershell
 dotnet test StaminaManager.Tests/StaminaManager.Tests.csproj -c Release -p:Platform=x64
