@@ -142,7 +142,8 @@
                             AutomationProperties.Name="ゲームを追加"
                             Command="{x:Bind ViewModel.AddGameCommand, Mode=OneWay}"
                             Content="ゲームを追加"
-                            Style="{StaticResource AccentButtonStyle}" />
+                            Style="{StaticResource AccentButtonStyle}"
+                            HorizontalAlignment="Center" />
                     </StackPanel>
                 </Border>
             </Grid>

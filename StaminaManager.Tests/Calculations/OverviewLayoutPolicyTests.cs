@@ -6,10 +6,10 @@ namespace StaminaManager.Tests.Calculations;
 public sealed class OverviewLayoutPolicyTests
 {
     [TestMethod]
-    [DataRow(840d, 3)]
-    [DataRow(839d, 2)]
-    [DataRow(560d, 2)]
-    [DataRow(559d, 1)]
+    [DataRow(720d, 3)]
+    [DataRow(719d, 2)]
+    [DataRow(412d, 2)]
+    [DataRow(411d, 1)]
     [DataRow(0d, 1)]
     public void GetColumns_UsesSpecifiedBreakpoints(
         double width,

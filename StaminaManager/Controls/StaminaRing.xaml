@@ -14,8 +14,8 @@
     <Grid
         x:Name="RingRoot"
         AutomationProperties.AccessibilityView="Content">
-        <Ellipse
-            Margin="4"
+        <Path
+            x:Name="TrackPath"
             IsHitTestVisible="False"
             Stroke="{ThemeResource NeutralTrackBrush}"
             StrokeThickness="8" />

@@ -127,18 +127,33 @@ public sealed partial class StaminaRing : UserControl
         UpdateAutomationName();
         double diameter = Math.Min(ActualWidth, ActualHeight);
         double radius = (diameter - StrokeThickness) / 2d;
-        double sweepDegrees = StaminaRingMath.GetSweepDegrees(Ratio);
-        if (radius <= 0d || sweepDegrees <= 0d)
+        // double sweepDegrees = StaminaRingMath.GetSweepDegrees(Ratio);
+        if (radius <= 0d) // if (radius <= 0d || sweepDegrees <= 0d)
         {
+            TrackPath.Data = null;
             ProgressPath.Data = null;
             return;
         }
 
         double centerX = ActualWidth / 2d;
         double centerY = ActualHeight / 2d;
-        double endRadians = (StartDegrees + sweepDegrees)
-            * Math.PI
-            / 180d;
+
+        // トラック(背景の円)をProgressPathと全く同じ中心・半径で描画
+        TrackPath.Data = new EllipseGeometry
+        {
+            Center = new Point(centerX, centerY),
+            RadiusX = radius,
+            RadiusY = radius,
+        };
+
+        double sweepDegrees = StaminaRingMath.GetSweepDegrees(Ratio);
+        if (sweepDegrees <= 0d)
+        {
+            ProgressPath.Data = null;
+            return;
+        }
+
+        double endRadians = (StartDegrees + sweepDegrees) * Math.PI / 180d;
         Point startPoint = new(centerX, centerY - radius);
         Point endPoint = new(
             centerX + radius * Math.Cos(endRadians),

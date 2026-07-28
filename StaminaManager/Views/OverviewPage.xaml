@@ -145,18 +145,19 @@
                 AutomationProperties.AutomationId="OverviewItems"
                 ItemTemplate="{StaticResource OverviewItemTemplateSelector}"
                 ItemsSource="{x:Bind ViewModel.OverviewItems, Mode=OneWay}"
-                SizeChanged="OverviewItems_SizeChanged">
+                SizeChanged="OverviewItems_SizeChanged"
+                TabFocusNavigation="Local">
                 <ItemsRepeater.Layout>
                     <UniformGridLayout
                         x:Name="OverviewUniformGridLayout"
                         ItemsJustification="Start"
-                        ItemsStretch="Fill"
+                        ItemsStretch="None"
                         MaximumRowsOrColumns="3"
                         MinColumnSpacing="12"
-                        MinItemHeight="292"
+                        MinItemHeight="160"
                         MinItemWidth="272"
                         MinRowSpacing="12"
-                        Orientation="Vertical" />
+                        Orientation="Horizontal" />
                 </ItemsRepeater.Layout>
             </ItemsRepeater>
         </ScrollViewer>

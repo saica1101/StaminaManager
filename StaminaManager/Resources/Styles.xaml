@@ -58,7 +58,7 @@
         x:Key="AppGameCardButtonStyle"
         BasedOn="{StaticResource DefaultButtonStyle}"
         TargetType="Button">
-        <Setter Property="MinHeight" Value="292" />
+        <Setter Property="MinHeight" Value="160" />
         <Setter Property="Padding" Value="16" />
         <Setter Property="HorizontalAlignment" Value="Stretch" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
@@ -73,7 +73,7 @@
         x:Key="AppAddGameCardButtonStyle"
         BasedOn="{StaticResource DefaultButtonStyle}"
         TargetType="Button">
-        <Setter Property="MinHeight" Value="292" />
+        <Setter Property="MinHeight" Value="160" />
         <Setter Property="Padding" Value="16" />
         <Setter Property="HorizontalAlignment" Value="Stretch" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />

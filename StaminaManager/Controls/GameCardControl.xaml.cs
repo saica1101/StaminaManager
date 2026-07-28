@@ -15,6 +15,14 @@ public sealed partial class GameCardControl : UserControl, INotifyPropertyChange
 {
     private const string DataDirectoryName = "Data";
     private const string AssetsDirectoryName = "Assets";
+    private const double NarrowCardPadding = 12d;
+    private const double RegularCardPadding = 16d;
+    private const double NarrowColumnSpacing = 8d;
+    private const double RegularColumnSpacing = 12d;
+    private const double NarrowRingSize = 80d;
+    private const double RegularRingSize = 112d;
+    private const double NarrowRowSpacing = 2d;
+    private const double RegularRowSpacing = 4d;
     private readonly ResourceLoader _resources = new();
     private Brush? _statusBrush;
     private string? _imageAssetId;
@@ -123,6 +131,30 @@ public sealed partial class GameCardControl : UserControl, INotifyPropertyChange
 
     internal bool FocusCard() => CardButton.Focus(
         FocusState.Programmatic);
+
+    private void GameCardControl_SizeChanged(
+        object sender,
+        SizeChangedEventArgs args)
+    {
+        bool isNarrow = GameCardLayoutPolicy.ShouldUseNarrowLayout(
+            args.NewSize.Width);
+        CardButton.Padding = new Thickness(
+            isNarrow ? NarrowCardPadding : RegularCardPadding);
+        CardContentGrid.ColumnSpacing = isNarrow
+            ? NarrowColumnSpacing
+            : RegularColumnSpacing;
+        StaminaRingControl.Width = isNarrow
+            ? NarrowRingSize
+            : RegularRingSize;
+        StaminaRingControl.Height = StaminaRingControl.Width;
+        DetailsGrid.RowSpacing = isNarrow
+            ? NarrowRowSpacing
+            : RegularRowSpacing;
+        Grid.SetColumnSpan(StatusPanel, isNarrow ? 2 : 1);
+        Grid.SetRow(RemainingTextBlock, isNarrow ? 2 : 1);
+        Grid.SetColumn(RemainingTextBlock, isNarrow ? 0 : 1);
+        Grid.SetColumnSpan(RemainingTextBlock, isNarrow ? 2 : 1);
+    }
 
     private GameCardViewModel? CurrentViewModel =>
         GetValue(ViewModelProperty) as GameCardViewModel;
