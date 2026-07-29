@@ -1,4 +1,3 @@
-using StaminaManager.Core.Models;
 using StaminaManager.Core.Persistence;
 using StaminaManager.Core.Validation;
 using StaminaManager.Infrastructure.Persistence;
@@ -80,15 +79,12 @@ internal static class BackupArchiveValidator
         }
     }
 
-    public static DataEnvelope DeserializeData(byte[] bytes)
+    public static DecodedDataEnvelope DeserializeData(byte[] bytes)
     {
         try
         {
-            return JsonSerializer.Deserialize(
-                bytes,
-                JsonSerializationContext.Configured.DataEnvelope)
-                ?? throw new InvalidDataException(
-                    "The data JSON is empty.");
+            using JsonDocument document = JsonDocument.Parse(bytes);
+            return DataEnvelopeCodec.Deserialize(document.RootElement);
         }
         catch (JsonException exception)
         {
@@ -101,8 +97,8 @@ internal static class BackupArchiveValidator
     public static void ValidateManifest(BackupManifest manifest)
     {
         if (manifest.SchemaVersion != BackupManifest.CurrentSchemaVersion
-            || manifest.DataSchemaVersion
-                != DataEnvelope.CurrentSchemaVersion
+            || manifest.DataSchemaVersion is not 1
+                and not DataEnvelope.CurrentSchemaVersion
             || !string.Equals(
                 manifest.DataFile,
                 "data.json",
@@ -132,61 +128,7 @@ internal static class BackupArchiveValidator
     }
 
     public static void ValidateData(DataEnvelope data)
-    {
-        if (data.SchemaVersion != DataEnvelope.CurrentSchemaVersion
-            || data.Games.IsDefault
-            || data.Games.Length > GameEntryValidator.MaxGameCount
-            || data.Settings is null
-            || !Enum.IsDefined(data.Settings.Theme)
-            || !Enum.IsDefined(data.Settings.Backdrop)
-            || !Enum.IsDefined(data.Settings.CloseBehavior)
-            || !Enum.IsDefined(data.Settings.LastDisplayMode)
-            || data.Settings.NotificationLeadMinutes
-                is < AppSettings.MinNotificationLeadMinutes
-                    or > AppSettings.MaxNotificationLeadMinutes)
-        {
-            throw new InvalidDataException("The backup data is invalid.");
-        }
-
-        HashSet<Guid> gameIds = [];
-        HashSet<int> sortOrders = [];
-        foreach (GameEntry? game in data.Games)
-        {
-            if (game is null
-                || game.Id == Guid.Empty
-                || !gameIds.Add(game.Id)
-                || game.SortOrder < 0
-                || game.SortOrder >= data.Games.Length
-                || !sortOrders.Add(game.SortOrder)
-                || game.ImageAssetId is not null
-                    && !IsCanonicalAssetId(game.ImageAssetId))
-            {
-                throw new InvalidDataException("A game entry is invalid.");
-            }
-
-            ValidationResult validation = GameEntryValidator.Validate(
-                new GameDraft(
-                    game.Name,
-                    game.BaseStamina,
-                    game.MaxStamina,
-                    game.RecoveryMinutes,
-                    game.ImageAssetId,
-                    RecoverySeconds: 0,
-                    IsNotificationEnabled: true),
-                game.RecordedAtUtc.ToUniversalTime());
-            if (!validation.IsValid)
-            {
-                throw new InvalidDataException("A game entry is invalid.");
-            }
-        }
-
-        if (data.Settings.SelectedCompactGameId is Guid selected
-            && !gameIds.Contains(selected))
-        {
-            throw new InvalidDataException(
-                "The selected game does not exist.");
-        }
-    }
+        => _ = DataEnvelopeCodec.NormalizeAndValidate(data);
 
     public static async Task ValidateImageFileAsync(
         string filePath,

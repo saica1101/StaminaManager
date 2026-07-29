@@ -63,6 +63,102 @@ public sealed class LocalDataStoreTests
     }
 
     [TestMethod]
+    public async Task LoadAsync_Schema1をSchema2へ正規化する()
+    {
+        Directory.CreateDirectory(_rootPath);
+        await File.WriteAllTextAsync(PrimaryPath, LegacySchema1Json);
+
+        DataLoadResult result = await _store.LoadAsync(
+            CancellationToken.None);
+
+        Assert.AreEqual(DataLoadStatus.Primary, result.Status);
+        Assert.IsNotNull(result.Envelope);
+        Assert.AreEqual(2, result.Envelope.SchemaVersion);
+        Assert.HasCount(1, result.Envelope.Games);
+        Assert.AreEqual(0, result.Envelope.Games[0].RecoverySeconds);
+        Assert.IsTrue(result.Envelope.Games[0].IsNotificationEnabled);
+    }
+
+    [TestMethod]
+    [DataRow("recoverySeconds")]
+    [DataRow("isNotificationEnabled")]
+    public async Task LoadAsync_Schema2の必須ゲーム項目欠落はCorruptを返す(
+        string propertyName)
+    {
+        Directory.CreateDirectory(_rootPath);
+        JsonObject root = JsonNode.Parse(Schema2Json)!.AsObject();
+        _ = root["games"]![0]!.AsObject().Remove(propertyName);
+        await File.WriteAllTextAsync(PrimaryPath, root.ToJsonString());
+
+        DataLoadResult result = await _store.LoadAsync(
+            CancellationToken.None);
+
+        Assert.AreEqual(DataLoadStatus.Corrupt, result.Status);
+        Assert.IsNull(result.Envelope);
+    }
+
+    [TestMethod]
+    public async Task LoadAsync_破損PrimaryとSchema1RecoveryからRecoveryを返す()
+    {
+        Directory.CreateDirectory(_rootPath);
+        await File.WriteAllTextAsync(PrimaryPath, "{broken");
+        await File.WriteAllTextAsync(RecoveryPath, LegacySchema1Json);
+
+        DataLoadResult result = await _store.LoadAsync(
+            CancellationToken.None);
+
+        Assert.AreEqual(DataLoadStatus.Recovery, result.Status);
+        Assert.IsNotNull(result.Envelope);
+        Assert.AreEqual(2, result.Envelope.SchemaVersion);
+        Assert.AreEqual(0, result.Envelope.Games[0].RecoverySeconds);
+        Assert.IsTrue(result.Envelope.Games[0].IsNotificationEnabled);
+    }
+
+    [TestMethod]
+    public async Task SaveAsync_存在しないSelectedCompactGameIdを拒否する()
+    {
+        DataEnvelope envelope =
+            SchemaMigrationFixtures.CreateSchema2WithUnknownSelectedGame();
+
+        await Assert.ThrowsExactlyAsync<InvalidDataException>(
+            () => _store.SaveAsync(envelope, CancellationToken.None));
+
+        Assert.IsFalse(File.Exists(PrimaryPath));
+    }
+
+    [TestMethod]
+    public async Task LoadAsync_Schema2の存在しないSelectedGameはCorruptを返す()
+    {
+        Directory.CreateDirectory(_rootPath);
+        await File.WriteAllTextAsync(
+            PrimaryPath,
+            SchemaMigrationFixtures
+                .CreateSchema2JsonWithUnknownSelectedGame());
+
+        DataLoadResult result = await _store.LoadAsync(
+            CancellationToken.None);
+
+        Assert.AreEqual(DataLoadStatus.Corrupt, result.Status);
+        Assert.IsNull(result.Envelope);
+    }
+
+    [TestMethod]
+    public async Task LoadAsync_Schema1移行後の存在しないSelectedGameはCorruptを返す()
+    {
+        Directory.CreateDirectory(_rootPath);
+        await File.WriteAllTextAsync(
+            PrimaryPath,
+            SchemaMigrationFixtures.WithUnknownSelectedGame(
+                LegacySchema1Json));
+
+        DataLoadResult result = await _store.LoadAsync(
+            CancellationToken.None);
+
+        Assert.AreEqual(DataLoadStatus.Corrupt, result.Status);
+        Assert.IsNull(result.Envelope);
+    }
+
+    [TestMethod]
     public async Task SaveAsync_WritesStableCamelCaseJsonWithStringEnumsAndUtc()
     {
         DataEnvelope envelope = CreateEnvelope(
@@ -75,7 +171,7 @@ public sealed class LocalDataStoreTests
         string json = await File.ReadAllTextAsync(PrimaryPath);
         using JsonDocument document = JsonDocument.Parse(json);
         JsonElement root = document.RootElement;
-        Assert.AreEqual(1, root.GetProperty("schemaVersion").GetInt32());
+        Assert.AreEqual(2, root.GetProperty("schemaVersion").GetInt32());
         Assert.AreEqual(
             "Offset game",
             root.GetProperty("games")[0].GetProperty("name").GetString());
@@ -210,11 +306,10 @@ public sealed class LocalDataStoreTests
         await _store.SaveAsync(
             CreateEnvelope("Unknown", AppTheme.Light),
             CancellationToken.None);
-        string currentJson = await File.ReadAllTextAsync(PrimaryPath);
-        byte[] unsupported = Encoding.UTF8.GetBytes(currentJson.Replace(
-            "\"schemaVersion\":1",
-            "\"schemaVersion\":99",
-            StringComparison.Ordinal));
+        JsonObject root = JsonNode.Parse(
+            await File.ReadAllTextAsync(PrimaryPath))!.AsObject();
+        root["schemaVersion"] = 99;
+        byte[] unsupported = Encoding.UTF8.GetBytes(root.ToJsonString());
         await File.WriteAllBytesAsync(PrimaryPath, unsupported);
 
         DataLoadResult result = await _store.LoadAsync(
@@ -529,6 +624,62 @@ public sealed class LocalDataStoreTests
         Path.Combine(_rootPath, "data.json.tmp");
 
     private const int FourMiB = 4 * 1024 * 1024;
+
+    private const string LegacySchema1Json =
+        """
+        {
+          "schemaVersion": 1,
+          "games": [{
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "Legacy",
+            "baseStamina": 10,
+            "maxStamina": 100,
+            "recoveryMinutes": 8,
+            "recordedAtUtc": "2026-07-29T00:00:00+00:00",
+            "imageAssetId": null,
+            "sortOrder": 0
+          }],
+          "settings": {
+            "theme": "Light",
+            "backdrop": "Mica",
+            "notificationsEnabled": true,
+            "notificationLeadMinutes": 15,
+            "closeBehavior": "MinimizeToTray",
+            "startupEnabled": false,
+            "lastDisplayMode": "Standard",
+            "selectedCompactGameId": null
+          }
+        }
+        """;
+
+    private const string Schema2Json =
+        """
+        {
+          "schemaVersion": 2,
+          "games": [{
+            "id": "22222222-2222-2222-2222-222222222222",
+            "name": "Current",
+            "baseStamina": 10,
+            "maxStamina": 100,
+            "recoveryMinutes": 8,
+            "recordedAtUtc": "2026-07-29T00:00:00+00:00",
+            "imageAssetId": null,
+            "sortOrder": 0,
+            "recoverySeconds": 30,
+            "isNotificationEnabled": false
+          }],
+          "settings": {
+            "theme": "Light",
+            "backdrop": "Mica",
+            "notificationsEnabled": true,
+            "notificationLeadMinutes": 15,
+            "closeBehavior": "MinimizeToTray",
+            "startupEnabled": false,
+            "lastDisplayMode": "Standard",
+            "selectedCompactGameId": null
+          }
+        }
+        """;
 
     private async Task<JsonObject> SaveAndReadJsonObjectAsync()
     {

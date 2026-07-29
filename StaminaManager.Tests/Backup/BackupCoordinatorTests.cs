@@ -8,6 +8,7 @@ using StaminaManager.Infrastructure.Persistence;
 using StaminaManager.Tests.TestDoubles;
 using System.Collections.Immutable;
 using System.IO.Compression;
+using System.Text.Json;
 
 namespace StaminaManager.Tests.Backup;
 
@@ -35,6 +36,17 @@ public sealed class BackupCoordinatorTests
             entry.FullName.Contains("notification-state", StringComparison.Ordinal)));
         Assert.IsFalse(archive.Entries.Any(entry =>
             Path.IsPathRooted(entry.FullName)));
+
+        using JsonDocument manifest = await ReadJsonAsync(
+            archive.GetEntry("manifest.json")!);
+        using JsonDocument data = await ReadJsonAsync(
+            archive.GetEntry("data.json")!);
+        Assert.AreEqual(
+            2,
+            manifest.RootElement.GetProperty("dataSchemaVersion").GetInt32());
+        Assert.AreEqual(
+            2,
+            data.RootElement.GetProperty("schemaVersion").GetInt32());
     }
 
     [TestMethod]
@@ -361,5 +373,12 @@ public sealed class BackupCoordinatorTests
         : IAppDataPathProvider
     {
         public string DataRootPath { get; } = dataRootPath;
+    }
+
+    private static async Task<JsonDocument> ReadJsonAsync(
+        ZipArchiveEntry entry)
+    {
+        await using Stream stream = entry.Open();
+        return await JsonDocument.ParseAsync(stream);
     }
 }

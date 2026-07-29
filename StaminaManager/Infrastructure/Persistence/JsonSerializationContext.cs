@@ -11,6 +11,7 @@ namespace StaminaManager.Infrastructure.Persistence;
     RespectRequiredConstructorParameters = true,
     WriteIndented = false)]
 [JsonSerializable(typeof(DataEnvelope))]
+[JsonSerializable(typeof(LegacyDataEnvelope))]
 internal sealed partial class JsonSerializationContext
     : JsonSerializerContext
 {

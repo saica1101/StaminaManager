@@ -108,6 +108,67 @@ public sealed class SafeZipReaderTests
     }
 
     [TestMethod]
+    [DataRow(1, 2)]
+    [DataRow(2, 1)]
+    public async Task ReadAsync_manifestと内部dataのSchema不一致を拒否する(
+        int manifestDataSchemaVersion,
+        int internalDataSchemaVersion)
+    {
+        string manifest = $$"""
+            {
+              "schemaVersion": 1,
+              "dataSchemaVersion": {{manifestDataSchemaVersion}},
+              "dataFile": "data.json",
+              "assets": []
+            }
+            """;
+        string data = internalDataSchemaVersion == 1
+            ? LegacySchema1Data
+            : ValidData;
+        await using MemoryStream archive = CreateArchive(
+            ("manifest.json", manifest),
+            ("data.json", data));
+
+        await Assert.ThrowsExactlyAsync<InvalidDataException>(
+            () => new SafeZipReader().ReadAsync(
+                archive,
+                CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task ReadAsync_Schema1BackupをSchema2へ正規化する()
+    {
+        await using MemoryStream archive = CreateArchive(
+            ("manifest.json", LegacySchema1Manifest),
+            ("data.json", LegacySchema1Data));
+
+        ValidatedBackup backup = await new SafeZipReader().ReadAsync(
+            archive,
+            CancellationToken.None);
+
+        Assert.AreEqual(2, backup.Data.SchemaVersion);
+        Assert.HasCount(1, backup.Data.Games);
+        Assert.AreEqual(0, backup.Data.Games[0].RecoverySeconds);
+        Assert.IsTrue(backup.Data.Games[0].IsNotificationEnabled);
+    }
+
+    [TestMethod]
+    public async Task ReadAsync_存在しないSelectedCompactGameIdを拒否する()
+    {
+        await using MemoryStream archive = CreateArchive(
+            ("manifest.json", ValidManifest),
+            (
+                "data.json",
+                SchemaMigrationFixtures
+                    .CreateSchema2JsonWithUnknownSelectedGame()));
+
+        await Assert.ThrowsExactlyAsync<InvalidDataException>(
+            () => new SafeZipReader().ReadAsync(
+                archive,
+                CancellationToken.None));
+    }
+
+    [TestMethod]
     public async Task ReadAsync_256MiBではなく256KiBを超えるmanifestを拒否する()
     {
         string manifest = new(' ', 256 * 1024 + 1);
@@ -314,7 +375,16 @@ public sealed class SafeZipReaderTests
 
     private static string CreateManifest(string assetId) =>
         $$"""
-        {"schemaVersion":1,"dataSchemaVersion":1,"dataFile":"data.json","assets":[{"assetId":"{{assetId}}","entryPath":"assets/{{assetId}}.png","mediaType":"image/png"}]}
+        {
+          "schemaVersion": 1,
+          "dataSchemaVersion": 2,
+          "dataFile": "data.json",
+          "assets": [{
+            "assetId": "{{assetId}}",
+            "entryPath": "assets/{{assetId}}.png",
+            "mediaType": "image/png"
+          }]
+        }
         """;
 
     private static async Task<MemoryStream> CreateImageArchiveAsync(
@@ -333,7 +403,7 @@ public sealed class SafeZipReaderTests
         string manifest = System.Text.Json.JsonSerializer.Serialize(new
         {
             schemaVersion = 1,
-            dataSchemaVersion = 1,
+            dataSchemaVersion = 2,
             dataFile = "data.json",
             assets = assetIds.Select(assetId => new
             {
@@ -383,7 +453,7 @@ public sealed class SafeZipReaderTests
         IReadOnlyList<string> assetIds) =>
         System.Text.Json.JsonSerializer.Serialize(new
         {
-            schemaVersion = 1,
+            schemaVersion = 2,
             games = assetIds.Select((assetId, index) => new
             {
                 id = Guid.NewGuid(),
@@ -467,7 +537,7 @@ public sealed class SafeZipReaderTests
             .ToArray();
         return System.Text.Json.JsonSerializer.Serialize(new
         {
-            schemaVersion = 1,
+            schemaVersion = 2,
             games,
             settings = new
             {
@@ -485,11 +555,56 @@ public sealed class SafeZipReaderTests
 
     private const string ValidManifest =
         """
-        {"schemaVersion":1,"dataSchemaVersion":1,"dataFile":"data.json","assets":[]}
+        {"schemaVersion":1,"dataSchemaVersion":2,"dataFile":"data.json","assets":[]}
         """;
 
     private const string ValidData =
         """
-        {"schemaVersion":1,"games":[],"settings":{"theme":"Light","backdrop":"Mica","notificationsEnabled":true,"notificationLeadMinutes":15,"closeBehavior":"MinimizeToTray","startupEnabled":false,"lastDisplayMode":"Standard","selectedCompactGameId":null}}
+        {
+          "schemaVersion": 2,
+          "games": [],
+          "settings": {
+            "theme": "Light",
+            "backdrop": "Mica",
+            "notificationsEnabled": true,
+            "notificationLeadMinutes": 15,
+            "closeBehavior": "MinimizeToTray",
+            "startupEnabled": false,
+            "lastDisplayMode": "Standard",
+            "selectedCompactGameId": null
+          }
+        }
+        """;
+
+    private const string LegacySchema1Manifest =
+        """
+        {"schemaVersion":1,"dataSchemaVersion":1,"dataFile":"data.json","assets":[]}
+        """;
+
+    private const string LegacySchema1Data =
+        """
+        {
+          "schemaVersion": 1,
+          "games": [{
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "Legacy",
+            "baseStamina": 10,
+            "maxStamina": 100,
+            "recoveryMinutes": 8,
+            "recordedAtUtc": "2026-07-29T00:00:00+00:00",
+            "imageAssetId": null,
+            "sortOrder": 0
+          }],
+          "settings": {
+            "theme": "Light",
+            "backdrop": "Mica",
+            "notificationsEnabled": true,
+            "notificationLeadMinutes": 15,
+            "closeBehavior": "MinimizeToTray",
+            "startupEnabled": false,
+            "lastDisplayMode": "Standard",
+            "selectedCompactGameId": null
+          }
+        }
         """;
 }

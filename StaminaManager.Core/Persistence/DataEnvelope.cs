@@ -8,7 +8,7 @@ public sealed record DataEnvelope(
     ImmutableArray<GameEntry> Games,
     AppSettings Settings)
 {
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2;
 }
 
 public enum DataLoadStatus

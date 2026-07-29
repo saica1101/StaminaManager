@@ -1,6 +1,7 @@
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Persistence;
 using StaminaManager.Core.Validation;
+using StaminaManager.Infrastructure.Persistence;
 using System.Collections.Immutable;
 using System.IO.Compression;
 using System.Text.Json;
@@ -114,10 +115,17 @@ public sealed class SafeZipReader
             BackupLimits.MaxDataJsonBytes,
             cancellationToken).ConfigureAwait(false);
         _bufferedBytesObserver?.Invoke(dataBytes.Length);
-        DataEnvelope data = BackupArchiveValidator.DeserializeData(dataBytes);
+        DecodedDataEnvelope decoded =
+            BackupArchiveValidator.DeserializeData(dataBytes);
         dataBytes = [];
         _bufferedBytesObserver?.Invoke(0);
-        BackupArchiveValidator.ValidateData(data);
+        if (manifest.DataSchemaVersion != decoded.SourceSchemaVersion)
+        {
+            throw new InvalidDataException(
+                "The manifest and data schema versions do not match.");
+        }
+
+        DataEnvelope data = decoded.Envelope;
 
         ImmutableArray<ValidatedBackupAsset> assets =
             await ReadAssetsAsync(

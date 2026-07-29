@@ -1,8 +1,5 @@
 using StaminaManager.Core.Abstractions;
-using StaminaManager.Core.Models;
 using StaminaManager.Core.Persistence;
-using StaminaManager.Core.Validation;
-using System.Collections.Immutable;
 using System.Text.Json;
 
 namespace StaminaManager.Infrastructure.Persistence;
@@ -84,7 +81,8 @@ public sealed class LocalDataStore : ILocalDataStore
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(envelope);
-        DataEnvelope normalizedEnvelope = NormalizeAndValidate(envelope);
+        DataEnvelope normalizedEnvelope =
+            DataEnvelopeCodec.NormalizeAndValidate(envelope);
         await _writeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         string temporaryPath = GetPath(TemporaryFileName);
         bool ownsTemporaryFile = false;
@@ -203,85 +201,6 @@ public sealed class LocalDataStore : ILocalDataStore
         }
     }
 
-    private static DataEnvelope NormalizeAndValidate(DataEnvelope envelope)
-    {
-        if (envelope.SchemaVersion != DataEnvelope.CurrentSchemaVersion
-            || envelope.Games.IsDefault
-            || envelope.Games.Length > GameEntryValidator.MaxGameCount
-            || envelope.Settings is null)
-        {
-            throw new InvalidDataException("The data envelope is invalid.");
-        }
-
-        ValidateSettings(envelope.Settings);
-        HashSet<Guid> ids = [];
-        HashSet<int> sortOrders = [];
-        ImmutableArray<GameEntry>.Builder games =
-            ImmutableArray.CreateBuilder<GameEntry>(envelope.Games.Length);
-        foreach (GameEntry? game in envelope.Games)
-        {
-            if (game is null
-                || game.Id == Guid.Empty
-                || !ids.Add(game.Id)
-                || game.SortOrder < 0
-                || game.SortOrder >= envelope.Games.Length
-                || !sortOrders.Add(game.SortOrder)
-                || !IsValidAssetId(game.ImageAssetId))
-            {
-                throw new InvalidDataException("A game entry is invalid.");
-            }
-
-            DateTimeOffset recordedAtUtc =
-                game.RecordedAtUtc.ToUniversalTime();
-            ValidationResult validation = GameEntryValidator.Validate(
-                new GameDraft(
-                    game.Name,
-                    game.BaseStamina,
-                    game.MaxStamina,
-                    game.RecoveryMinutes,
-                    game.ImageAssetId,
-                    RecoverySeconds: 0,
-                    IsNotificationEnabled: true),
-                recordedAtUtc);
-            if (!validation.IsValid)
-            {
-                throw new InvalidDataException("A game entry is invalid.");
-            }
-
-            games.Add(game with { RecordedAtUtc = recordedAtUtc });
-        }
-
-        return envelope with { Games = games.MoveToImmutable() };
-    }
-
-    private static void ValidateSettings(AppSettings settings)
-    {
-        if (!Enum.IsDefined(settings.Theme)
-            || !Enum.IsDefined(settings.Backdrop)
-            || !Enum.IsDefined(settings.CloseBehavior)
-            || !Enum.IsDefined(settings.LastDisplayMode)
-            || settings.SelectedCompactGameId == Guid.Empty
-            || settings.NotificationLeadMinutes is < 0
-                or > GameEntryValidator.MaxRecoveryMinutes)
-        {
-            throw new InvalidDataException("The app settings are invalid.");
-        }
-    }
-
-    private static bool IsValidAssetId(string? assetId)
-    {
-        if (assetId is null)
-        {
-            return true;
-        }
-
-        return Guid.TryParseExact(assetId, "N", out Guid parsed)
-            && string.Equals(
-                assetId,
-                parsed.ToString("N"),
-                StringComparison.Ordinal);
-    }
-
     private async Task<DataEnvelope?> TryReadValidEnvelopeAsync(
         string path,
         CancellationToken cancellationToken)
@@ -300,13 +219,10 @@ public sealed class LocalDataStore : ILocalDataStore
                 return null;
             }
 
-            DataEnvelope? envelope = await JsonSerializer.DeserializeAsync(
+            using JsonDocument document = await JsonDocument.ParseAsync(
                 stream,
-                JsonSerializationContext.Configured.DataEnvelope,
-                cancellationToken).ConfigureAwait(false);
-            return envelope is null
-                ? null
-                : NormalizeAndValidate(envelope);
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+            return DataEnvelopeCodec.Deserialize(document.RootElement).Envelope;
         }
         catch (JsonException)
         {
