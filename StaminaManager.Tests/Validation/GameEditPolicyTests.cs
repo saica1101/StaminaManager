@@ -101,6 +101,51 @@ public sealed class GameEditPolicyTests
     }
 
     [TestMethod]
+    public void Apply_ResetsBaseAndRecordedTimeWhenRecoverySecondsChange()
+    {
+        GameDraft initialDraft = CreateInitialDraft() with
+        {
+            RecoverySeconds = 15,
+        };
+        GameDraft editedDraft = initialDraft with
+        {
+            RecoverySeconds = 30,
+        };
+        DateTimeOffset savedAt = RecordedAtUtc.AddHours(1);
+
+        GameEntry result = GameEditPolicy.Apply(
+            CreateOriginal(),
+            initialDraft,
+            editedDraft,
+            savedAt);
+
+        Assert.AreEqual(50, result.BaseStamina);
+        Assert.AreEqual(30, result.RecoverySeconds);
+        Assert.AreEqual(savedAt, result.RecordedAtUtc);
+    }
+
+    [TestMethod]
+    public void Apply_PreservesStaminaBasisWhenOnlyNotificationChanges()
+    {
+        GameEntry original = CreateOriginal();
+        GameDraft initialDraft = CreateInitialDraft();
+        GameDraft editedDraft = initialDraft with
+        {
+            IsNotificationEnabled = false,
+        };
+
+        GameEntry result = GameEditPolicy.Apply(
+            original,
+            initialDraft,
+            editedDraft,
+            RecordedAtUtc.AddHours(1));
+
+        Assert.AreEqual(original.BaseStamina, result.BaseStamina);
+        Assert.AreEqual(original.RecordedAtUtc, result.RecordedAtUtc);
+        Assert.IsFalse(result.IsNotificationEnabled);
+    }
+
+    [TestMethod]
     public void Apply_UsesEditedStaminaSettingsForMetadataOnlyEdit()
     {
         GameEntry original = CreateOriginal() with

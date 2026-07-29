@@ -6,6 +6,7 @@ namespace StaminaManager.Core.Validation;
 
 public static class GameEntryValidator
 {
+    public const string RecoveryIntervalField = "RecoveryInterval";
     public const int MaxStaminaValue = 1_000_000;
     public const int MaxRecoveryMinutes = 525_600;
     public const int MaxGameCount = 100;
@@ -76,7 +77,7 @@ public static class GameEntryValidator
         if (recoveryIntervalSeconds is < 1 or > MaxRecoveryMinutes * 60L)
         {
             AddError(
-                "RecoveryInterval",
+                RecoveryIntervalField,
                 RecoveryIntervalRangeMessage);
         }
 
@@ -109,7 +110,7 @@ public static class GameEntryValidator
             ImageAssetId: draft.ImageAssetId,
             SortOrder: 0,
             RecoverySeconds: draft.RecoverySeconds,
-            IsNotificationEnabled: true);
+            IsNotificationEnabled: draft.IsNotificationEnabled);
 
         try
         {

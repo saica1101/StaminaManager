@@ -30,6 +30,14 @@ public sealed class GameEntryValidatorTests
     }
 
     [TestMethod]
+    public void RecoveryIntervalField_IsExposedAsNamedConstant()
+    {
+        AssertPublicConstant(
+            nameof(GameEntryValidator.RecoveryIntervalField),
+            "RecoveryInterval");
+    }
+
+    [TestMethod]
     [DataRow("")]
     [DataRow(" ")]
     public void Validate_RejectsBlankName(string name)
@@ -126,7 +134,7 @@ public sealed class GameEntryValidatorTests
 
         AssertFieldError(
             result,
-            "RecoveryInterval",
+            GameEntryValidator.RecoveryIntervalField,
             "1秒～525,600分");
     }
 
@@ -283,7 +291,7 @@ public sealed class GameEntryValidatorTests
         RecoverySeconds: 0,
         IsNotificationEnabled: true);
 
-    private static void AssertPublicConstant(string name, int expected)
+    private static void AssertPublicConstant(string name, object expected)
     {
         System.Reflection.FieldInfo? field =
             typeof(GameEntryValidator).GetField(name);

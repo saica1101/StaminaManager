@@ -37,6 +37,12 @@ public sealed partial class GameEditorViewModel : ObservableObject
     public partial double RecoveryMinutes { get; set; }
 
     [ObservableProperty]
+    public partial double RecoverySeconds { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsNotificationEnabled { get; set; }
+
+    [ObservableProperty]
     public partial string? ImageAssetId { get; set; }
 
     [ObservableProperty]
@@ -62,6 +68,12 @@ public sealed partial class GameEditorViewModel : ObservableObject
 
     [ObservableProperty]
     public partial string? RecoveryMinutesError { get; private set; }
+
+    [ObservableProperty]
+    public partial string? RecoverySecondsError { get; private set; }
+
+    [ObservableProperty]
+    public partial string? RecoveryIntervalError { get; private set; }
 
     [ObservableProperty]
     public partial string? GeneralError { get; private set; }
@@ -93,6 +105,8 @@ public sealed partial class GameEditorViewModel : ObservableObject
             CurrentStamina = 0;
             MaxStamina = 200;
             RecoveryMinutes = 8;
+            RecoverySeconds = 0;
+            IsNotificationEnabled = true;
             ImageAssetId = null;
         }
         else
@@ -104,6 +118,8 @@ public sealed partial class GameEditorViewModel : ObservableObject
             CurrentStamina = snapshot.Current;
             MaxStamina = entry.MaxStamina;
             RecoveryMinutes = entry.RecoveryMinutes;
+            RecoverySeconds = entry.RecoverySeconds;
+            IsNotificationEnabled = entry.IsNotificationEnabled;
             ImageAssetId = entry.ImageAssetId;
         }
 
@@ -276,6 +292,8 @@ public sealed partial class GameEditorViewModel : ObservableObject
 
     partial void OnRecoveryMinutesChanged(double value) => ValidateIfReady();
 
+    partial void OnRecoverySecondsChanged(double value) => ValidateIfReady();
+
     partial void OnStateChanged(GameEditorState value)
     {
         OnPropertyChanged(nameof(CanSave));
@@ -303,6 +321,8 @@ public sealed partial class GameEditorViewModel : ObservableObject
         CurrentStaminaError = GetIntegerError(CurrentStamina);
         MaxStaminaError = GetIntegerError(MaxStamina);
         RecoveryMinutesError = GetIntegerError(RecoveryMinutes);
+        RecoverySecondsError = GetIntegerError(RecoverySeconds);
+        RecoveryIntervalError = null;
 
         GameDraft draft = new(
             Name ?? string.Empty,
@@ -310,8 +330,8 @@ public sealed partial class GameEditorViewModel : ObservableObject
             ToValidationInt(MaxStamina),
             ToValidationInt(RecoveryMinutes),
             ImageAssetId,
-            RecoverySeconds: 0,
-            IsNotificationEnabled: true);
+            ToValidationInt(RecoverySeconds),
+            IsNotificationEnabled);
         ValidationResult result = GameEntryValidator.Validate(
             draft,
             _clock.UtcNow);
@@ -325,10 +345,21 @@ public sealed partial class GameEditorViewModel : ObservableObject
         RecoveryMinutesError ??= FirstError(
             result,
             nameof(GameDraft.RecoveryMinutes));
+        RecoverySecondsError ??= FirstError(
+            result,
+            nameof(GameDraft.RecoverySeconds));
+        if (RecoveryMinutesError is null && RecoverySecondsError is null)
+        {
+            RecoveryIntervalError = FirstError(
+                result,
+                GameEntryValidator.RecoveryIntervalField);
+        }
         IsValid = NameError is null
             && CurrentStaminaError is null
             && MaxStaminaError is null
-            && RecoveryMinutesError is null;
+            && RecoveryMinutesError is null
+            && RecoverySecondsError is null
+            && RecoveryIntervalError is null;
         OnPropertyChanged(nameof(CanSave));
     }
 
@@ -338,8 +369,8 @@ public sealed partial class GameEditorViewModel : ObservableObject
         ToIntOrThrow(MaxStamina, nameof(MaxStamina)),
         ToIntOrThrow(RecoveryMinutes, nameof(RecoveryMinutes)),
         ImageAssetId,
-        RecoverySeconds: 0,
-        IsNotificationEnabled: true);
+        ToIntOrThrow(RecoverySeconds, nameof(RecoverySeconds)),
+        IsNotificationEnabled);
 
     private static string? GetIntegerError(double value) =>
         double.IsFinite(value)

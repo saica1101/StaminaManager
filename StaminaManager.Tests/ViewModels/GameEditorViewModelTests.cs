@@ -57,6 +57,112 @@ public sealed class GameEditorViewModelTests
     }
 
     [TestMethod]
+    public async Task NewEditor_UsesDefaultRecoveryAndNotificationValues()
+    {
+        (GameEditorViewModel viewModel, _, _) =
+            await CreateForAddAsync();
+
+        Assert.AreEqual(8d, viewModel.RecoveryMinutes);
+        Assert.AreEqual(0d, viewModel.RecoverySeconds);
+        Assert.IsTrue(viewModel.IsNotificationEnabled);
+    }
+
+    [TestMethod]
+    public async Task EditEditor_RestoresRecoveryAndNotificationValues()
+    {
+        GameEntry entry = CreateEntry() with
+        {
+            RecoveryMinutes = 7,
+            RecoverySeconds = 45,
+            IsNotificationEnabled = false,
+        };
+
+        (GameEditorViewModel viewModel, _, _) =
+            await CreateForEditAsync(entry);
+
+        Assert.AreEqual(7d, viewModel.RecoveryMinutes);
+        Assert.AreEqual(45d, viewModel.RecoverySeconds);
+        Assert.IsFalse(viewModel.IsNotificationEnabled);
+    }
+
+    [TestMethod]
+    [DataRow(1.5)]
+    [DataRow(double.NaN)]
+    [DataRow(double.PositiveInfinity)]
+    [DataRow(double.NegativeInfinity)]
+    [DataRow(-1d)]
+    [DataRow(525_601d)]
+    public async Task InvalidRecoveryMinutes_ShowFieldErrorAndDisableSave(
+        double recoveryMinutes)
+    {
+        (GameEditorViewModel viewModel, _, _) =
+            await CreateForAddAsync();
+        viewModel.Name = "Game";
+
+        viewModel.RecoveryMinutes = recoveryMinutes;
+
+        Assert.IsNotNull(viewModel.RecoveryMinutesError);
+        Assert.IsNull(viewModel.RecoveryIntervalError);
+        Assert.IsFalse(viewModel.CanSave);
+    }
+
+    [TestMethod]
+    [DataRow(1.5)]
+    [DataRow(double.NaN)]
+    [DataRow(double.PositiveInfinity)]
+    [DataRow(double.NegativeInfinity)]
+    [DataRow(-1d)]
+    [DataRow(60d)]
+    public async Task InvalidRecoverySeconds_ShowFieldErrorAndDisableSave(
+        double recoverySeconds)
+    {
+        (GameEditorViewModel viewModel, _, _) =
+            await CreateForAddAsync();
+        viewModel.Name = "Game";
+
+        viewModel.RecoverySeconds = recoverySeconds;
+
+        Assert.IsNotNull(viewModel.RecoverySecondsError);
+        Assert.IsNull(viewModel.RecoveryIntervalError);
+        Assert.IsFalse(viewModel.CanSave);
+    }
+
+    [TestMethod]
+    [DataRow(0d, 0d)]
+    [DataRow(525_600d, 1d)]
+    public async Task InvalidRecoveryInterval_ShowsErrorAndDisablesSave(
+        double recoveryMinutes,
+        double recoverySeconds)
+    {
+        (GameEditorViewModel viewModel, _, _) =
+            await CreateForAddAsync();
+        viewModel.Name = "Game";
+
+        viewModel.RecoveryMinutes = recoveryMinutes;
+        viewModel.RecoverySeconds = recoverySeconds;
+
+        Assert.IsNotNull(viewModel.RecoveryIntervalError);
+        Assert.IsFalse(viewModel.CanSave);
+    }
+
+    [TestMethod]
+    public async Task SaveAsync_PersistsRecoverySecondsAndNotificationState()
+    {
+        (GameEditorViewModel viewModel, _, _) =
+            await CreateForAddAsync();
+        viewModel.Name = "Game";
+        viewModel.RecoverySeconds = 30;
+        viewModel.IsNotificationEnabled = false;
+
+        GameEntry? saved = await viewModel.SaveAsync(
+            CancellationToken.None);
+
+        Assert.IsNotNull(saved);
+        Assert.AreEqual(30, saved.RecoverySeconds);
+        Assert.IsFalse(saved.IsNotificationEnabled);
+    }
+
+    [TestMethod]
     public async Task MetadataOnlyEdit_PreservesBaseAndRecordedTime()
     {
         GameEntry original = CreateEntry();

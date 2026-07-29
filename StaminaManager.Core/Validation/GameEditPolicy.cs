@@ -17,7 +17,8 @@ public static class GameEditPolicy
         bool hasStaminaChanges =
             initialDraft.CurrentStamina != editedDraft.CurrentStamina ||
             initialDraft.MaxStamina != editedDraft.MaxStamina ||
-            initialDraft.RecoveryMinutes != editedDraft.RecoveryMinutes;
+            initialDraft.RecoveryMinutes != editedDraft.RecoveryMinutes ||
+            initialDraft.RecoverySeconds != editedDraft.RecoverySeconds;
 
         return original with
         {
@@ -27,10 +28,12 @@ public static class GameEditPolicy
                 : original.BaseStamina,
             MaxStamina = editedDraft.MaxStamina,
             RecoveryMinutes = editedDraft.RecoveryMinutes,
+            RecoverySeconds = editedDraft.RecoverySeconds,
             RecordedAtUtc = hasStaminaChanges
                 ? savedAtUtc.ToUniversalTime()
                 : original.RecordedAtUtc,
             ImageAssetId = editedDraft.ImageAssetId,
+            IsNotificationEnabled = editedDraft.IsNotificationEnabled,
         };
     }
 }

@@ -61,6 +61,26 @@ public sealed class GameManagerTests
     }
 
     [TestMethod]
+    public async Task AddAsync_PersistsRecoverySecondsAndNotificationState()
+    {
+        RecordingDataStore store = new();
+        GameManager manager = await CreateManagerAsync(store);
+        GameDraft draft = CreateDraft("Game") with
+        {
+            RecoverySeconds = 45,
+            IsNotificationEnabled = false,
+        };
+
+        GameEntry added = await manager.AddAsync(
+            draft,
+            CancellationToken.None);
+
+        Assert.AreEqual(45, added.RecoverySeconds);
+        Assert.IsFalse(added.IsNotificationEnabled);
+        Assert.AreEqual(added, store.LastSaved!.Games.Single());
+    }
+
+    [TestMethod]
     public async Task AddAsync_FirstGameSaveFailurePublishesNeitherChange()
     {
         RecordingDataStore store = new()
@@ -166,6 +186,60 @@ public sealed class GameManagerTests
 
         Assert.AreEqual(55, edited.BaseStamina);
         Assert.AreEqual(NowUtc, edited.RecordedAtUtc);
+    }
+
+    [TestMethod]
+    public async Task EditAsync_PersistsRecoverySecondsAndNotificationState()
+    {
+        RecordingDataStore store = new();
+        GameEntry original = CreateEntry(Guid.NewGuid(), "Game", 0) with
+        {
+            RecoverySeconds = 15,
+        };
+        GameManager manager = await CreateManagerAsync(store, original);
+        GameDraft initialDraft = CreateDraft("Game") with
+        {
+            RecoverySeconds = original.RecoverySeconds,
+        };
+        GameDraft editedDraft = initialDraft with
+        {
+            RecoverySeconds = 30,
+            IsNotificationEnabled = false,
+        };
+
+        GameEntry edited = await manager.EditAsync(
+            original.Id,
+            initialDraft,
+            editedDraft,
+            CancellationToken.None);
+
+        Assert.AreEqual(30, edited.RecoverySeconds);
+        Assert.IsFalse(edited.IsNotificationEnabled);
+        Assert.AreEqual(NowUtc, edited.RecordedAtUtc);
+        Assert.AreEqual(edited, store.LastSaved!.Games.Single());
+    }
+
+    [TestMethod]
+    public async Task EditAsync_RejectsInvalidRecoverySeconds()
+    {
+        RecordingDataStore store = new();
+        GameEntry original = CreateEntry(Guid.NewGuid(), "Game", 0);
+        GameManager manager = await CreateManagerAsync(store, original);
+        GameDraft initialDraft = CreateDraft("Game");
+        GameDraft editedDraft = initialDraft with
+        {
+            RecoverySeconds = 60,
+        };
+
+        await Assert.ThrowsExactlyAsync<ArgumentException>(
+            () => manager.EditAsync(
+                original.Id,
+                initialDraft,
+                editedDraft,
+                CancellationToken.None));
+
+        Assert.AreEqual(original, manager.Games.Single());
+        Assert.AreEqual(0, store.SaveCount);
     }
 
     [TestMethod]
