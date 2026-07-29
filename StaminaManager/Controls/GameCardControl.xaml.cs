@@ -107,10 +107,10 @@ public sealed partial class GameCardControl : UserControl, INotifyPropertyChange
 
             string resourceId = parts.Days > 0
                 ? "RemainingTimeDaysFormat"
-                : "RemainingTimeHoursFormat";
+                : "RemainingTimeHoursSecondsFormat";
             object[] values = parts.Days > 0
                 ? [parts.Days, parts.Hours, parts.Minutes]
-                : [parts.Hours, parts.Minutes];
+                : [parts.Hours, parts.Minutes, parts.Seconds];
             return string.Format(
                 CultureInfo.CurrentCulture,
                 GetRequiredString(resourceId),

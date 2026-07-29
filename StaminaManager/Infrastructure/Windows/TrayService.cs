@@ -31,6 +31,9 @@ public sealed class TrayService : ITrayService
 
     public event EventHandler? ExitRequested;
 
+    public event EventHandler<WindowVisibilityChangedEventArgs>?
+        WindowVisibilityChanged;
+
     public void Initialize()
     {
         ObjectDisposedException.ThrowIf(_isDisposed, this);
@@ -47,12 +50,18 @@ public sealed class TrayService : ITrayService
     {
         ObjectDisposedException.ThrowIf(_isDisposed, this);
         _adapter.HideWindow();
+        WindowVisibilityChanged?.Invoke(
+            this,
+            new WindowVisibilityChangedEventArgs(isShown: false));
     }
 
     public void ShowWindow()
     {
         ObjectDisposedException.ThrowIf(_isDisposed, this);
         _adapter.ShowWindow();
+        WindowVisibilityChanged?.Invoke(
+            this,
+            new WindowVisibilityChangedEventArgs(isShown: true));
     }
 
     public void Dispose()

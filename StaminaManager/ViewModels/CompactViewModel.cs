@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Windows.ApplicationModel.Resources;
 using StaminaManager.Application;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Calculations;
@@ -16,6 +17,7 @@ public sealed partial class CompactViewModel : ObservableObject, IDisposable
     private readonly IClock _clock;
     private readonly AppCoordinator _coordinator;
     private readonly IUiDispatcher _uiDispatcher;
+    private readonly Func<string, string> _getRequiredString;
     private readonly ObservableCollection<GameCardViewModel> _games = [];
     private bool _isDisposed;
 
@@ -38,15 +40,32 @@ public sealed partial class CompactViewModel : ObservableObject, IDisposable
         IClock clock,
         AppCoordinator coordinator,
         IUiDispatcher uiDispatcher)
+        : this(
+            gameManager,
+            clock,
+            coordinator,
+            uiDispatcher,
+            CreateRequiredStringResolver())
+    {
+    }
+
+    internal CompactViewModel(
+        GameManager gameManager,
+        IClock clock,
+        AppCoordinator coordinator,
+        IUiDispatcher uiDispatcher,
+        Func<string, string> getRequiredString)
     {
         ArgumentNullException.ThrowIfNull(gameManager);
         ArgumentNullException.ThrowIfNull(clock);
         ArgumentNullException.ThrowIfNull(coordinator);
         ArgumentNullException.ThrowIfNull(uiDispatcher);
+        ArgumentNullException.ThrowIfNull(getRequiredString);
         _gameManager = gameManager;
         _clock = clock;
         _coordinator = coordinator;
         _uiDispatcher = uiDispatcher;
+        _getRequiredString = getRequiredString;
         Games = new ReadOnlyObservableCollection<GameCardViewModel>(
             _games);
         _gameManager.GamesChanged += OnGamesChanged;
@@ -106,21 +125,19 @@ public sealed partial class CompactViewModel : ObservableObject, IDisposable
                 SelectedGame.Remaining);
             if (parts.IsFull)
             {
-                return "満タン";
+                return _getRequiredString("RemainingTimeFull");
             }
 
-            return parts.Days > 0
-                ? string.Format(
-                    CultureInfo.CurrentCulture,
-                    "満タンまで {0}日 {1:00}:{2:00}",
-                    parts.Days,
-                    parts.Hours,
-                    parts.Minutes)
-                : string.Format(
-                    CultureInfo.CurrentCulture,
-                    "満タンまで {0:00}:{1:00}",
-                    parts.Hours,
-                    parts.Minutes);
+            string resourceId = parts.Days > 0
+                ? "RemainingTimeDaysFormat"
+                : "RemainingTimeHoursSecondsFormat";
+            object[] values = parts.Days > 0
+                ? [parts.Days, parts.Hours, parts.Minutes]
+                : [parts.Hours, parts.Minutes, parts.Seconds];
+            return string.Format(
+                CultureInfo.CurrentCulture,
+                _getRequiredString(resourceId),
+                values);
         }
     }
 
@@ -325,5 +342,15 @@ public sealed partial class CompactViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(SelectedStatus));
         OnPropertyChanged(nameof(SelectedStatusText));
         OnPropertyChanged(nameof(SelectedRemainingText));
+    }
+
+    private static Func<string, string> CreateRequiredStringResolver()
+    {
+        ResourceLoader resources = new();
+        return resourceId =>
+        {
+            string value = resources.GetString(resourceId);
+            return string.IsNullOrWhiteSpace(value) ? resourceId : value;
+        };
     }
 }

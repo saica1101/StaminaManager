@@ -17,8 +17,11 @@ using StaminaManager.Infrastructure.Storage;
 using StaminaManager.Infrastructure.Windows;
 using StaminaManager.ViewModels;
 using StaminaManager.Views;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.ExceptionServices;
+using TrayWindowVisibilityChangedEventArgs =
+    StaminaManager.Core.Abstractions.WindowVisibilityChangedEventArgs;
 
 namespace StaminaManager;
 
@@ -33,6 +36,7 @@ public partial class App : Microsoft.UI.Xaml.Application
     private OverviewPage? _overviewPage;
     private ShellViewModel? _shellViewModel;
     private TimerCoordinator? _timerCoordinator;
+    private TimerVisibilityController? _timerVisibilityController;
     private IStartupService? _startupService;
     private IWindowStateService? _windowStateService;
     private ITrayService? _trayService;
@@ -42,6 +46,7 @@ public partial class App : Microsoft.UI.Xaml.Application
     private readonly NotificationActivationQueue
         _notificationActivationQueue = new();
     private string _startupStage = "NotStarted";
+    private bool _isShutdownRequested;
     public App()
         : this(new WindowsNotificationScheduler())
     {
@@ -100,7 +105,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             _settingsViewModel.MarkReady();
 
             await _overviewViewModel!.SetLoadingAsync(false);
-            await _timerCoordinator!.SetVisibleAsync(true);
+            await _timerVisibilityController!.SetWindowShownAsync(true);
             await DrainNotificationActivationsAsync();
         }
         catch (Exception exception)
@@ -388,6 +393,12 @@ public partial class App : Microsoft.UI.Xaml.Application
                 _overviewViewModel.RefreshOnUiThread(nowUtc);
                 _compactViewModel.RefreshOnUiThread(nowUtc);
             });
+        _timerVisibilityController = new TimerVisibilityController(
+            _timerCoordinator);
+        _shellViewModel.PropertyChanged +=
+            OnShellViewModelPropertyChanged;
+        _trayService.WindowVisibilityChanged +=
+            OnTrayWindowVisibilityChanged;
         _settingsViewModel = new SettingsViewModel(
             _gameManager,
             themeService,
@@ -420,7 +431,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             _windowStateService,
             _trayService,
             () => _gameManager.CurrentData.Settings.CloseBehavior,
-            DisposeNotificationLifecycle);
+            ShutdownAsync);
         try
         {
             _notificationScheduler.Initialize();
@@ -441,6 +452,58 @@ public partial class App : Microsoft.UI.Xaml.Application
         AppNavigationRequest request)
     {
         _shellViewModel?.ApplyNavigationRequest(request);
+    }
+
+    private async void OnShellViewModelPropertyChanged(
+        object? sender,
+        PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName != nameof(ShellViewModel.CurrentPage)
+            || _shellViewModel is null
+            || _timerVisibilityController is null)
+        {
+            return;
+        }
+
+        await UpdateTimerVisibilityAsync(
+            () => _timerVisibilityController.SetCurrentPageAsync(
+                _shellViewModel.CurrentPage));
+    }
+
+    private async void OnTrayWindowVisibilityChanged(
+        object? sender,
+        TrayWindowVisibilityChangedEventArgs args)
+    {
+        if (_timerVisibilityController is null)
+        {
+            return;
+        }
+
+        await UpdateTimerVisibilityAsync(
+            () => _timerVisibilityController.SetWindowShownAsync(
+                args.IsShown));
+    }
+
+    private async Task UpdateTimerVisibilityAsync(
+        Func<Task> updateAsync)
+    {
+        try
+        {
+            await updateAsync();
+        }
+        catch (ObjectDisposedException) when (_isShutdownRequested)
+        {
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Timer visibility update failed: "
+                + exception.GetType().Name);
+            if (_overviewViewModel is not null)
+            {
+                await _overviewViewModel.ShowErrorAsync(exception);
+            }
+        }
     }
 
     private void OnNotificationActivationRequested(
@@ -504,6 +567,34 @@ public partial class App : Microsoft.UI.Xaml.Application
         _notificationScheduler.ActivationRequested -=
             OnNotificationActivationRequested;
         _notificationScheduler.Dispose();
+    }
+
+    private async Task ShutdownAsync()
+    {
+        _isShutdownRequested = true;
+        if (_shellViewModel is not null)
+        {
+            _shellViewModel.PropertyChanged -=
+                OnShellViewModelPropertyChanged;
+        }
+
+        if (_trayService is not null)
+        {
+            _trayService.WindowVisibilityChanged -=
+                OnTrayWindowVisibilityChanged;
+        }
+
+        try
+        {
+            if (_timerVisibilityController is not null)
+            {
+                await _timerVisibilityController.DisposeAsync();
+            }
+        }
+        finally
+        {
+            DisposeNotificationLifecycle();
+        }
     }
 
     private static bool IsProcessFatal(Exception exception) =>

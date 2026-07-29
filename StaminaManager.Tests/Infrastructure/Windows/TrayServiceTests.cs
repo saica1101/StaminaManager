@@ -34,8 +34,11 @@ public sealed class TrayServiceTests
         TrayService service = new(adapter);
         int openCount = 0;
         int exitCount = 0;
+        List<bool> visibilityChanges = [];
         service.OpenRequested += (_, _) => openCount++;
         service.ExitRequested += (_, _) => exitCount++;
+        service.WindowVisibilityChanged += (_, args) =>
+            visibilityChanges.Add(args.IsShown);
 
         service.Initialize();
         service.Initialize();
@@ -49,6 +52,9 @@ public sealed class TrayServiceTests
         Assert.AreEqual(1, exitCount);
         Assert.AreEqual(1, adapter.HideCount);
         Assert.AreEqual(1, adapter.ShowCount);
+        CollectionAssert.AreEqual(
+            new[] { false, true },
+            visibilityChanges);
     }
 
     [TestMethod]

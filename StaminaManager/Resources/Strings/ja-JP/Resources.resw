@@ -39,6 +39,7 @@
   <data name="StaminaStatusOverCap" xml:space="preserve"><value>自然回復停止中</value></data>
   <data name="RemainingTimeFull" xml:space="preserve"><value>満タン</value></data>
   <data name="RemainingTimeHoursFormat" xml:space="preserve"><value>満タンまで {0:00}:{1:00}</value></data>
+  <data name="RemainingTimeHoursSecondsFormat" xml:space="preserve"><value>満タンまで {0:00}:{1:00}:{2:00}</value></data>
   <data name="RemainingTimeDaysFormat" xml:space="preserve"><value>満タンまで {0}日 {1:00}:{2:00}</value></data>
   <data name="GameCardAutomationNameFormat" xml:space="preserve"><value>{0}、スタミナ {1} / {2}、{3}、{4}</value></data>
   <data name="SettingsPageTitle.Text" xml:space="preserve"><value>Settings</value></data>

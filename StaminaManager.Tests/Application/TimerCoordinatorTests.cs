@@ -16,7 +16,7 @@ public sealed class TimerCoordinatorTests
         TimeSpan.Zero);
 
     [TestMethod]
-    public async Task SetVisibleAsync_RefreshesImmediatelyAndEveryThirtySeconds()
+    public async Task SetVisibleAsync_RefreshesImmediatelyAndEverySecond()
     {
         FakeClock clock = new(InitialUtc);
         ManualTickSource ticks = new();
@@ -33,13 +33,13 @@ public sealed class TimerCoordinatorTests
         CollectionAssert.AreEqual(
             new[] { InitialUtc },
             refreshes);
-        Assert.AreEqual(TimeSpan.FromSeconds(30), ticks.LastInterval);
+        Assert.AreEqual(TimeSpan.FromSeconds(1), ticks.LastInterval);
 
-        clock.UtcNow = InitialUtc.AddSeconds(30);
+        clock.UtcNow = InitialUtc.AddSeconds(1);
         await ticks.TickAsync();
 
         CollectionAssert.AreEqual(
-            new[] { InitialUtc, InitialUtc.AddSeconds(30) },
+            new[] { InitialUtc, InitialUtc.AddSeconds(1) },
             refreshes);
     }
 

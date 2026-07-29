@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.Windows.ApplicationModel.Resources;
+using StaminaManager.Application;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Calculations;
 using StaminaManager.Core.Models;
@@ -38,7 +39,8 @@ public sealed class MainWindow : WinUIEx.WindowEx
     private IWindowStateService? _windowStateService;
     private ITrayService? _trayService;
     private Func<CloseBehavior>? _getCloseBehavior;
-    private Action? _shutdownAction;
+    private Func<Task>? _shutdownAction;
+    private ShutdownSequence? _shutdownSequence;
     private bool _isExplicitExit;
     private bool _isLifecycleConfigured;
     private bool _isLifecycleDisposed;
@@ -65,7 +67,7 @@ public sealed class MainWindow : WinUIEx.WindowEx
         IWindowStateService windowStateService,
         ITrayService trayService,
         Func<CloseBehavior> getCloseBehavior,
-        Action? shutdownAction = null)
+        Func<Task>? shutdownAction = null)
     {
         ArgumentNullException.ThrowIfNull(windowStateService);
         ArgumentNullException.ThrowIfNull(trayService);
@@ -80,6 +82,10 @@ public sealed class MainWindow : WinUIEx.WindowEx
         _trayService = trayService;
         _getCloseBehavior = getCloseBehavior;
         _shutdownAction = shutdownAction;
+        _shutdownSequence = new ShutdownSequence(
+            DisposeLifecycleAsync,
+            ReportShutdownFailure,
+            () => Microsoft.UI.Xaml.Application.Current.Exit());
         AppWindow.Closing += OnAppWindowClosing;
         trayService.OpenRequested += OnTrayOpenRequested;
         trayService.ExitRequested += OnTrayExitRequested;
@@ -116,10 +122,22 @@ public sealed class MainWindow : WinUIEx.WindowEx
             + _windowContent.SolidBackdropSurfaceControl.Visibility;
     }
 
-    private void OnAppWindowClosing(
+    private async void OnAppWindowClosing(
         AppWindow sender,
         AppWindowClosingEventArgs args)
     {
+        ShutdownSequence shutdownSequence = GetShutdownSequence();
+        if (shutdownSequence.IsCompleted)
+        {
+            return;
+        }
+
+        if (shutdownSequence.IsRequested)
+        {
+            args.Cancel = true;
+            return;
+        }
+
         _windowStateService?.CaptureCurrent();
         CloseBehavior closeBehavior = _getCloseBehavior?.Invoke()
             ?? CloseBehavior.MinimizeToTray;
@@ -132,51 +150,99 @@ public sealed class MainWindow : WinUIEx.WindowEx
             return;
         }
 
-        DisposeLifecycle();
+        args.Cancel = true;
+        _isExplicitExit = true;
+        await shutdownSequence.RequestAsync();
     }
 
     private void OnTrayOpenRequested(object? sender, EventArgs args) =>
         RestoreAndActivate();
 
-    private void OnTrayExitRequested(object? sender, EventArgs args)
+    private async void OnTrayExitRequested(
+        object? sender,
+        EventArgs args)
     {
-        if (_isExplicitExit)
+        ShutdownSequence shutdownSequence = GetShutdownSequence();
+        if (shutdownSequence.IsRequested)
         {
             return;
         }
 
         _isExplicitExit = true;
-        if (!DispatcherQueue.TryEnqueue(CompleteExplicitExit))
-        {
-            CompleteExplicitExit();
-        }
+        await RequestShutdownOnDispatcherAsync(shutdownSequence);
     }
 
-    private void CompleteExplicitExit()
+    private Task RequestShutdownOnDispatcherAsync(
+        ShutdownSequence shutdownSequence)
     {
-        _windowStateService?.CaptureCurrent();
-        DisposeLifecycle();
-        Microsoft.UI.Xaml.Application.Current.Exit();
+        if (DispatcherQueue.HasThreadAccess)
+        {
+            _windowStateService?.CaptureCurrent();
+            return shutdownSequence.RequestAsync();
+        }
+
+        TaskCompletionSource completion = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        bool isQueued = DispatcherQueue.TryEnqueue(async () =>
+        {
+            try
+            {
+                _windowStateService?.CaptureCurrent();
+                await shutdownSequence.RequestAsync();
+                completion.TrySetResult();
+            }
+            catch (Exception exception)
+            {
+                completion.TrySetException(exception);
+            }
+        });
+        return isQueued
+            ? completion.Task
+            : shutdownSequence.RequestAsync();
     }
 
-    private void DisposeLifecycle()
+    private async Task DisposeLifecycleAsync()
     {
         if (_isLifecycleDisposed)
         {
             return;
         }
 
-        AppWindow.Closing -= OnAppWindowClosing;
-        if (_trayService is not null)
+        try
         {
-            _trayService.OpenRequested -= OnTrayOpenRequested;
-            _trayService.ExitRequested -= OnTrayExitRequested;
-            _trayService.Dispose();
+            if (_shutdownAction is not null)
+            {
+                await _shutdownAction();
+            }
         }
-
-        _shutdownAction?.Invoke();
-        _isLifecycleDisposed = true;
+        finally
+        {
+            try
+            {
+                AppWindow.Closing -= OnAppWindowClosing;
+                if (_trayService is not null)
+                {
+                    _trayService.OpenRequested -= OnTrayOpenRequested;
+                    _trayService.ExitRequested -= OnTrayExitRequested;
+                    _trayService.Dispose();
+                }
+            }
+            finally
+            {
+                _isLifecycleDisposed = true;
+            }
+        }
     }
+
+    private ShutdownSequence GetShutdownSequence() =>
+        _shutdownSequence
+        ?? throw new InvalidOperationException(
+            "ウィンドウのライフサイクルが構成されていません。");
+
+    private static void ReportShutdownFailure(Exception exception) =>
+        System.Diagnostics.Debug.WriteLine(
+            "Application shutdown cleanup failed: "
+            + exception.GetType().Name);
 
     private void UpdateBackdropDiagnostic()
     {

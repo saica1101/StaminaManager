@@ -4,10 +4,14 @@ public sealed record RemainingTimeParts(
     bool IsFull,
     int Days,
     int Hours,
-    int Minutes)
+    int Minutes,
+    int Seconds)
 {
+    private const long SecondsPerMinute = 60;
+    private const long SecondsPerHour = 60 * SecondsPerMinute;
     private const long MinutesPerHour = 60;
     private const long MinutesPerDay = 24 * MinutesPerHour;
+    private static readonly TimeSpan OneDay = TimeSpan.FromDays(1);
 
     public static RemainingTimeParts From(TimeSpan remaining)
     {
@@ -17,7 +21,26 @@ public sealed record RemainingTimeParts(
                 IsFull: true,
                 Days: 0,
                 Hours: 0,
-                Minutes: 0);
+                Minutes: 0,
+                Seconds: 0);
+        }
+
+        if (remaining < OneDay)
+        {
+            long totalSeconds = checked(
+                (long)Math.Ceiling(remaining.TotalSeconds));
+            int subdayHours = checked((int)(
+                totalSeconds / SecondsPerHour));
+            int subdayMinutes = checked((int)(
+                totalSeconds % SecondsPerHour / SecondsPerMinute));
+            int subdaySeconds = checked((int)(
+                totalSeconds % SecondsPerMinute));
+            return new RemainingTimeParts(
+                IsFull: false,
+                Days: 0,
+                Hours: subdayHours,
+                Minutes: subdayMinutes,
+                Seconds: subdaySeconds);
         }
 
         long totalMinutes = checked(
@@ -30,6 +53,7 @@ public sealed record RemainingTimeParts(
             IsFull: false,
             days,
             hours,
-            minutes);
+            minutes,
+            Seconds: 0);
     }
 }

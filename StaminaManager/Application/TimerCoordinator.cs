@@ -22,7 +22,7 @@ public sealed class SystemTickSource : ITickSource
 public sealed class TimerCoordinator : IAsyncDisposable
 {
     public static readonly TimeSpan RefreshInterval =
-        TimeSpan.FromSeconds(30);
+        TimeSpan.FromSeconds(1);
 
     private readonly IClock _clock;
     private readonly ITickSource _tickSource;

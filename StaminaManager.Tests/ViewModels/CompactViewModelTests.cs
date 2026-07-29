@@ -28,6 +28,38 @@ public sealed class CompactViewModelTests
     }
 
     [TestMethod]
+    [DataRow(2, 900, "満タンまで 00:00:02")]
+    [DataRow(3_723, 0, "満タンまで 01:02:03")]
+    [DataRow(86_400, 900, "満タンまで 24:00:00")]
+    public async Task SelectedRemainingText_FormatsSubdayDuration(
+        int recoveryIntervalSeconds,
+        int elapsedMilliseconds,
+        string expected)
+    {
+        GameEntry game = CreateRemainingEntry(
+            recoveryIntervalSeconds,
+            TimeSpan.FromMilliseconds(elapsedMilliseconds));
+        Context context = await CreateAsync(game);
+        using CompactViewModel viewModel = context.CreateViewModel();
+
+        Assert.AreEqual(expected, viewModel.SelectedRemainingText);
+    }
+
+    [TestMethod]
+    public async Task SelectedRemainingText_UsesDayFormatAtExactlyOneDay()
+    {
+        GameEntry game = CreateRemainingEntry(
+            86_400,
+            TimeSpan.Zero);
+        Context context = await CreateAsync(game);
+        using CompactViewModel viewModel = context.CreateViewModel();
+
+        Assert.AreEqual(
+            "満タンまで 1日 00:00",
+            viewModel.SelectedRemainingText);
+    }
+
+    [TestMethod]
     public async Task FirstAddedGame_SynchronizesPersistedSelectionOnce()
     {
         Context context = await CreateAsync();
@@ -168,6 +200,20 @@ public sealed class CompactViewModelTests
         RecoverySeconds: 0,
         IsNotificationEnabled: true);
 
+    private static GameEntry CreateRemainingEntry(
+        int recoveryIntervalSeconds,
+        TimeSpan elapsed) => new(
+            Guid.NewGuid(),
+            "Remaining",
+            BaseStamina: 0,
+            MaxStamina: 1,
+            RecoveryMinutes: recoveryIntervalSeconds / 60,
+            RecordedAtUtc: NowUtc - elapsed,
+            ImageAssetId: null,
+            SortOrder: 0,
+            RecoverySeconds: recoveryIntervalSeconds % 60,
+            IsNotificationEnabled: true);
+
     private sealed record Context(
         MemoryDataStore Store,
         GameManager Manager,
@@ -178,7 +224,20 @@ public sealed class CompactViewModelTests
             Manager,
             Clock,
             Coordinator,
-            new RecordingUiDispatcher());
+            new RecordingUiDispatcher(),
+            ResolveString);
+
+        private static string ResolveString(string resourceId) =>
+            resourceId switch
+            {
+                "RemainingTimeFull" => "満タン",
+                "RemainingTimeDaysFormat" =>
+                    "満タンまで {0}日 {1:00}:{2:00}",
+                "RemainingTimeHoursSecondsFormat" =>
+                    "満タンまで {0:00}:{1:00}:{2:00}",
+                _ => throw new ArgumentOutOfRangeException(
+                    nameof(resourceId)),
+            };
     }
 
     private sealed class MemoryDataStore(DataEnvelope envelope)
