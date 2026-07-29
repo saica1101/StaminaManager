@@ -218,7 +218,12 @@ public sealed class NotificationCoordinatorTests
     public async Task ReconcileAsync_DisabledCancelsAllAndSuppressesCycles()
     {
         GameEntry first = CreateGame(Guid.NewGuid(), baseStamina: 90);
-        GameEntry second = CreateGame(Guid.NewGuid(), baseStamina: 80);
+        GameEntry second = CreateGame(
+            Guid.NewGuid(),
+            baseStamina: 80) with
+        {
+            IsNotificationEnabled = false,
+        };
         FakeNotificationScheduler scheduler = new(
             scheduledGameIds: new HashSet<Guid> { first.Id, second.Id });
         FakeNotificationLedgerStore ledger = new(
@@ -242,6 +247,170 @@ public sealed class NotificationCoordinatorTests
             scheduler.Operations);
         Assert.IsTrue(ledger.SavedEntries.All(
             entry => entry.State == NotificationState.Suppressed));
+    }
+
+    [TestMethod]
+    public async Task ReconcileAsync_EnabledHonorsIndividualNotificationState()
+    {
+        GameEntry disabled = CreateGame(
+            Guid.NewGuid(),
+            baseStamina: 90) with
+        {
+            IsNotificationEnabled = false,
+        };
+        GameEntry enabled = CreateGame(Guid.NewGuid(), baseStamina: 80);
+        FakeNotificationLedgerStore ledger = new(
+            [CreateLedger(disabled, 15, NotificationState.Scheduled)]);
+        bool wasSuppressionSavedBeforeSchedule = false;
+        FakeNotificationScheduler scheduler = new(
+            new HashSet<Guid> { disabled.Id })
+        {
+            ScheduleObserved = _ =>
+            {
+                wasSuppressionSavedBeforeSchedule =
+                    ledger.SavedEntries.Any(entry =>
+                        entry.GameId == disabled.Id
+                        && entry.State == NotificationState.Suppressed);
+            },
+        };
+        NotificationCoordinator coordinator = CreateCoordinator(
+            scheduler,
+            ledger,
+            nowUtc: RecordedAtUtc.AddMinutes(5));
+
+        NotificationReconcileResult result = await coordinator.ReconcileAsync(
+            [disabled, enabled],
+            CreateSettings(enabled: true, leadMinutes: 15),
+            CancellationToken.None);
+
+        Assert.IsFalse(result.HasFailures);
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                $"cancel:{disabled.Id:N}",
+                $"schedule:{enabled.Id:N}",
+            },
+            scheduler.Operations);
+        Assert.IsTrue(wasSuppressionSavedBeforeSchedule);
+        Assert.AreEqual(
+            NotificationState.Suppressed,
+            ledger.SavedEntries.Single(entry =>
+                entry.GameId == disabled.Id).State);
+        Assert.AreEqual(
+            NotificationState.Scheduled,
+            ledger.SavedEntries.Single(entry =>
+                entry.GameId == enabled.Id).State);
+    }
+
+    [TestMethod]
+    public async Task ReconcileAsync_IndividualDisabledWithoutWindowsScheduleSuppressesLedger()
+    {
+        GameEntry valid = CreateGame(Guid.NewGuid(), baseStamina: 90);
+        NotificationLedgerEntry scheduled = CreateLedger(
+            valid,
+            leadMinutes: 15,
+            NotificationState.Scheduled);
+        GameEntry uncalculable = valid with
+        {
+            BaseStamina = 99,
+            RecordedAtUtc = DateTimeOffset.MaxValue,
+            RecoveryMinutes = 1,
+            IsNotificationEnabled = false,
+        };
+        FakeNotificationScheduler scheduler = new();
+        FakeNotificationLedgerStore ledger = new([scheduled]);
+        NotificationCoordinator coordinator = CreateCoordinator(
+            scheduler,
+            ledger,
+            nowUtc: DateTimeOffset.MaxValue);
+
+        NotificationReconcileResult result = await coordinator.ReconcileAsync(
+            [uncalculable],
+            CreateSettings(enabled: true, leadMinutes: 15),
+            CancellationToken.None);
+
+        Assert.IsFalse(result.HasFailures);
+        Assert.IsEmpty(scheduler.Operations);
+        Assert.AreEqual(1, ledger.SaveCount);
+        Assert.AreEqual(
+            NotificationState.Suppressed,
+            ledger.SavedEntries.Single().State);
+        Assert.AreEqual(scheduled.Key, ledger.SavedEntries.Single().Key);
+    }
+
+    [TestMethod]
+    public async Task ReconcileAsync_GameChangeReevaluatesIndividualState()
+    {
+        GameEntry enabled = CreateGame(Guid.NewGuid(), baseStamina: 90);
+        GameEntry disabled = enabled with
+        {
+            IsNotificationEnabled = false,
+        };
+        FakeNotificationScheduler scheduler = new();
+        FakeNotificationLedgerStore ledger = new();
+        FakeClock clock = new(RecordedAtUtc.AddMinutes(5));
+        NotificationCoordinator coordinator = new(scheduler, ledger, clock);
+        AppSettings settings = CreateSettings(
+            enabled: true,
+            leadMinutes: 15);
+
+        await coordinator.ReconcileAsync(
+            [enabled],
+            settings,
+            CancellationToken.None);
+        await coordinator.ReconcileAsync(
+            [disabled],
+            settings,
+            CancellationToken.None);
+        await coordinator.ReconcileAsync(
+            [enabled],
+            settings,
+            CancellationToken.None);
+
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                $"schedule:{enabled.Id:N}",
+                $"cancel:{enabled.Id:N}",
+                $"schedule:{enabled.Id:N}",
+            },
+            scheduler.Operations);
+        Assert.HasCount(1, ledger.SavedEntries);
+        Assert.AreEqual(
+            NotificationState.Scheduled,
+            ledger.SavedEntries.Single().State);
+    }
+
+    [TestMethod]
+    public async Task ReconcileAsync_ReenabledPastDueConsumesWithoutShowing()
+    {
+        GameEntry enabled = CreateGame(Guid.NewGuid(), baseStamina: 90);
+        GameEntry disabled = enabled with
+        {
+            IsNotificationEnabled = false,
+        };
+        FakeNotificationScheduler scheduler = new();
+        FakeNotificationLedgerStore ledger = new();
+        FakeClock clock = new(RecordedAtUtc.AddMinutes(5));
+        NotificationCoordinator coordinator = new(scheduler, ledger, clock);
+        AppSettings settings = CreateSettings(
+            enabled: true,
+            leadMinutes: 15);
+
+        await coordinator.ReconcileAsync(
+            [disabled],
+            settings,
+            CancellationToken.None);
+        clock.UtcNow = RecordedAtUtc.AddMinutes(40);
+        await coordinator.ReconcileAsync(
+            [enabled],
+            settings,
+            CancellationToken.None);
+
+        Assert.IsEmpty(scheduler.Operations);
+        Assert.AreEqual(
+            NotificationState.Consumed,
+            ledger.SavedEntries.Single().State);
     }
 
     [TestMethod]
@@ -335,7 +504,7 @@ public sealed class NotificationCoordinatorTests
     }
 
     [TestMethod]
-    public async Task ReconcileAsync_DisabledInvalidScheduleSuppressesCancelledLedger()
+    public async Task ReconcileAsync_DisabledInvalidScheduleSuppressesWithoutFailure()
     {
         GameEntry valid = CreateGame(Guid.NewGuid(), baseStamina: 90);
         NotificationLedgerEntry previous = CreateLedger(
@@ -361,7 +530,7 @@ public sealed class NotificationCoordinatorTests
             CreateSettings(enabled: false, leadMinutes: 2),
             CancellationToken.None);
 
-        Assert.IsTrue(result.HasInvalidSchedule);
+        Assert.IsFalse(result.HasFailures);
         CollectionAssert.AreEqual(
             new[] { "cancel-all" },
             scheduler.Operations);
@@ -477,6 +646,8 @@ public sealed class NotificationCoordinatorTests
 
         public Guid? CancellationGameId { get; init; }
 
+        public Action<NotificationRequest>? ScheduleObserved { get; init; }
+
         public DateTimeOffset AcceptedAtUtc { get; private set; }
 
         public event EventHandler<NotificationActivationEventArgs>?
@@ -502,6 +673,7 @@ public sealed class NotificationCoordinatorTests
             NotificationRequest request,
             CancellationToken cancellationToken)
         {
+            ScheduleObserved?.Invoke(request);
             if (CancellationGameId == request.GameId)
             {
                 throw new OperationCanceledException();

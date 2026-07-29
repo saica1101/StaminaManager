@@ -147,7 +147,7 @@ public sealed class NotificationCoordinator : INotificationReconciler
                         game,
                         settings.NotificationLeadMinutes,
                         _clock.UtcNow,
-                        notificationsEnabled: true,
+                        notificationsEnabled: game.IsNotificationEnabled,
                         existing,
                         scheduled.Contains(game.Id));
                 if (decision.Error != NotificationDecisionError.None)
@@ -437,6 +437,8 @@ public sealed class NotificationCoordinator : INotificationReconciler
         NotificationDecision decision,
         NotificationLedgerEntry? existingEntry) =>
         decision.Action == NotificationPlatformAction.ShowImmediate
+        || (decision.Action == NotificationPlatformAction.Cancel
+            && decision.Entry?.State == NotificationState.Suppressed)
         || (decision.Entry?.State == NotificationState.Consumed
             && existingEntry?.State == NotificationState.Scheduled
             && string.Equals(

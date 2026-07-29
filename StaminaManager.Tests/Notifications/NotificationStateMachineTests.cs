@@ -145,6 +145,99 @@ public sealed class NotificationStateMachineTests
     }
 
     [TestMethod]
+    public void Evaluate_DisabledUncalculableCycleCancelsWindowsSchedule()
+    {
+        GameEntry game = CreateGame(baseStamina: 99) with
+        {
+            RecordedAtUtc = DateTimeOffset.MaxValue,
+            RecoveryMinutes = 1,
+        };
+
+        NotificationDecision decision = NotificationStateMachine.Evaluate(
+            game,
+            leadMinutes: 15,
+            nowUtc: DateTimeOffset.MaxValue,
+            notificationsEnabled: false,
+            existingEntry: null,
+            isScheduledInWindows: true);
+
+        Assert.AreEqual(NotificationPlatformAction.Cancel, decision.Action);
+        Assert.AreEqual(NotificationDecisionError.None, decision.Error);
+        Assert.IsNull(decision.Entry);
+    }
+
+    [TestMethod]
+    public void Evaluate_DisabledUncalculableCycleSuppressesScheduledLedger()
+    {
+        GameEntry validGame = CreateGame(baseStamina: 90);
+        NotificationLedgerEntry scheduled = CreateLedger(
+            validGame,
+            leadMinutes: 15,
+            NotificationState.Scheduled);
+        GameEntry game = validGame with
+        {
+            BaseStamina = 99,
+            RecordedAtUtc = DateTimeOffset.MaxValue,
+            RecoveryMinutes = 1,
+        };
+
+        NotificationDecision decision = NotificationStateMachine.Evaluate(
+            game,
+            leadMinutes: 15,
+            nowUtc: DateTimeOffset.MaxValue,
+            notificationsEnabled: false,
+            scheduled,
+            isScheduledInWindows: false);
+
+        Assert.AreEqual(NotificationPlatformAction.None, decision.Action);
+        Assert.AreEqual(NotificationDecisionError.None, decision.Error);
+        Assert.AreEqual(NotificationState.Suppressed, decision.Entry?.State);
+        Assert.AreEqual(scheduled.Key, decision.Entry?.Key);
+    }
+
+    [TestMethod]
+    [DataRow(NotificationState.Scheduled)]
+    [DataRow(NotificationState.Suppressed)]
+    [DataRow(NotificationState.Consumed)]
+    public void Evaluate_DisabledWindowsScheduleAlwaysCancels(
+        NotificationState ledgerState)
+    {
+        GameEntry game = CreateGame(baseStamina: 90);
+        NotificationLedgerEntry existing = CreateLedger(
+            game,
+            leadMinutes: 15,
+            ledgerState);
+
+        NotificationDecision decision = NotificationStateMachine.Evaluate(
+            game,
+            leadMinutes: 15,
+            nowUtc: RecordedAtUtc.AddMinutes(5),
+            notificationsEnabled: false,
+            existing,
+            isScheduledInWindows: true);
+
+        Assert.AreEqual(NotificationPlatformAction.Cancel, decision.Action);
+    }
+
+    [TestMethod]
+    public void Evaluate_DisabledNewCycleCreatesSuppressedLedger()
+    {
+        GameEntry game = CreateGame(baseStamina: 90);
+
+        NotificationDecision decision = NotificationStateMachine.Evaluate(
+            game,
+            leadMinutes: 15,
+            nowUtc: RecordedAtUtc.AddMinutes(5),
+            notificationsEnabled: false,
+            existingEntry: null,
+            isScheduledInWindows: false);
+
+        Assert.AreEqual(NotificationPlatformAction.None, decision.Action);
+        Assert.AreEqual(NotificationDecisionError.None, decision.Error);
+        Assert.AreEqual(NotificationState.Suppressed, decision.Entry?.State);
+    }
+
+    [TestMethod]
     public void Evaluate_ReenabledBeforeDueSchedulesSuppressedCycle()
     {
         GameEntry game = CreateGame(baseStamina: 90);

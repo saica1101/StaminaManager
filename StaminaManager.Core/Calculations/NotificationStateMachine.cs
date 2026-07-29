@@ -14,6 +14,16 @@ public static class NotificationStateMachine
     {
         ArgumentNullException.ThrowIfNull(game);
         nowUtc = nowUtc.ToUniversalTime();
+        if (!notificationsEnabled)
+        {
+            return EvaluateDisabled(
+                game,
+                leadMinutes,
+                nowUtc,
+                existingEntry,
+                isScheduledInWindows);
+        }
+
         StaminaSnapshot snapshot = StaminaCalculator.Calculate(game, nowUtc);
         if (snapshot.FullAtUtc is null)
         {
@@ -39,15 +49,6 @@ public static class NotificationStateMachine
         }
 
         bool isSameCycle = existingEntry?.Key == candidate.Key;
-        if (!notificationsEnabled)
-        {
-            return new NotificationDecision(
-                ShouldCancel(existingEntry, isScheduledInWindows)
-                    ? NotificationPlatformAction.Cancel
-                    : NotificationPlatformAction.None,
-                candidate with { State = NotificationState.Suppressed });
-        }
-
         if (isSameCycle
             && existingEntry!.State == NotificationState.Consumed)
         {
@@ -83,6 +84,48 @@ public static class NotificationStateMachine
                 ? NotificationPlatformAction.Cancel
                 : NotificationPlatformAction.None,
             isSameCycle ? consumed : null);
+    }
+
+    private static NotificationDecision EvaluateDisabled(
+        GameEntry game,
+        int leadMinutes,
+        DateTimeOffset nowUtc,
+        NotificationLedgerEntry? existingEntry,
+        bool isScheduledInWindows)
+    {
+        NotificationPlatformAction action = isScheduledInWindows
+            ? NotificationPlatformAction.Cancel
+            : NotificationPlatformAction.None;
+        NotificationLedgerEntry? suppressedEntry =
+            existingEntry?.State == NotificationState.Scheduled
+                ? existingEntry with
+                {
+                    State = NotificationState.Suppressed,
+                }
+                : existingEntry;
+
+        try
+        {
+            StaminaSnapshot snapshot = StaminaCalculator.Calculate(
+                game,
+                nowUtc);
+            if (snapshot.FullAtUtc is null
+                || !NotificationCycle.TryCreate(
+                    game,
+                    snapshot.FullAtUtc.Value,
+                    leadMinutes,
+                    NotificationState.Suppressed,
+                    out NotificationLedgerEntry? candidate))
+            {
+                return new NotificationDecision(action, suppressedEntry);
+            }
+
+            return new NotificationDecision(action, candidate);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return new NotificationDecision(action, suppressedEntry);
+        }
     }
 
     private static NotificationDecision EvaluateFuture(
