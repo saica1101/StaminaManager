@@ -33,6 +33,7 @@ $isIdentityVerified = $false
 $isBackupVerified = $false
 $restoreError = $null
 $testGameId = $null
+$notificationTestGameId = $null
 $testGameName = "Codex UI $runId"
 $editedGameName = "$testGameName edited"
 $secondGameName = "$testGameName second"
@@ -92,6 +93,10 @@ $requiredAutomationIds = @(
     'CurrentStaminaInput',
     'MaxStaminaInput',
     'RecoveryMinutesInput',
+    'RecoverySecondsInput',
+    'RecoverySecondsErrorText',
+    'RecoveryIntervalErrorText',
+    'GameNotificationToggle',
     'ChooseGameImageButton',
     'GameEditorDeleteButton',
     'DeleteConfirmButton',
@@ -426,6 +431,31 @@ function Test-UiElement {
     return $LASTEXITCODE -eq 0
 }
 
+function Wait-UiElementNameEmpty {
+    param(
+        [int]$ProcessId,
+        [string]$AutomationId,
+        [int]$Timeout = 3000)
+
+    $deadline = [DateTime]::UtcNow.AddMilliseconds($Timeout)
+    do {
+        $output = & winapp ui get-property $AutomationId -a $ProcessId `
+            -p Name --json 2>$null
+        if ($LASTEXITCODE -ne 0) {
+            return
+        }
+        $name = (($output -join [Environment]::NewLine) |
+            ConvertFrom-Json).properties.Name
+        if ([string]::IsNullOrWhiteSpace([string]$name)) {
+            return
+        }
+
+        Start-Sleep -Milliseconds 50
+    } while ([DateTime]::UtcNow -lt $deadline)
+
+    throw "Element retained an error name: $AutomationId"
+}
+
 function Wait-WindowsNotificationSettings {
     $deadline = [DateTime]::UtcNow.AddSeconds(10)
     do {
@@ -484,10 +514,13 @@ function Write-EmptyFixture {
 
     $original = [IO.File]::ReadAllText($dataPath) | ConvertFrom-Json
     $script:originalDisplayMode = [string]$original.settings.lastDisplayMode
+    $fixtureSettings = $original.settings | Select-Object *
+    $fixtureSettings | Add-Member -MemberType NoteProperty `
+        -Name selectedCompactGameId -Value $null -Force
     $fixture = [ordered]@{
         schemaVersion = [int]$original.schemaVersion
         games = @()
-        settings = $original.settings
+        settings = $fixtureSettings
     }
     [IO.File]::WriteAllText(
         $dataPath,
@@ -497,6 +530,71 @@ function Write-EmptyFixture {
         (Join-Path $dataDirectory 'notification-state.json'),
         '{"schemaVersion":1,"entries":[]}',
         [Text.UTF8Encoding]::new($false))
+}
+
+function Get-EmptyFixtureState {
+    $dataPath = Join-Path $dataDirectory 'data.json'
+    $data = [IO.File]::ReadAllText($dataPath) | ConvertFrom-Json
+    return [pscustomobject]@{
+        Fingerprint = (Get-FileHash -LiteralPath $dataPath `
+            -Algorithm SHA256).Hash
+        GameCount = @($data.games).Count
+        SelectedCompactGameId = $data.settings.selectedCompactGameId
+    }
+}
+
+function Wait-EmptyFixtureApplied {
+    param(
+        [string]$ExpectedFingerprint,
+        [string]$Stage,
+        [int]$Timeout = 5000)
+
+    $deadline = [DateTime]::UtcNow.AddMilliseconds($Timeout)
+    $stableMatches = 0
+    $lastState = $null
+    do {
+        try {
+            $lastState = Get-EmptyFixtureState
+            if ($lastState.Fingerprint -eq $ExpectedFingerprint -and
+                $lastState.GameCount -eq 0 -and
+                $null -eq $lastState.SelectedCompactGameId) {
+                $stableMatches++
+                if ($stableMatches -ge 3) {
+                    return $lastState
+                }
+            }
+            else {
+                $stableMatches = 0
+            }
+        }
+        catch {
+            $stableMatches = 0
+        }
+
+        Start-Sleep -Milliseconds 100
+    } while ([DateTime]::UtcNow -lt $deadline)
+
+    $detail = if ($null -eq $lastState) {
+        'data.jsonを読み取れませんでした。'
+    }
+    else {
+        "Hash=$($lastState.Fingerprint); Games=$($lastState.GameCount); " +
+            "SelectedCompactGameId=$($lastState.SelectedCompactGameId)"
+    }
+    throw "$Stage の空fixtureが安定しませんでした。$detail"
+}
+
+function Format-EmptyFixtureState {
+    param([object]$State)
+
+    $selected = if ($null -eq $State.SelectedCompactGameId) {
+        'null'
+    }
+    else {
+        [string]$State.SelectedCompactGameId
+    }
+    return "Hash=$($State.Fingerprint); Games=$($State.GameCount); " +
+        "SelectedCompactGameId=$selected"
 }
 
 function Add-TestGame {
@@ -531,6 +629,49 @@ function Get-ControlValue {
         Invoke-WinApp ui get-value $AutomationId -a $AppPid --json |
             ConvertFrom-Json
     ).text
+}
+
+function Set-NumberBoxFromKeyboard {
+    param(
+        [string]$AutomationId,
+        [string]$Value)
+
+    Invoke-WinApp ui send-keys ctrl+a --target $AutomationId `
+        -a $AppPid --via send-input | Out-Null
+    Invoke-WinApp ui send-keys --verbatim $Value `
+        --target $AutomationId -a $AppPid --via send-input | Out-Null
+    Invoke-WinApp ui send-keys tab --target $AutomationId `
+        -a $AppPid --via send-input | Out-Null
+}
+
+function Wait-NumberBoxValue {
+    param(
+        [string]$AutomationId,
+        [string]$ExpectedValue,
+        [int]$Timeout = 3000)
+
+    $deadline = [DateTime]::UtcNow.AddMilliseconds($Timeout)
+    do {
+        try {
+            $inspection = Invoke-WinApp ui inspect $AutomationId `
+                -a $AppPid --json | ConvertFrom-Json
+            $numberBox = @($inspection.windows.elements) |
+                Where-Object { $_.automationId -eq $AutomationId } |
+                Select-Object -First 1
+            $inputBox = @($numberBox.children) |
+                Where-Object { $_.automationId -eq 'InputBox' } |
+                Select-Object -First 1
+            if ([string]$inputBox.value -eq $ExpectedValue) {
+                return
+            }
+        }
+        catch {
+        }
+
+        Start-Sleep -Milliseconds 50
+    } while ([DateTime]::UtcNow -lt $deadline)
+
+    throw "NumberBox $AutomationId did not reach $ExpectedValue."
 }
 
 function Select-ComboItem {
@@ -623,6 +764,26 @@ function Get-DataGame {
     throw "Saved game was not found in data.json: $Name"
 }
 
+function Get-DataFileFingerprint {
+    return (Get-FileHash -LiteralPath (
+        Join-Path $dataDirectory 'data.json') -Algorithm SHA256).Hash
+}
+
+function Assert-EditorSaveIsBlocked {
+    param([string]$ExpectedDataFingerprint)
+
+    Invoke-WinApp ui wait-for GameEditorSaveButton -a $AppPid `
+        -p IsEnabled --value False -t 3000 | Out-Null
+    & winapp ui click GameEditorSaveButton -a $AppPid 2>$null |
+        Out-Null
+    Start-Sleep -Milliseconds 300
+    Invoke-WinApp ui wait-for GameEditorDialog -a $AppPid -t 3000 |
+        Out-Null
+    if ((Get-DataFileFingerprint) -ne $ExpectedDataFingerprint) {
+        throw 'Disabled editor save changed data.json.'
+    }
+}
+
 function Collect-AuditSnapshot {
     param([string]$State)
 
@@ -684,6 +845,10 @@ function Collect-AuditSnapshot {
                 'CurrentStaminaInput',
                 'MaxStaminaInput',
                 'RecoveryMinutesInput',
+                'RecoverySecondsInput',
+                'RecoverySecondsErrorText',
+                'RecoveryIntervalErrorText',
+                'GameNotificationToggle',
                 'ChooseGameImageButton',
                 'GameEditorDeleteButton')
         }
@@ -696,6 +861,10 @@ function Collect-AuditSnapshot {
                 'CurrentStaminaInput',
                 'MaxStaminaInput',
                 'RecoveryMinutesInput',
+                'RecoverySecondsInput',
+                'RecoverySecondsErrorText',
+                'RecoveryIntervalErrorText',
+                'GameNotificationToggle',
                 'ChooseGameImageButton',
                 'GameEditorDeleteButton',
                 'DeleteConfirmButton',
@@ -1332,6 +1501,11 @@ try {
         "Data=$dataBackupDirectory; Settings=$settingsBackupDirectory"
 
     Write-EmptyFixture
+    $writtenFixtureState = Get-EmptyFixtureState
+    $writtenFixtureState = Wait-EmptyFixtureApplied `
+        $writtenFixtureState.Fingerprint '起動前'
+    Add-Result Safety '起動前の空games fixture検証' PASS `
+        (Format-EmptyFixtureState $writtenFixtureState)
     Start-PackagedApp | Out-Null
     if (Test-UiElement $AppPid ReturnOverviewButton 1000) {
         Invoke-WinApp ui invoke ReturnOverviewButton -a $AppPid | Out-Null
@@ -1339,12 +1513,10 @@ try {
 
     Invoke-WinApp ui wait-for NavOverview -a $AppPid -t 5000 |
         Out-Null
-    $fixtureData = [IO.File]::ReadAllText(
-        (Join-Path $dataDirectory 'data.json')) | ConvertFrom-Json
-    if (@($fixtureData.games).Count -ne 0) {
-        throw 'The deterministic fixture is not empty.'
-    }
-    Add-Result Safety '元settingsを保持した空games fixture' PASS
+    $appliedFixtureState = Wait-EmptyFixtureApplied `
+        $writtenFixtureState.Fingerprint '起動後'
+    Add-Result Safety '起動後の空games fixture反映' PASS `
+        (Format-EmptyFixtureState $appliedFixtureState)
 
     Invoke-UiTest Navigation 'OverviewとSettingsの往復' {
         Invoke-WinApp ui wait-for NavOverview -a $AppPid -t 5000 |
@@ -1372,14 +1544,49 @@ try {
     }
 
     Invoke-UiTest Editor 'ゲームを追加して保存' {
+        $emptyDataFingerprint = Get-DataFileFingerprint
         Invoke-WinApp ui set-value GameNameInput $testGameName `
             -a $AppPid | Out-Null
         Invoke-WinApp ui set-value CurrentStaminaInput 98 `
             -a $AppPid | Out-Null
         Invoke-WinApp ui set-value MaxStaminaInput 100 `
             -a $AppPid | Out-Null
-        Invoke-WinApp ui set-value RecoveryMinutesInput 525600 `
-            -a $AppPid | Out-Null
+        Set-NumberBoxFromKeyboard RecoveryMinutesInput '1'
+        Set-NumberBoxFromKeyboard RecoverySecondsInput '1.5'
+        Invoke-WinApp ui wait-for RecoverySecondsErrorText -a $AppPid `
+            -p Name --value '整数で入力してください。' -t 3000 | Out-Null
+        Invoke-WinApp ui wait-for RecoverySecondsInput -a $AppPid `
+            -p HelpText --value '整数で入力してください。' -t 3000 |
+            Out-Null
+        Collect-AuditSnapshot EditorSecondsValidation
+        Assert-EditorSaveIsBlocked $emptyDataFingerprint
+
+        Set-NumberBoxFromKeyboard RecoveryMinutesInput '0'
+        Set-NumberBoxFromKeyboard RecoverySecondsInput '0'
+        Wait-UiElementNameEmpty $AppPid RecoverySecondsErrorText
+        $intervalError =
+            '回復時間は合計1秒～525,600分で入力してください。'
+        Invoke-WinApp ui wait-for RecoveryIntervalErrorText -a $AppPid `
+            -p Name --value $intervalError `
+            -t 3000 | Out-Null
+        foreach ($inputId in @(
+                'RecoveryMinutesInput',
+                'RecoverySecondsInput')) {
+            Invoke-WinApp ui wait-for $inputId -a $AppPid `
+                -p HelpText --value $intervalError -t 3000 | Out-Null
+        }
+        Collect-AuditSnapshot EditorIntervalValidation
+        Assert-EditorSaveIsBlocked $emptyDataFingerprint
+
+        Set-NumberBoxFromKeyboard RecoveryMinutesInput '8'
+        Set-NumberBoxFromKeyboard RecoverySecondsInput '30'
+        Invoke-WinApp ui invoke GameNotificationToggle -a $AppPid |
+            Out-Null
+        Wait-UiElementNameEmpty $AppPid RecoverySecondsErrorText
+        Wait-UiElementNameEmpty $AppPid RecoveryIntervalErrorText
+        Invoke-WinApp ui wait-for GameNotificationToggle -a $AppPid `
+            --value Off -t 3000 | Out-Null
+        Save-Screenshot '02-editor-recovery-validation'
         Invoke-WinApp ui wait-for GameEditorSaveButton -a $AppPid `
             -p IsEnabled --value True -t 3000 | Out-Null
         Invoke-WinApp ui invoke GameEditorSaveButton -a $AppPid |
@@ -1387,6 +1594,11 @@ try {
         Invoke-WinApp ui wait-for GameEditorDialog -a $AppPid `
             --gone -t 5000 | Out-Null
         $game = Get-DataGame $testGameName
+        if ([int]$game.recoveryMinutes -ne 8 -or
+            [int]$game.recoverySeconds -ne 30 -or
+            [bool]$game.isNotificationEnabled) {
+            throw 'Saved recovery interval or notification setting differed.'
+        }
         $script:testGameId = [Guid]$game.id
         $script:testGameIds.Add($testGameId)
         $cardId = "GameCard_$($testGameId.ToString('D'))"
@@ -1405,6 +1617,10 @@ try {
         Invoke-WinApp ui invoke $cardId -a $AppPid | Out-Null
         Invoke-WinApp ui wait-for GameEditorDeleteButton `
             -a $AppPid -t 5000 | Out-Null
+        Wait-NumberBoxValue RecoveryMinutesInput '8'
+        Wait-NumberBoxValue RecoverySecondsInput '30'
+        Invoke-WinApp ui wait-for GameNotificationToggle -a $AppPid `
+            --value Off -t 3000 | Out-Null
         Invoke-WinApp ui set-value GameNameInput $editedGameName `
             -a $AppPid | Out-Null
         Collect-AuditSnapshot EditorDelete
@@ -1422,7 +1638,8 @@ try {
     }
 
     Invoke-UiTest Overview '3ゲームと3列・2列・最小幅2列' {
-        $script:testGameIds.Add((Add-TestGame $secondGameName))
+        $script:notificationTestGameId = Add-TestGame $secondGameName
+        $script:testGameIds.Add($notificationTestGameId)
         $script:testGameIds.Add((Add-TestGame $thirdGameName))
         if ($testGameIds.Count -ne 3) {
             throw "Expected three game IDs, actual $($testGameIds.Count)."
@@ -1559,6 +1776,10 @@ try {
         Add-Result Manual 'Windows通知無効状態' SKIP `
             'OS側でStaminaManagerの通知を無効にした場合のみ確認。'
         Invoke-UiTest Settings '通知ledgerの抑止・再予約・lead変更' {
+            if ($null -eq $notificationTestGameId) {
+                throw '通知ONのテストゲームが作成されていません。'
+            }
+
             Scroll-ToSettingsControl NotificationLeadInput
             Invoke-WinApp ui wait-for NotificationLeadInput -a $AppPid `
                 -t 5000 | Out-Null
@@ -1571,12 +1792,13 @@ try {
                     --value Off -t 5000 | Out-Null
             }
 
-            Wait-LedgerEntry $testGameId Suppressed $initialLead | Out-Null
+            Wait-LedgerEntry $notificationTestGameId Suppressed `
+                $initialLead | Out-Null
             Invoke-WinApp ui invoke NotificationsToggle -a $AppPid | Out-Null
             Invoke-WinApp ui wait-for NotificationsToggle -a $AppPid `
                 --value On -t 5000 | Out-Null
             $scheduled = Wait-LedgerEntry `
-                $testGameId Scheduled $initialLead
+                $notificationTestGameId Scheduled $initialLead
 
             $changedLead = if ($initialLead -lt 525600) {
                 $initialLead + 1
@@ -1587,7 +1809,7 @@ try {
             Invoke-WinApp ui wait-for InputBox -a $AppPid `
                 --value $changedLead -t 5000 | Out-Null
             $rescheduled = Wait-LedgerEntry `
-                $testGameId Scheduled $changedLead
+                $notificationTestGameId Scheduled $changedLead
             if ($scheduled.key -eq $rescheduled.key -and
                 [int]$scheduled.leadMinutes -eq
                     [int]$rescheduled.leadMinutes) {
@@ -1599,13 +1821,15 @@ try {
             Invoke-WinApp ui focus NavSettings -a $AppPid | Out-Null
             Invoke-WinApp ui wait-for InputBox -a $AppPid `
                 --value $initialLead -t 5000 | Out-Null
-            Wait-LedgerEntry $testGameId Scheduled $initialLead | Out-Null
+            Wait-LedgerEntry $notificationTestGameId Scheduled `
+                $initialLead | Out-Null
 
             Invoke-WinApp ui invoke NotificationsToggle -a $AppPid |
                 Out-Null
             Invoke-WinApp ui wait-for NotificationsToggle -a $AppPid `
                 --value Off -t 5000 | Out-Null
-            Wait-LedgerEntry $testGameId Suppressed $initialLead | Out-Null
+            Wait-LedgerEntry $notificationTestGameId Suppressed `
+                $initialLead | Out-Null
             Collect-AuditSnapshot SettingsNotifications
         }
     }

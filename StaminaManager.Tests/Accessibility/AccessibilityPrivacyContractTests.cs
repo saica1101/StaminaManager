@@ -114,6 +114,56 @@ public sealed class AccessibilityPrivacyContractTests
     }
 
     [TestMethod]
+    public void GameEditorRecoveryErrors_AreAssociatedWithBothInputs()
+    {
+        string root = FindRepositoryRoot();
+        XDocument dialog = XDocument.Load(Path.Combine(
+            root,
+            "StaminaManager",
+            "Controls",
+            "GameEditorDialog.xaml"));
+        Dictionary<string, string> expectedBindings = new()
+        {
+            ["RecoveryMinutesInput"] =
+                "FirstNonEmptyError(ViewModel.RecoveryMinutesError, "
+                + "ViewModel.RecoveryIntervalError)",
+            ["RecoverySecondsInput"] =
+                "FirstNonEmptyError(ViewModel.RecoverySecondsError, "
+                + "ViewModel.RecoveryIntervalError)",
+        };
+
+        foreach ((string automationId, string expectedBinding) in
+            expectedBindings)
+        {
+            XElement input = dialog.Descendants().Single(element =>
+                element.Name.LocalName == "NumberBox"
+                && AttributeValue(
+                    element,
+                    "AutomationProperties.AutomationId") == automationId);
+            StringAssert.Contains(
+                AttributeValue(input, "AutomationProperties.HelpText")
+                    ?? string.Empty,
+                expectedBinding);
+        }
+
+        MethodInfo? selector = typeof(GameEditorDialog).GetMethod(
+            "FirstNonEmptyError",
+            BindingFlags.Public | BindingFlags.Static);
+        Assert.IsNotNull(selector);
+        const string fieldError = "field error";
+        const string intervalError = "interval error";
+        Assert.AreEqual(
+            fieldError,
+            selector.Invoke(null, [fieldError, intervalError]));
+        Assert.AreEqual(
+            intervalError,
+            selector.Invoke(null, [null, intervalError]));
+        Assert.AreEqual(
+            intervalError,
+            selector.Invoke(null, [" ", intervalError]));
+    }
+
+    [TestMethod]
     public void StaminaRing_ExposesReadOnlyRangeValue()
     {
         MethodInfo? peerFactory = typeof(StaminaRing).GetMethod(

@@ -105,23 +105,84 @@
                         Text="{x:Bind ViewModel.MaxStaminaError, Mode=OneWay}"
                         Visibility="{x:Bind local:GameEditorDialog.TextToVisibility(ViewModel.MaxStaminaError), Mode=OneWay}" />
 
-                    <NumberBox
-                        x:Name="RecoveryMinutesInput"
-                        x:Uid="RecoveryMinutesInput"
-                        AutomationProperties.AutomationId="RecoveryMinutesInput"
-                        AutomationProperties.HelpText="{x:Bind ViewModel.RecoveryMinutesError, Mode=OneWay}"
-                        Header="スタミナが1回復する時間（分）"
-                        Maximum="525600"
-                        Minimum="1"
-                        SpinButtonPlacementMode="Compact"
-                        ValidationMode="Disabled"
-                        Value="{x:Bind ViewModel.RecoveryMinutes, Mode=TwoWay}" />
-                    <TextBlock
-                        Margin="0,-12,0,0"
-                        AutomationProperties.LiveSetting="Assertive"
-                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                        Text="{x:Bind ViewModel.RecoveryMinutesError, Mode=OneWay}"
-                        Visibility="{x:Bind local:GameEditorDialog.TextToVisibility(ViewModel.RecoveryMinutesError), Mode=OneWay}" />
+                    <StackPanel Spacing="{StaticResource Spacing8}">
+                        <Grid ColumnSpacing="{StaticResource Spacing12}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <NumberBox
+                                x:Name="RecoveryMinutesInput"
+                                x:Uid="RecoveryMinutesInput"
+                                AutomationProperties.AutomationId="RecoveryMinutesInput"
+                                AutomationProperties.HelpText="{x:Bind local:GameEditorDialog.FirstNonEmptyError(ViewModel.RecoveryMinutesError, ViewModel.RecoveryIntervalError), Mode=OneWay}"
+                                Header="分"
+                                Maximum="525600"
+                                Minimum="0"
+                                SpinButtonPlacementMode="Compact"
+                                ValidationMode="Disabled"
+                                Value="{x:Bind ViewModel.RecoveryMinutes, Mode=TwoWay}" />
+                            <NumberBox
+                                x:Name="RecoverySecondsInput"
+                                x:Uid="RecoverySecondsInput"
+                                Grid.Column="1"
+                                AutomationProperties.AutomationId="RecoverySecondsInput"
+                                AutomationProperties.HelpText="{x:Bind local:GameEditorDialog.FirstNonEmptyError(ViewModel.RecoverySecondsError, ViewModel.RecoveryIntervalError), Mode=OneWay}"
+                                Header="秒"
+                                Maximum="59"
+                                Minimum="0"
+                                SpinButtonPlacementMode="Compact"
+                                ValidationMode="Disabled"
+                                Value="{x:Bind ViewModel.RecoverySeconds, Mode=TwoWay}" />
+                        </Grid>
+                        <Grid ColumnSpacing="{StaticResource Spacing12}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock
+                                AutomationProperties.LiveSetting="Assertive"
+                                Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                Text="{x:Bind ViewModel.RecoveryMinutesError, Mode=OneWay}"
+                                TextWrapping="Wrap"
+                                Visibility="{x:Bind local:GameEditorDialog.TextToVisibility(ViewModel.RecoveryMinutesError), Mode=OneWay}" />
+                            <TextBlock
+                                x:Name="RecoverySecondsErrorText"
+                                Grid.Column="1"
+                                AutomationProperties.AutomationId="RecoverySecondsErrorText"
+                                AutomationProperties.LiveSetting="Assertive"
+                                AutomationProperties.Name="{x:Bind ViewModel.RecoverySecondsError, Mode=OneWay}"
+                                Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                Text="{x:Bind ViewModel.RecoverySecondsError, Mode=OneWay}"
+                                TextWrapping="Wrap"
+                                Visibility="{x:Bind local:GameEditorDialog.TextToVisibility(ViewModel.RecoverySecondsError), Mode=OneWay}" />
+                        </Grid>
+                        <TextBlock
+                            x:Name="RecoveryIntervalErrorText"
+                            AutomationProperties.AutomationId="RecoveryIntervalErrorText"
+                            AutomationProperties.LiveSetting="Assertive"
+                            AutomationProperties.Name="{x:Bind ViewModel.RecoveryIntervalError, Mode=OneWay}"
+                            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                            Text="{x:Bind ViewModel.RecoveryIntervalError, Mode=OneWay}"
+                            TextWrapping="Wrap"
+                            Visibility="{x:Bind local:GameEditorDialog.TextToVisibility(ViewModel.RecoveryIntervalError), Mode=OneWay}" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="{StaticResource Spacing4}">
+                        <ToggleSwitch
+                            x:Name="GameNotificationToggle"
+                            x:Uid="GameNotificationToggle"
+                            AutomationProperties.AutomationId="GameNotificationToggle"
+                            Header="満タン通知"
+                            IsOn="{x:Bind ViewModel.IsNotificationEnabled, Mode=TwoWay}"
+                            OffContent="オフ"
+                            OnContent="オン" />
+                        <TextBlock
+                            x:Uid="GameNotificationDescription"
+                            Style="{StaticResource AppSecondaryTextStyle}"
+                            Text="Settingsの通知がONの場合に、このゲームの満タン通知を受け取ります"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
 
                     <StackPanel Spacing="{StaticResource Spacing8}">
                         <TextBlock

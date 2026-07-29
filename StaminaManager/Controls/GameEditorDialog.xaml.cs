@@ -75,6 +75,11 @@ public sealed partial class GameEditorDialog : ContentDialog
     public static bool HasText(string? value) =>
         !string.IsNullOrWhiteSpace(value);
 
+    public static string? FirstNonEmptyError(
+        string? fieldError,
+        string? intervalError) =>
+        HasText(fieldError) ? fieldError : intervalError;
+
     public static Visibility BoolToVisibility(
         GameEditorState value,
         GameEditorState expected) =>
