@@ -5,4 +5,6 @@ public sealed record GameDraft(
     int CurrentStamina,
     int MaxStamina,
     int RecoveryMinutes,
-    string? ImageAssetId);
+    string? ImageAssetId,
+    int RecoverySeconds,
+    bool IsNotificationEnabled);

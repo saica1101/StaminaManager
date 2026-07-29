@@ -309,7 +309,9 @@ public sealed partial class GameEditorViewModel : ObservableObject
             ToValidationInt(CurrentStamina),
             ToValidationInt(MaxStamina),
             ToValidationInt(RecoveryMinutes),
-            ImageAssetId);
+            ImageAssetId,
+            RecoverySeconds: 0,
+            IsNotificationEnabled: true);
         ValidationResult result = GameEntryValidator.Validate(
             draft,
             _clock.UtcNow);
@@ -335,7 +337,9 @@ public sealed partial class GameEditorViewModel : ObservableObject
         ToIntOrThrow(CurrentStamina, nameof(CurrentStamina)),
         ToIntOrThrow(MaxStamina, nameof(MaxStamina)),
         ToIntOrThrow(RecoveryMinutes, nameof(RecoveryMinutes)),
-        ImageAssetId);
+        ImageAssetId,
+        RecoverySeconds: 0,
+        IsNotificationEnabled: true);
 
     private static string? GetIntegerError(double value) =>
         double.IsFinite(value)

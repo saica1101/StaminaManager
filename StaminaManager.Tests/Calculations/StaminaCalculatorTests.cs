@@ -79,6 +79,40 @@ public sealed class StaminaCalculatorTests
     }
 
     [TestMethod]
+    [DataRow(0, 1, 0, 0)]
+    [DataRow(0, 1, 1, 1)]
+    [DataRow(0, 1, 2, 2)]
+    [DataRow(0, 59, 58, 0)]
+    [DataRow(0, 59, 59, 1)]
+    [DataRow(0, 59, 60, 1)]
+    [DataRow(1, 0, 59, 0)]
+    [DataRow(1, 0, 60, 1)]
+    [DataRow(1, 0, 61, 1)]
+    [DataRow(8, 30, 509, 0)]
+    [DataRow(8, 30, 510, 1)]
+    [DataRow(8, 30, 511, 1)]
+    [DataRow(525_600, 0, 31_535_999, 0)]
+    [DataRow(525_600, 0, 31_536_000, 1)]
+    public void Calculate_RecoversAtWholeSecondIntervals(
+        int recoveryMinutes,
+        int recoverySeconds,
+        int elapsedSeconds,
+        int expectedRecovery)
+    {
+        GameEntry entry = CreateEntry(
+            baseStamina: 0,
+            maxStamina: 100,
+            recoveryMinutes,
+            recoverySeconds);
+
+        StaminaSnapshot snapshot = StaminaCalculator.Calculate(
+            entry,
+            RecordedAtUtc.AddSeconds(elapsedSeconds));
+
+        Assert.AreEqual(expectedRecovery, snapshot.Current);
+    }
+
+    [TestMethod]
     public void Calculate_TruncatesElapsedTimeBelowOneRecoveryInterval()
     {
         GameEntry entry = CreateEntry(
@@ -99,13 +133,48 @@ public sealed class StaminaCalculatorTests
         GameEntry entry = CreateEntry(
             baseStamina: 40,
             maxStamina: 100,
-            recoveryMinutes: 5);
+            recoveryMinutes: 0,
+            recoverySeconds: 1);
 
         StaminaSnapshot snapshot = StaminaCalculator.Calculate(
             entry,
             RecordedAtUtc.AddMinutes(-30));
 
         Assert.AreEqual(40, snapshot.Current);
+    }
+
+    [TestMethod]
+    public void Calculate_ReturnsExactFullTimeForMaximumRecoveryInterval()
+    {
+        GameEntry entry = CreateEntry(
+            baseStamina: 0,
+            maxStamina: 100,
+            recoveryMinutes: 525_600);
+        DateTimeOffset expectedFullAtUtc =
+            RecordedAtUtc.AddMinutes(100L * 525_600);
+
+        StaminaSnapshot snapshot =
+            StaminaCalculator.Calculate(entry, RecordedAtUtc);
+
+        Assert.AreEqual(expectedFullAtUtc, snapshot.FullAtUtc);
+        Assert.AreEqual(expectedFullAtUtc - RecordedAtUtc, snapshot.Remaining);
+    }
+
+    [TestMethod]
+    public void Calculate_IncludesRecoverySecondsInFullTime()
+    {
+        GameEntry entry = CreateEntry(
+            baseStamina: 0,
+            maxStamina: 2,
+            recoveryMinutes: 8,
+            recoverySeconds: 30);
+
+        StaminaSnapshot snapshot =
+            StaminaCalculator.Calculate(entry, RecordedAtUtc);
+
+        Assert.AreEqual(
+            RecordedAtUtc.AddMinutes(17),
+            snapshot.FullAtUtc);
     }
 
     [TestMethod]
@@ -169,7 +238,9 @@ public sealed class StaminaCalculatorTests
             RecoveryMinutes: 1,
             RecordedAtUtc: DateTimeOffset.MaxValue.AddMinutes(-1),
             ImageAssetId: null,
-            SortOrder: 0);
+            SortOrder: 0,
+            RecoverySeconds: 0,
+            IsNotificationEnabled: true);
 
         AssertFullTimeOutOfRangeException(
             () => StaminaCalculator.Calculate(
@@ -188,7 +259,9 @@ public sealed class StaminaCalculatorTests
             RecoveryMinutes: int.MaxValue,
             RecordedAtUtc: RecordedAtUtc,
             ImageAssetId: null,
-            SortOrder: 0);
+            SortOrder: 0,
+            RecoverySeconds: 59,
+            IsNotificationEnabled: true);
 
         AssertFullTimeOutOfRangeException(
             () => StaminaCalculator.Calculate(entry, RecordedAtUtc));
@@ -213,7 +286,9 @@ public sealed class StaminaCalculatorTests
             RecoveryMinutes: 7,
             RecordedAtUtc: recordedAt,
             ImageAssetId: null,
-            SortOrder: 0);
+            SortOrder: 0,
+            RecoverySeconds: 0,
+            IsNotificationEnabled: true);
         DateTimeOffset now = recordedAt
             .ToOffset(TimeSpan.FromHours(7))
             .AddMinutes(5);
@@ -233,7 +308,8 @@ public sealed class StaminaCalculatorTests
     private static GameEntry CreateEntry(
         int baseStamina,
         int maxStamina,
-        int recoveryMinutes)
+        int recoveryMinutes,
+        int recoverySeconds = 0)
     {
         return new GameEntry(
             Id: Guid.NewGuid(),
@@ -243,7 +319,9 @@ public sealed class StaminaCalculatorTests
             RecoveryMinutes: recoveryMinutes,
             RecordedAtUtc: RecordedAtUtc,
             ImageAssetId: null,
-            SortOrder: 0);
+            SortOrder: 0,
+            RecoverySeconds: recoverySeconds,
+            IsNotificationEnabled: true);
     }
 
     private static void AssertFullTimeOutOfRangeException(Action action)

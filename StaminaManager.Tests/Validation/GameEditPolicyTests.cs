@@ -148,12 +148,16 @@ public sealed class GameEditPolicyTests
         RecoveryMinutes: 5,
         RecordedAtUtc: RecordedAtUtc,
         ImageAssetId: "original-image",
-        SortOrder: 7);
+        SortOrder: 7,
+        RecoverySeconds: 0,
+        IsNotificationEnabled: true);
 
     private static GameDraft CreateInitialDraft() => new(
         Name: "Original game",
         CurrentStamina: 50,
         MaxStamina: 100,
         RecoveryMinutes: 5,
-        ImageAssetId: "original-image");
+        ImageAssetId: "original-image",
+        RecoverySeconds: 0,
+        IsNotificationEnabled: true);
 }

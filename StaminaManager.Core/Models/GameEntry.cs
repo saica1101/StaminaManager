@@ -8,4 +8,6 @@ public sealed record GameEntry(
     int RecoveryMinutes,
     DateTimeOffset RecordedAtUtc,
     string? ImageAssetId,
-    int SortOrder);
+    int SortOrder,
+    int RecoverySeconds,
+    bool IsNotificationEnabled);

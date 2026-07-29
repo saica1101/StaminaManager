@@ -63,7 +63,14 @@ public sealed class AppCoordinatorTests
 
         int saveCountBeforeAdd = store.SaveCount;
         await manager.AddAsync(
-            new GameDraft("After recovery", 1, 100, 5, null),
+            new GameDraft(
+                "After recovery",
+                1,
+                100,
+                5,
+                null,
+                RecoverySeconds: 0,
+                IsNotificationEnabled: true),
             CancellationToken.None);
         Assert.AreEqual(saveCountBeforeAdd + 1, store.SaveCount);
     }
@@ -544,7 +551,9 @@ public sealed class AppCoordinatorTests
             RecoveryMinutes: 5,
             RecordedAtUtc: NowUtc,
             ImageAssetId: null,
-            SortOrder: 0)),
+            SortOrder: 0,
+            RecoverySeconds: 0,
+            IsNotificationEnabled: true)),
         AppSettings.CreateDefault(AppTheme.Light));
 
     private static DataEnvelope CreateEnvelope(
@@ -565,7 +574,9 @@ public sealed class AppCoordinatorTests
         RecoveryMinutes: 5,
         RecordedAtUtc: NowUtc,
         ImageAssetId: null,
-        sortOrder);
+        sortOrder,
+        RecoverySeconds: 0,
+        IsNotificationEnabled: true);
 
     private sealed class CoordinatorDataStore(DataLoadResult loadResult)
         : ILocalDataStore

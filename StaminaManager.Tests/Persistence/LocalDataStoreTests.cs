@@ -569,7 +569,9 @@ public sealed class LocalDataStoreTests
                 0,
                 TimeSpan.Zero),
             ImageAssetId: "0123456789abcdef0123456789abcdef",
-            SortOrder: 0);
+            SortOrder: 0,
+            RecoverySeconds: 0,
+            IsNotificationEnabled: true);
         return new DataEnvelope(
             DataEnvelope.CurrentSchemaVersion,
             ImmutableArray.Create(game),

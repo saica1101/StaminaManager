@@ -189,7 +189,9 @@ public sealed class GameEditorViewModelTests
         RecoveryMinutes: 5,
         RecordedAtUtc: NowUtc,
         ImageAssetId: null,
-        SortOrder: 0);
+        SortOrder: 0,
+        RecoverySeconds: 0,
+        IsNotificationEnabled: true);
 
     private sealed class MemoryDataStore : ILocalDataStore
     {

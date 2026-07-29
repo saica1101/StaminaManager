@@ -430,7 +430,9 @@ public sealed class NotificationCoordinatorTests
         RecoveryMinutes: 5,
         RecordedAtUtc,
         ImageAssetId: null,
-        SortOrder: 0);
+        SortOrder: 0,
+        RecoverySeconds: 0,
+        IsNotificationEnabled: true);
 
     private sealed class FakeNotificationLedgerStore(
         IReadOnlyList<NotificationLedgerEntry>? initialEntries = null)

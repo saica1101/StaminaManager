@@ -125,7 +125,9 @@ public sealed class GameManagerTests
             CurrentStamina: 44,
             original.MaxStamina,
             original.RecoveryMinutes,
-            original.ImageAssetId);
+            original.ImageAssetId,
+            RecoverySeconds: 0,
+            IsNotificationEnabled: true);
         GameDraft editedDraft = initialDraft with { Name = "Renamed" };
 
         GameEntry edited = await manager.EditAsync(
@@ -509,7 +511,9 @@ public sealed class GameManagerTests
         CurrentStamina: 40,
         MaxStamina: 100,
         RecoveryMinutes: 5,
-        ImageAssetId: null);
+        ImageAssetId: null,
+        RecoverySeconds: 0,
+        IsNotificationEnabled: true);
 
     private static GameEntry CreateEntry(
         Guid id,
@@ -522,7 +526,9 @@ public sealed class GameManagerTests
             RecoveryMinutes: 5,
             RecordedAtUtc: NowUtc.AddHours(-1),
             ImageAssetId: null,
-            sortOrder);
+            sortOrder,
+            RecoverySeconds: 0,
+            IsNotificationEnabled: true);
 
     private sealed class RecordingDataStore : ILocalDataStore
     {

@@ -89,7 +89,7 @@ public sealed class GameEntryValidatorTests
     }
 
     [TestMethod]
-    [DataRow(0)]
+    [DataRow(-1)]
     [DataRow(525_601)]
     public void Validate_RejectsRecoveryMinutesOutsideAllowedRange(
         int recoveryMinutes)
@@ -105,7 +105,71 @@ public sealed class GameEntryValidatorTests
         AssertFieldError(
             result,
             nameof(GameDraft.RecoveryMinutes),
-            "1～525,600分");
+            "0～525,600分");
+    }
+
+    [TestMethod]
+    [DataRow(0, 0)]
+    [DataRow(525_600, 1)]
+    public void Validate_RejectsRecoveryIntervalOutsideAllowedRange(
+        int recoveryMinutes,
+        int recoverySeconds)
+    {
+        GameDraft draft = CreateValidDraft() with
+        {
+            RecoveryMinutes = recoveryMinutes,
+            RecoverySeconds = recoverySeconds,
+        };
+
+        ValidationResult result =
+            GameEntryValidator.Validate(draft, RecordedAtUtc);
+
+        AssertFieldError(
+            result,
+            "RecoveryInterval",
+            "1秒～525,600分");
+    }
+
+    [TestMethod]
+    [DataRow(-1)]
+    [DataRow(60)]
+    public void Validate_RejectsRecoverySecondsOutsideAllowedRange(
+        int recoverySeconds)
+    {
+        GameDraft draft = CreateValidDraft() with
+        {
+            RecoverySeconds = recoverySeconds,
+        };
+
+        ValidationResult result =
+            GameEntryValidator.Validate(draft, RecordedAtUtc);
+
+        AssertFieldError(
+            result,
+            nameof(GameDraft.RecoverySeconds),
+            "0～59秒");
+    }
+
+    [TestMethod]
+    [DataRow(0, 1)]
+    [DataRow(0, 59)]
+    [DataRow(1, 0)]
+    [DataRow(525_600, 0)]
+    public void Validate_AcceptsRecoveryIntervalBoundaryValues(
+        int recoveryMinutes,
+        int recoverySeconds)
+    {
+        GameDraft draft = CreateValidDraft() with
+        {
+            RecoveryMinutes = recoveryMinutes,
+            RecoverySeconds = recoverySeconds,
+        };
+
+        ValidationResult result =
+            GameEntryValidator.Validate(draft, RecordedAtUtc);
+
+        Assert.IsTrue(result.IsValid);
+        Assert.IsEmpty(result.Errors);
     }
 
     [TestMethod]
@@ -178,7 +242,9 @@ public sealed class GameEntryValidatorTests
             CurrentStamina: -1,
             MaxStamina: 0,
             RecoveryMinutes: 0,
-            ImageAssetId: null);
+            ImageAssetId: null,
+            RecoverySeconds: 0,
+            IsNotificationEnabled: true);
 
         ValidationResult result = GameEntryValidator.Validate(
             draft,
@@ -213,7 +279,9 @@ public sealed class GameEntryValidatorTests
         CurrentStamina: 40,
         MaxStamina: 100,
         RecoveryMinutes: 5,
-        ImageAssetId: null);
+        ImageAssetId: null,
+        RecoverySeconds: 0,
+        IsNotificationEnabled: true);
 
     private static void AssertPublicConstant(string name, int expected)
     {

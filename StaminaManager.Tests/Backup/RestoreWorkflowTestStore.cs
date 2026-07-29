@@ -88,7 +88,9 @@ internal sealed class RestoreWorkflowTestStore : IAsyncDisposable
             RecoveryMinutes: 5,
             DateTimeOffset.UtcNow,
             ImageAssetId: null,
-            SortOrder: 0);
+            SortOrder: 0,
+            RecoverySeconds: 0,
+            IsNotificationEnabled: true);
         return new DataEnvelope(
             DataEnvelope.CurrentSchemaVersion,
             ImmutableArray.Create(game),

@@ -17,7 +17,11 @@ public static class GameEntryValidator
     private const string MaxStaminaRangeMessage =
         "最大スタミナは1～1,000,000の整数で入力してください。";
     private const string RecoveryMinutesRangeMessage =
-        "回復時間は1～525,600分の整数で入力してください。";
+        "回復時間の分部分は0～525,600分の整数で入力してください。";
+    private const string RecoverySecondsRangeMessage =
+        "回復時間の秒部分は0～59秒の整数で入力してください。";
+    private const string RecoveryIntervalRangeMessage =
+        "回復時間は合計1秒～525,600分で入力してください。";
     private const string FullTimeOutOfRangeMessage =
         "この最大値と回復時間では満タン時刻を計算できません。" +
         "値を小さくしてください。";
@@ -27,6 +31,9 @@ public static class GameEntryValidator
         DateTimeOffset proposedRecordedAtUtc)
     {
         ArgumentNullException.ThrowIfNull(draft);
+
+        long recoveryIntervalSeconds = checked(
+            (long)draft.RecoveryMinutes * 60 + draft.RecoverySeconds);
 
         ImmutableDictionary<string, ImmutableArray<string>>.Builder errors =
             ImmutableDictionary.CreateBuilder<
@@ -52,11 +59,25 @@ public static class GameEntryValidator
                 MaxStaminaRangeMessage);
         }
 
-        if (draft.RecoveryMinutes is < 1 or > MaxRecoveryMinutes)
+        if (draft.RecoveryMinutes is < 0 or > MaxRecoveryMinutes)
         {
             AddError(
                 nameof(GameDraft.RecoveryMinutes),
                 RecoveryMinutesRangeMessage);
+        }
+
+        if (draft.RecoverySeconds is < 0 or > 59)
+        {
+            AddError(
+                nameof(GameDraft.RecoverySeconds),
+                RecoverySecondsRangeMessage);
+        }
+
+        if (recoveryIntervalSeconds is < 1 or > MaxRecoveryMinutes * 60L)
+        {
+            AddError(
+                "RecoveryInterval",
+                RecoveryIntervalRangeMessage);
         }
 
         if (errors.Count == 0 &&
@@ -86,7 +107,9 @@ public static class GameEntryValidator
             RecoveryMinutes: draft.RecoveryMinutes,
             RecordedAtUtc: proposedRecordedAtUtc,
             ImageAssetId: draft.ImageAssetId,
-            SortOrder: 0);
+            SortOrder: 0,
+            RecoverySeconds: draft.RecoverySeconds,
+            IsNotificationEnabled: true);
 
         try
         {

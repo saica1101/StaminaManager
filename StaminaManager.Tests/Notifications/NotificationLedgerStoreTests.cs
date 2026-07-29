@@ -138,7 +138,9 @@ public sealed class NotificationLedgerStoreTests
                 0,
                 TimeSpan.Zero),
             ImageAssetId: null,
-            SortOrder: 0);
+            SortOrder: 0,
+            RecoverySeconds: 0,
+            IsNotificationEnabled: true);
         return NotificationLedgerEntry.Create(
             game,
             game.RecordedAtUtc.AddMinutes(50),

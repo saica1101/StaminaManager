@@ -33,11 +33,13 @@ public static class StaminaCalculator
                 TimeSpan.Zero);
         }
 
-        long elapsedMinutes = Math.Max(
+        long recoveryIntervalSeconds = checked(
+            (long)entry.RecoveryMinutes * 60 + entry.RecoverySeconds);
+        long elapsedSeconds = Math.Max(
             0L,
             (long)Math.Floor(
-                (nowUtc - recordedAtUtc).TotalMinutes));
-        long recovered = elapsedMinutes / entry.RecoveryMinutes;
+                (nowUtc - recordedAtUtc).TotalSeconds));
+        long recovered = elapsedSeconds / recoveryIntervalSeconds;
         int current = (int)Math.Min(
             entry.MaxStamina,
             (long)entry.BaseStamina + recovered);
@@ -66,10 +68,12 @@ public static class StaminaCalculator
         {
             long remainingStamina =
                 (long)entry.MaxStamina - entry.BaseStamina;
-            long recoveryMinutes = checked(
-                remainingStamina * entry.RecoveryMinutes);
+            long recoveryIntervalSeconds = checked(
+                (long)entry.RecoveryMinutes * 60 +
+                entry.RecoverySeconds);
             recoveryTicks = checked(
-                recoveryMinutes * TimeSpan.TicksPerMinute);
+                checked(remainingStamina * recoveryIntervalSeconds) *
+                TimeSpan.TicksPerSecond);
         }
         catch (OverflowException)
         {

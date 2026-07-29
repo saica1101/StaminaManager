@@ -33,7 +33,14 @@ public sealed class AppCoordinatorNotificationTests
         await coordinator.InitializeAsync(CancellationToken.None);
 
         await manager.AddAsync(
-            new GameDraft("Second", 20, 100, 5, null),
+            new GameDraft(
+                "Second",
+                20,
+                100,
+                5,
+                null,
+                RecoverySeconds: 0,
+                IsNotificationEnabled: true),
             CancellationToken.None);
 
         Assert.AreEqual(2, reconciler.CallCount);
@@ -59,7 +66,9 @@ public sealed class AppCoordinatorNotificationTests
                 0,
                 TimeSpan.Zero),
             ImageAssetId: null,
-            SortOrder: 0);
+            SortOrder: 0,
+            RecoverySeconds: 0,
+            IsNotificationEnabled: true);
         InMemoryDataStore store = new(new DataEnvelope(
             DataEnvelope.CurrentSchemaVersion,
             ImmutableArray.Create(game),

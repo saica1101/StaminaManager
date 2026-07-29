@@ -99,7 +99,9 @@ public sealed class GameManager
                 draft.RecoveryMinutes,
                 recordedAtUtc,
                 draft.ImageAssetId,
-                _data.Games.Length);
+                _data.Games.Length,
+                RecoverySeconds: 0,
+                IsNotificationEnabled: true);
             AppSettings settings =
                 _data.Settings.SelectedCompactGameId is null
                     ? _data.Settings with
@@ -160,7 +162,9 @@ public sealed class GameManager
                     edited.BaseStamina,
                     edited.MaxStamina,
                     edited.RecoveryMinutes,
-                    edited.ImageAssetId),
+                    edited.ImageAssetId,
+                    RecoverySeconds: 0,
+                    IsNotificationEnabled: true),
                 edited.RecordedAtUtc);
             DataEnvelope candidate = _data with
             {

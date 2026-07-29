@@ -39,7 +39,9 @@ public sealed class CompactViewModelTests
                 CurrentStamina: 40,
                 MaxStamina: 100,
                 RecoveryMinutes: 5,
-                ImageAssetId: null),
+                ImageAssetId: null,
+                RecoverySeconds: 0,
+                IsNotificationEnabled: true),
             CancellationToken.None);
 
         Assert.AreEqual(1, context.Store.SaveCount);
@@ -109,7 +111,9 @@ public sealed class CompactViewModelTests
             game.BaseStamina,
             game.MaxStamina,
             game.RecoveryMinutes,
-            game.ImageAssetId);
+            game.ImageAssetId,
+            RecoverySeconds: 0,
+            IsNotificationEnabled: true);
 
         await context.Manager.EditAsync(
             game.Id,
@@ -160,7 +164,9 @@ public sealed class CompactViewModelTests
         RecoveryMinutes: 5,
         RecordedAtUtc: NowUtc,
         ImageAssetId: null,
-        sortOrder);
+        sortOrder,
+        RecoverySeconds: 0,
+        IsNotificationEnabled: true);
 
     private sealed record Context(
         MemoryDataStore Store,

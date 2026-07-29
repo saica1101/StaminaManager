@@ -239,7 +239,9 @@ public sealed class LocalDataStore : ILocalDataStore
                     game.BaseStamina,
                     game.MaxStamina,
                     game.RecoveryMinutes,
-                    game.ImageAssetId),
+                    game.ImageAssetId,
+                    RecoverySeconds: 0,
+                    IsNotificationEnabled: true),
                 recordedAtUtc);
             if (!validation.IsValid)
             {

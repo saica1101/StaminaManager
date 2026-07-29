@@ -391,9 +391,11 @@ public sealed class SafeZipReaderTests
                 baseStamina = 1,
                 maxStamina = 100,
                 recoveryMinutes = 5,
+                recoverySeconds = 0,
                 recordedAtUtc = "2026-01-01T00:00:00+00:00",
                 imageAssetId = assetId,
                 sortOrder = index,
+                isNotificationEnabled = true,
             }),
             settings = new
             {
@@ -456,9 +458,11 @@ public sealed class SafeZipReaderTests
                 baseStamina = 1,
                 maxStamina = 100,
                 recoveryMinutes = 5,
+                recoverySeconds = 0,
                 recordedAtUtc = "2026-01-01T00:00:00+00:00",
                 imageAssetId,
                 sortOrder = index,
+                isNotificationEnabled = true,
             })
             .ToArray();
         return System.Text.Json.JsonSerializer.Serialize(new

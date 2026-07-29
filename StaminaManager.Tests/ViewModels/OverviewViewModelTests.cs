@@ -61,10 +61,24 @@ public sealed class OverviewViewModelTests
             new RecordingUiDispatcher());
 
         await manager.AddAsync(
-            new GameDraft("First", 40, 100, 5, null),
+            new GameDraft(
+                "First",
+                40,
+                100,
+                5,
+                null,
+                RecoverySeconds: 0,
+                IsNotificationEnabled: true),
             CancellationToken.None);
         await manager.AddAsync(
-            new GameDraft("Second", 50, 100, 5, null),
+            new GameDraft(
+                "Second",
+                50,
+                100,
+                5,
+                null,
+                RecoverySeconds: 0,
+                IsNotificationEnabled: true),
             CancellationToken.None);
 
         Assert.HasCount(3, viewModel.OverviewItems);
@@ -101,7 +115,14 @@ public sealed class OverviewViewModelTests
             collectionChangedOnDispatcher = dispatcher.IsExecuting;
 
         await manager.AddAsync(
-            new GameDraft("Game", 40, 100, 5, null),
+            new GameDraft(
+                "Game",
+                40,
+                100,
+                5,
+                null,
+                RecoverySeconds: 0,
+                IsNotificationEnabled: true),
             CancellationToken.None);
 
         Assert.IsTrue(collectionChangedOnDispatcher);
@@ -208,7 +229,14 @@ public sealed class OverviewViewModelTests
             manager.CurrentData,
             CancellationToken.None);
         await manager.AddAsync(
-            new GameDraft("Game", 40, 100, 5, null),
+            new GameDraft(
+                "Game",
+                40,
+                100,
+                5,
+                null,
+                RecoverySeconds: 0,
+                IsNotificationEnabled: true),
             CancellationToken.None);
         RecordingUiDispatcher dispatcher = new();
         using OverviewViewModel viewModel = new(

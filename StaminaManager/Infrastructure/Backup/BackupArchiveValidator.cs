@@ -170,7 +170,9 @@ internal static class BackupArchiveValidator
                     game.BaseStamina,
                     game.MaxStamina,
                     game.RecoveryMinutes,
-                    game.ImageAssetId),
+                    game.ImageAssetId,
+                    RecoverySeconds: 0,
+                    IsNotificationEnabled: true),
                 game.RecordedAtUtc.ToUniversalTime());
             if (!validation.IsValid)
             {
