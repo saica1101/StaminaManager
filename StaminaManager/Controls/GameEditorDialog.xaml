@@ -25,7 +25,7 @@
         </Style>
         <Style
             x:Key="DeleteConfirmButtonStyle"
-            BasedOn="{StaticResource AccentButtonStyle}"
+            BasedOn="{StaticResource AppDestructiveButtonStyle}"
             TargetType="Button">
             <Setter Property="AutomationProperties.AutomationId" Value="DeleteConfirmButton" />
             <Setter Property="AutomationProperties.Name" Value="このゲームを削除する" />
@@ -111,7 +111,17 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock
+                                Grid.Row="0"
+                                Grid.ColumnSpan="2"
+                                Style="{StaticResource AppBodyTextStyle}"
+                                Text="スタミナが1回復する時間" />
                             <NumberBox
+                                Grid.Row="1"
                                 x:Name="RecoveryMinutesInput"
                                 x:Uid="RecoveryMinutesInput"
                                 AutomationProperties.AutomationId="RecoveryMinutesInput"
@@ -123,6 +133,7 @@
                                 ValidationMode="Disabled"
                                 Value="{x:Bind ViewModel.RecoveryMinutes, Mode=TwoWay}" />
                             <NumberBox
+                                Grid.Row="1"
                                 x:Name="RecoverySecondsInput"
                                 x:Uid="RecoverySecondsInput"
                                 Grid.Column="1"
@@ -203,7 +214,7 @@
                         <TextBlock
                             x:Name="SelectedImageText"
                             Style="{StaticResource AppSecondaryTextStyle}"
-                            Text="PNGまたはJPEG、5MB以下、4096×4096以下" />
+                            Text="PNGまたはJPEG、4096×4096以下" />
                     </StackPanel>
 
                     <InfoBar
@@ -230,6 +241,7 @@
                         AutomationProperties.AutomationId="GameEditorDeleteButton"
                         Command="{x:Bind ViewModel.RequestDeleteCommand, Mode=OneWay}"
                         HorizontalAlignment="Left"
+                        Style="{StaticResource AppDestructiveButtonStyle}"
                         Visibility="{x:Bind local:GameEditorDialog.BoolToVisibility(ViewModel.CanDelete), Mode=OneWay}" />
                 </StackPanel>
 

@@ -25,10 +25,19 @@ public sealed class SafeZipReader
     private const string ManifestEntryName = "manifest.json";
     private const int CopyBufferSize = 80 * 1024;
     private readonly Action<int>? _bufferedBytesObserver;
+    private readonly long _maxExpandedBytes;
 
     public SafeZipReader(Action<int>? bufferedBytesObserver = null)
+        : this(bufferedBytesObserver, BackupLimits.MaxExpandedBytes)
+    {
+    }
+
+    internal SafeZipReader(
+        Action<int>? bufferedBytesObserver,
+        long maxExpandedBytes)
     {
         _bufferedBytesObserver = bufferedBytesObserver;
+        _maxExpandedBytes = maxExpandedBytes;
     }
 
     public async Task<ValidatedBackup> ReadAsync(
@@ -83,6 +92,8 @@ public sealed class SafeZipReader
             leaveOpen: true);
         Dictionary<string, ZipArchiveEntry> entries =
             BackupArchiveValidator.ValidateMetadata(archive);
+        ExpandedSizeBudget expandedSizeBudget = new(
+            _maxExpandedBytes);
         ZipArchiveEntry manifestEntry = GetRequiredEntry(
             entries,
             ManifestEntryName);
@@ -94,6 +105,7 @@ public sealed class SafeZipReader
         byte[] manifestBytes = await ReadBoundedAsync(
             manifestEntry,
             BackupLimits.MaxManifestBytes,
+            expandedSizeBudget,
             cancellationToken).ConfigureAwait(false);
         _bufferedBytesObserver?.Invoke(manifestBytes.Length);
         BackupManifest manifest =
@@ -113,6 +125,7 @@ public sealed class SafeZipReader
         byte[] dataBytes = await ReadBoundedAsync(
             dataEntry,
             BackupLimits.MaxDataJsonBytes,
+            expandedSizeBudget,
             cancellationToken).ConfigureAwait(false);
         _bufferedBytesObserver?.Invoke(dataBytes.Length);
         DecodedDataEnvelope decoded =
@@ -132,6 +145,7 @@ public sealed class SafeZipReader
                 manifest,
                 entries,
                 stagedAssetsDirectory,
+                expandedSizeBudget,
                 cancellationToken).ConfigureAwait(false);
         BackupArchiveValidator.ValidateContents(entries, manifest);
         BackupArchiveValidator.ValidateAssetReferences(data, assets);
@@ -150,37 +164,52 @@ public sealed class SafeZipReader
             BackupManifest manifest,
             IReadOnlyDictionary<string, ZipArchiveEntry> entries,
             string stagedAssetsDirectory,
+            ExpandedSizeBudget expandedSizeBudget,
             CancellationToken cancellationToken)
     {
         ImmutableArray<ValidatedBackupAsset>.Builder builder =
             ImmutableArray.CreateBuilder<ValidatedBackupAsset>(
                 manifest.Assets.Count);
-        foreach (BackupAssetManifest asset in manifest.Assets)
+        List<string> stagedPaths = [];
+        try
         {
-            ZipArchiveEntry entry = GetRequiredEntry(entries, asset.EntryPath);
-            if (entry.Length > BackupLimits.MaxImageBytes)
+            foreach (BackupAssetManifest asset in manifest.Assets)
             {
-                throw new InvalidDataException("A backup image is too large.");
+                ZipArchiveEntry entry = GetRequiredEntry(
+                    entries,
+                    asset.EntryPath);
+                string stagedPath = Path.Combine(
+                    stagedAssetsDirectory,
+                    Path.GetFileName(asset.EntryPath));
+                await CopyWithBudgetAsync(
+                    entry,
+                    stagedPath,
+                    expandedSizeBudget,
+                    cancellationToken).ConfigureAwait(false);
+                stagedPaths.Add(stagedPath);
+                await BackupArchiveValidator.ValidateImageFileAsync(
+                    stagedPath,
+                    asset.MediaType,
+                    cancellationToken).ConfigureAwait(false);
+                builder.Add(new ValidatedBackupAsset(
+                    asset.AssetId,
+                    asset.EntryPath,
+                    asset.MediaType,
+                    stagedPath,
+                    entry.Length));
+            }
+        }
+        catch
+        {
+            foreach (string stagedPath in stagedPaths)
+            {
+                if (File.Exists(stagedPath))
+                {
+                    File.Delete(stagedPath);
+                }
             }
 
-            string stagedPath = Path.Combine(
-                stagedAssetsDirectory,
-                Path.GetFileName(asset.EntryPath));
-            await CopyBoundedAsync(
-                entry,
-                stagedPath,
-                BackupLimits.MaxImageBytes,
-                cancellationToken).ConfigureAwait(false);
-            await BackupArchiveValidator.ValidateImageFileAsync(
-                stagedPath,
-                asset.MediaType,
-                cancellationToken).ConfigureAwait(false);
-            builder.Add(new ValidatedBackupAsset(
-                asset.AssetId,
-                asset.EntryPath,
-                asset.MediaType,
-                stagedPath,
-                entry.Length));
+            throw;
         }
 
         return builder.MoveToImmutable();
@@ -189,6 +218,7 @@ public sealed class SafeZipReader
     private static async Task<byte[]> ReadBoundedAsync(
         ZipArchiveEntry entry,
         int maxBytes,
+        ExpandedSizeBudget expandedSizeBudget,
         CancellationToken cancellationToken)
     {
         await using Stream input = entry.Open();
@@ -215,37 +245,37 @@ public sealed class SafeZipReader
                     "A backup entry exceeds its size limit.");
             }
 
+            expandedSizeBudget.Consume(read);
             await output.WriteAsync(
                 buffer.AsMemory(0, read),
                 cancellationToken).ConfigureAwait(false);
         }
     }
 
-    private async Task CopyBoundedAsync(
+    private async Task CopyWithBudgetAsync(
         ZipArchiveEntry entry,
         string destinationPath,
-        int maxBytes,
+        ExpandedSizeBudget expandedSizeBudget,
         CancellationToken cancellationToken)
     {
-        await using Stream input = entry.Open();
-        await using FileStream output = new(
-            destinationPath,
-            FileMode.CreateNew,
-            FileAccess.Write,
-            FileShare.None,
-            CopyBufferSize,
-            FileOptions.Asynchronous | FileOptions.SequentialScan);
         byte[] buffer = new byte[CopyBufferSize];
         _bufferedBytesObserver?.Invoke(buffer.Length);
+        bool ownsDestination = false;
         try
         {
-            int total = 0;
+            await using Stream input = entry.Open();
+            await using FileStream output = new(
+                destinationPath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                CopyBufferSize,
+                FileOptions.Asynchronous | FileOptions.SequentialScan);
+            ownsDestination = true;
             while (true)
             {
                 int read = await input.ReadAsync(
-                    buffer.AsMemory(0, Math.Min(
-                        buffer.Length,
-                        maxBytes + 1 - total)),
+                    buffer,
                     cancellationToken).ConfigureAwait(false);
                 if (read == 0)
                 {
@@ -255,17 +285,20 @@ public sealed class SafeZipReader
                     return;
                 }
 
-                total += read;
-                if (total > maxBytes)
-                {
-                    throw new InvalidDataException(
-                        "A backup entry exceeds its size limit.");
-                }
-
+                expandedSizeBudget.Consume(read);
                 await output.WriteAsync(
                     buffer.AsMemory(0, read),
                     cancellationToken).ConfigureAwait(false);
             }
+        }
+        catch
+        {
+            if (ownsDestination && File.Exists(destinationPath))
+            {
+                File.Delete(destinationPath);
+            }
+
+            throw;
         }
         finally
         {

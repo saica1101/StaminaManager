@@ -1,5 +1,6 @@
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Persistence;
+using System.Diagnostics;
 using System.Text.Json;
 
 namespace StaminaManager.Infrastructure.Persistence;
@@ -37,7 +38,7 @@ public sealed class LocalDataStore : ILocalDataStore
                     recoveryPath);
             }
 
-            DataEnvelope? missingPrimaryRecovery =
+            DecodedDataEnvelope? missingPrimaryRecovery =
                 await TryReadValidEnvelopeAsync(
                     recoveryPath,
                     cancellationToken).ConfigureAwait(false);
@@ -45,24 +46,38 @@ public sealed class LocalDataStore : ILocalDataStore
                 missingPrimaryRecovery is null
                     ? DataLoadStatus.Corrupt
                     : DataLoadStatus.Recovery,
-                missingPrimaryRecovery,
+                missingPrimaryRecovery?.Envelope,
                 primaryPath,
                 recoveryPath);
         }
 
-        DataEnvelope? primary = await TryReadValidEnvelopeAsync(
+        DecodedDataEnvelope? primary = await TryReadValidEnvelopeAsync(
             primaryPath,
             cancellationToken).ConfigureAwait(false);
         if (primary is not null)
         {
+            DataLoadWarning warning = DataLoadWarning.None;
+            if (primary.WasBackdropNormalized)
+            {
+                bool wasPersisted = await TryPersistNormalizedPrimaryAsync(
+                    primaryPath,
+                    recoveryPath,
+                    cancellationToken).ConfigureAwait(false);
+                if (!wasPersisted)
+                {
+                    warning = DataLoadWarning.LegacyBackdropWritebackFailed;
+                }
+            }
+
             return new DataLoadResult(
                 DataLoadStatus.Primary,
-                primary,
+                primary.Envelope,
                 primaryPath,
-                recoveryPath);
+                recoveryPath,
+                warning);
         }
 
-        DataEnvelope? recovery = File.Exists(recoveryPath)
+        DecodedDataEnvelope? recovery = File.Exists(recoveryPath)
             ? await TryReadValidEnvelopeAsync(
                 recoveryPath,
                 cancellationToken).ConfigureAwait(false)
@@ -71,7 +86,7 @@ public sealed class LocalDataStore : ILocalDataStore
             recovery is null
                 ? DataLoadStatus.Corrupt
                 : DataLoadStatus.Recovery,
-            recovery,
+            recovery?.Envelope,
             primaryPath,
             recoveryPath);
     }
@@ -152,7 +167,7 @@ public sealed class LocalDataStore : ILocalDataStore
                     "A valid primary data file cannot be replaced by recovery.");
             }
 
-            DataEnvelope? recovery = File.Exists(recoveryPath)
+            DecodedDataEnvelope? recovery = File.Exists(recoveryPath)
                 ? await TryReadValidEnvelopeAsync(
                     recoveryPath,
                     cancellationToken).ConfigureAwait(false)
@@ -164,7 +179,7 @@ public sealed class LocalDataStore : ILocalDataStore
             }
 
             await WriteTemporaryEnvelopeAsync(
-                recovery,
+                recovery.Envelope,
                 temporaryPath,
                 cancellationToken).ConfigureAwait(false);
             ownsTemporaryFile = true;
@@ -185,7 +200,7 @@ public sealed class LocalDataStore : ILocalDataStore
             }
 
             return new RecoveryPromotionResult(
-                recovery,
+                recovery.Envelope,
                 primaryPath,
                 recoveryPath,
                 diagnosticBackupPath);
@@ -201,7 +216,7 @@ public sealed class LocalDataStore : ILocalDataStore
         }
     }
 
-    private async Task<DataEnvelope?> TryReadValidEnvelopeAsync(
+    private async Task<DecodedDataEnvelope?> TryReadValidEnvelopeAsync(
         string path,
         CancellationToken cancellationToken)
     {
@@ -222,7 +237,7 @@ public sealed class LocalDataStore : ILocalDataStore
             using JsonDocument document = await JsonDocument.ParseAsync(
                 stream,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
-            return DataEnvelopeCodec.Deserialize(document.RootElement).Envelope;
+            return DataEnvelopeCodec.Deserialize(document.RootElement);
         }
         catch (JsonException)
         {
@@ -235,6 +250,60 @@ public sealed class LocalDataStore : ILocalDataStore
         catch (InvalidDataException)
         {
             return null;
+        }
+    }
+
+    private async Task<bool> TryPersistNormalizedPrimaryAsync(
+        string primaryPath,
+        string recoveryPath,
+        CancellationToken cancellationToken)
+    {
+        await _writeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        string temporaryPath = GetPath(TemporaryFileName);
+        bool ownsTemporaryFile = false;
+        try
+        {
+            DecodedDataEnvelope? current =
+                await TryReadValidEnvelopeAsync(
+                    primaryPath,
+                    cancellationToken).ConfigureAwait(false);
+            if (current is null || !current.WasBackdropNormalized)
+            {
+                return current is not null;
+            }
+
+            DeleteStaleTemporaryFile(temporaryPath);
+            await WriteTemporaryEnvelopeAsync(
+                current.Envelope,
+                temporaryPath,
+                cancellationToken).ConfigureAwait(false);
+            ownsTemporaryFile = true;
+            cancellationToken.ThrowIfCancellationRequested();
+            File.Replace(
+                temporaryPath,
+                primaryPath,
+                recoveryPath,
+                ignoreMetadataErrors: true);
+            return true;
+        }
+        catch (Exception exception) when (
+            exception is IOException
+                or UnauthorizedAccessException
+                or InvalidDataException)
+        {
+            Debug.WriteLine(
+                "Backdrop migration writeback failed: "
+                + exception.GetType().Name);
+            return false;
+        }
+        finally
+        {
+            if (ownsTemporaryFile && File.Exists(temporaryPath))
+            {
+                File.Delete(temporaryPath);
+            }
+
+            _writeGate.Release();
         }
     }
 

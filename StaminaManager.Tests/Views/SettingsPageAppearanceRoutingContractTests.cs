@@ -53,20 +53,38 @@ public sealed class SettingsPageAppearanceRoutingContractTests
             "private async void BackdropSelector_SelectionChanged(",
             "private async void CloseBehaviorSelector_SelectionChanged(");
 
-        StringAssert.Contains(handler, "BackdropKind requestedBackdrop =");
         StringAssert.Contains(
             handler,
-            "(BackdropKind)BackdropSelector.SelectedIndex;");
+            "BackdropPolicy.TryFromSelectionIndex(");
+        Assert.DoesNotContain(
+            "(BackdropKind)BackdropSelector.SelectedIndex",
+            handler);
         StringAssert.Contains(
             handler,
             "await _appearanceChangeRouter.ChangeBackdropAsync(");
         StringAssert.Contains(handler, "requestedBackdrop);");
         Assert.AreEqual(
-            2,
+            1,
             CountOccurrences(handler, "BackdropSelector.SelectedIndex"),
-            "検証と要求値の確定後に背景選択を読み直してはいけません。");
+            "イベント時の選択値を1回だけ読み取る必要があります。");
         Assert.DoesNotContain("ViewModel.SetBackdropAsync", handler);
         Assert.DoesNotContain("ExecuteSettingChangeAsync", handler);
+    }
+
+    [TestMethod]
+    public void BackdropSelector_BlurとTransparentを表示しない()
+    {
+        string xaml = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "StaminaManager",
+            "Views",
+            "SettingsPage.xaml"));
+
+        StringAssert.Contains(xaml, "BackdropMicaItem");
+        StringAssert.Contains(xaml, "BackdropAcrylicItem");
+        StringAssert.Contains(xaml, "BackdropSolidItem");
+        Assert.DoesNotContain("BackdropBlurItem", xaml);
+        Assert.DoesNotContain("BackdropTransparentItem", xaml);
     }
 
     private static string ExtractMethod(

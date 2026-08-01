@@ -80,6 +80,70 @@ public sealed class LocalDataStoreTests
     }
 
     [TestMethod]
+    [DataRow(1, "Blur")]
+    [DataRow(1, "Transparent")]
+    [DataRow(2, "Blur")]
+    [DataRow(2, "Transparent")]
+    public async Task LoadAsync_旧背景をAcrylicへ正規化して書き戻す(
+        int schemaVersion,
+        string legacyBackdrop)
+    {
+        Directory.CreateDirectory(_rootPath);
+        string source = schemaVersion == 1
+            ? LegacySchema1Json
+            : Schema2Json;
+        await File.WriteAllTextAsync(
+            PrimaryPath,
+            source.Replace(
+                "\"backdrop\": \"Mica\"",
+                $"\"backdrop\": \"{legacyBackdrop}\"",
+                StringComparison.Ordinal));
+
+        DataLoadResult result = await _store.LoadAsync(
+            CancellationToken.None);
+
+        Assert.AreEqual(DataLoadStatus.Primary, result.Status);
+        Assert.AreEqual(
+            BackdropKind.Acrylic,
+            result.Envelope!.Settings.Backdrop);
+        Assert.AreEqual(DataLoadWarning.None, result.Warning);
+        string persisted = await File.ReadAllTextAsync(PrimaryPath);
+        StringAssert.Contains(persisted, "\"backdrop\":\"Acrylic\"");
+        Assert.DoesNotContain(
+            $"\"backdrop\":\"{legacyBackdrop}\"",
+            persisted);
+    }
+
+    [TestMethod]
+    public async Task LoadAsync_旧背景の書き戻し失敗時もAcrylicで継続する()
+    {
+        Directory.CreateDirectory(_rootPath);
+        string legacyJson = Schema2Json.Replace(
+            "\"backdrop\": \"Mica\"",
+            "\"backdrop\": \"Blur\"",
+            StringComparison.Ordinal);
+        await File.WriteAllTextAsync(PrimaryPath, legacyJson);
+        await using FileStream writeBlocker = new(
+            PrimaryPath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read);
+
+        DataLoadResult result = await _store.LoadAsync(
+            CancellationToken.None);
+
+        Assert.AreEqual(DataLoadStatus.Primary, result.Status);
+        Assert.AreEqual(
+            BackdropKind.Acrylic,
+            result.Envelope!.Settings.Backdrop);
+        Assert.AreEqual(
+            DataLoadWarning.LegacyBackdropWritebackFailed,
+            result.Warning);
+        Assert.AreEqual(legacyJson, await File.ReadAllTextAsync(PrimaryPath));
+        Assert.IsFalse(File.Exists(TemporaryPath));
+    }
+
+    [TestMethod]
     [DataRow("recoverySeconds")]
     [DataRow("isNotificationEnabled")]
     public async Task LoadAsync_Schema2の必須ゲーム項目欠落はCorruptを返す(

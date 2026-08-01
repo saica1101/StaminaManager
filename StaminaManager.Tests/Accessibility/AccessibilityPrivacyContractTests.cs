@@ -114,6 +114,132 @@ public sealed class AccessibilityPrivacyContractTests
     }
 
     [TestMethod]
+    public void GameEditorDialog_テーマ継承と回復時間見出しを持つ()
+    {
+        string root = FindRepositoryRoot();
+        string mainPageSource = File.ReadAllText(Path.Combine(
+            root,
+            "StaminaManager",
+            "MainPage.xaml.cs"));
+        string dialogXaml = File.ReadAllText(Path.Combine(
+            root,
+            "StaminaManager",
+            "Controls",
+            "GameEditorDialog.xaml"));
+
+        StringAssert.Contains(
+            mainPageSource,
+            "RequestedTheme = ActualTheme");
+        StringAssert.Contains(
+            dialogXaml,
+            "Text=\"スタミナが1回復する時間\"");
+        StringAssert.Contains(dialogXaml, "<RowDefinition Height=\"Auto\" />");
+    }
+
+    [TestMethod]
+    public void GameEditorDeleteActions_共通の破壊的スタイルを使う()
+    {
+        string root = FindRepositoryRoot();
+        string styles = File.ReadAllText(Path.Combine(
+            root,
+            "StaminaManager",
+            "Resources",
+            "Styles.xaml"));
+        string dialog = File.ReadAllText(Path.Combine(
+            root,
+            "StaminaManager",
+            "Controls",
+            "GameEditorDialog.xaml"));
+
+        foreach (string requiredText in new[]
+        {
+            "AppDestructiveButtonStyle",
+            "DestructiveButtonBackgroundBrush",
+            "DestructiveButtonBackgroundPointerOverBrush",
+            "DestructiveButtonBackgroundPressedBrush",
+            "DestructiveButtonBackgroundDisabledBrush",
+        })
+        {
+            StringAssert.Contains(styles, requiredText);
+        }
+
+        StringAssert.Contains(
+            dialog,
+            "BasedOn=\"{StaticResource AppDestructiveButtonStyle}\"");
+        StringAssert.Contains(
+            dialog,
+            "Style=\"{StaticResource AppDestructiveButtonStyle}\"");
+        StringAssert.Contains(dialog, "GameEditorDeleteButton");
+        StringAssert.Contains(dialog, "DeleteConfirmButton");
+    }
+
+    [TestMethod]
+    public void DestructiveButton_HighContrastでも操作状態を区別できる()
+    {
+        string root = FindRepositoryRoot();
+        string tokensPath = Path.Combine(
+            root,
+            "StaminaManager",
+            "Resources",
+            "DesignTokens.xaml");
+        XDocument tokens = XDocument.Load(tokensPath);
+        XElement highContrast = tokens.Descendants()
+            .Single(element =>
+                element.Name.LocalName == "ResourceDictionary"
+                && AttributeValue(element, "Key") == "HighContrast");
+        string[] stateKeys =
+        [
+            "DestructiveButtonBackgroundBrush",
+            "DestructiveButtonBackgroundPointerOverBrush",
+            "DestructiveButtonBackgroundPressedBrush",
+        ];
+        string[] systemBrushes = stateKeys
+            .Select(key => highContrast.Elements()
+                .Single(element => AttributeValue(element, "Key") == key)
+                .Attributes()
+                .Single(attribute =>
+                    attribute.Name.LocalName == "ResourceKey")
+                .Value)
+            .ToArray();
+
+        Assert.AreEqual(
+            stateKeys.Length,
+            systemBrushes.Distinct(StringComparer.Ordinal).Count());
+
+        string styles = File.ReadAllText(Path.Combine(
+            root,
+            "StaminaManager",
+            "Resources",
+            "Styles.xaml"));
+        StringAssert.Contains(
+            styles,
+            "DestructiveButtonForegroundPointerOverBrush");
+        StringAssert.Contains(
+            styles,
+            "DestructiveButtonForegroundPressedBrush");
+    }
+
+    [TestMethod]
+    public void GameEditorImageGuidance_5MB制限を表示しない()
+    {
+        string root = FindRepositoryRoot();
+        string combined = File.ReadAllText(Path.Combine(
+                root,
+                "StaminaManager",
+                "Controls",
+                "GameEditorDialog.xaml"))
+            + File.ReadAllText(Path.Combine(
+                root,
+                "StaminaManager",
+                "Controls",
+                "GameEditorDialog.xaml.cs"));
+
+        Assert.DoesNotContain("5MB", combined);
+        Assert.DoesNotContain("5 MiB", combined);
+        StringAssert.Contains(combined, "PNGまたはJPEG、4096×4096以下");
+    }
+
+    [TestMethod]
     public void GameEditorRecoveryErrors_AreAssociatedWithBothInputs()
     {
         string root = FindRepositoryRoot();
@@ -275,6 +401,44 @@ public sealed class AccessibilityPrivacyContractTests
             StringComparison.Ordinal));
         StringAssert.Contains(resources, "アンインストール");
         StringAssert.Contains(resources, "バックアップ");
+    }
+
+    [TestMethod]
+    public void SettingsLabels_指定された日本語と操作名を使う()
+    {
+        string root = FindRepositoryRoot();
+        XDocument document = XDocument.Load(Path.Combine(
+            root,
+            "StaminaManager",
+            "Resources",
+            "Strings",
+            "ja-JP",
+            "Resources.resw"));
+        Dictionary<string, string> values = document.Root!
+            .Elements("data")
+            .ToDictionary(
+                element => (string)element.Attribute("name")!,
+                element => element.Element("value")?.Value ?? string.Empty,
+                StringComparer.Ordinal);
+
+        Assert.AreEqual("外観", values["SettingsAppearanceHeading.Text"]);
+        Assert.AreEqual("動作", values["SettingsGeneralHeading.Text"]);
+        Assert.AreEqual("通知", values["SettingsNotificationsHeading.Text"]);
+        Assert.AreEqual("バックアップ", values["SettingsDataHeading.Text"]);
+        Assert.AreEqual("エクスポート", values["ExportBackupButton.Content"]);
+        Assert.AreEqual("インポート", values["ImportBackupButton.Content"]);
+        Assert.AreEqual(
+            "バックアップをエクスポートする",
+            values["ExportBackupButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name"]);
+        Assert.AreEqual(
+            "バックアップをインポートして現在のデータを置き換える",
+            values["ImportBackupButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name"]);
+        Assert.DoesNotContain(
+            "バックアップを書き出す",
+            string.Join('\n', values.Values));
+        Assert.DoesNotContain(
+            "バックアップから置き換える",
+            string.Join('\n', values.Values));
     }
 
     [TestMethod]

@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.Windows.Storage.Pickers;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
+using StaminaManager.Core.Validation;
 using StaminaManager.Infrastructure.Windows;
 using StaminaManager.ViewModels;
 using System.Diagnostics;
@@ -77,14 +78,15 @@ public sealed partial class SettingsPage : Page
         object sender,
         SelectionChangedEventArgs args)
     {
+        int selectedIndex = BackdropSelector.SelectedIndex;
         if (_isSynchronizingControls
-            || BackdropSelector.SelectedIndex < 0)
+            || !BackdropPolicy.TryFromSelectionIndex(
+                selectedIndex,
+                out BackdropKind requestedBackdrop))
         {
             return;
         }
 
-        BackdropKind requestedBackdrop =
-            (BackdropKind)BackdropSelector.SelectedIndex;
         await _appearanceChangeRouter.ChangeBackdropAsync(
             requestedBackdrop);
     }
@@ -210,6 +212,7 @@ public sealed partial class SettingsPage : Page
             ContentDialog confirmation = new()
             {
                 XamlRoot = XamlRoot,
+                RequestedTheme = ActualTheme,
                 Title = "バックアップを復元しますか？",
                 PrimaryButtonText = "現在データを置き換える",
                 PrimaryButtonStyle = (Style)Microsoft.UI.Xaml.Application

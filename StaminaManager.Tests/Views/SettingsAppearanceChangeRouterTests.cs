@@ -46,14 +46,14 @@ public sealed class SettingsAppearanceChangeRouterTests
             });
 
         Task first = router.ChangeBackdropAsync(BackdropKind.Acrylic);
-        Task second = router.ChangeBackdropAsync(BackdropKind.Blur);
+        Task second = router.ChangeBackdropAsync(BackdropKind.Solid);
 
         queue.RunNext();
         queue.RunNext();
         await Task.WhenAll(first, second);
 
         CollectionAssert.AreEqual(
-            new[] { BackdropKind.Acrylic, BackdropKind.Blur },
+            new[] { BackdropKind.Acrylic, BackdropKind.Solid },
             applied);
     }
 
@@ -85,7 +85,7 @@ public sealed class SettingsAppearanceChangeRouterTests
             reportFailure: () => failureCount++,
             synchronizeControls: () => synchronizationCount++);
 
-        await router.ChangeBackdropAsync(BackdropKind.Transparent);
+        await router.ChangeBackdropAsync(BackdropKind.Solid);
 
         Assert.AreEqual(1, failureCount);
         Assert.AreEqual(1, synchronizationCount);

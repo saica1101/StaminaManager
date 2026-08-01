@@ -139,6 +139,12 @@ public sealed partial class GameEditorDialog : ContentDialog
             ViewModel.ImageAssetId = stored.AssetId;
             SelectedImageText.Text = file.Name;
         }
+        catch (OutOfMemoryException)
+        {
+            ViewModel.ShowGeneralError(
+                "画像を処理するためのメモリが不足しています。"
+                + "ほかのアプリを閉じるか、別の画像を選んでください。");
+        }
         catch (Exception exception) when (
             exception is AssetValidationException
                 or IOException
@@ -146,7 +152,7 @@ public sealed partial class GameEditorDialog : ContentDialog
         {
             ViewModel.ShowGeneralError(
                 exception is AssetValidationException
-                    ? "画像を使用できません。PNG/JPEG、5MB以下、4096×4096以下のファイルを選んでください。"
+                    ? "画像を使用できません。PNG/JPEG、4096×4096以下のファイルを選んでください。"
                     : "画像を読み込めませんでした。別のファイルを選んでください。");
         }
     }

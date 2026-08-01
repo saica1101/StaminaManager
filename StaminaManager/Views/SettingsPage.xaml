@@ -107,8 +107,6 @@
                             SelectedIndex="{x:Bind ViewModel.SelectedBackdropIndex, Mode=OneWay}">
                             <ComboBoxItem x:Uid="BackdropMicaItem" />
                             <ComboBoxItem x:Uid="BackdropAcrylicItem" />
-                            <ComboBoxItem x:Uid="BackdropBlurItem" />
-                            <ComboBoxItem x:Uid="BackdropTransparentItem" />
                             <ComboBoxItem x:Uid="BackdropSolidItem" />
                         </ComboBox>
                     </StackPanel>

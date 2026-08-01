@@ -107,6 +107,16 @@
                 Message="{x:Bind ViewModel.RecoveryMessage, Mode=OneWay}"
                 Severity="Warning" />
             <InfoBar
+                x:Name="DataLoadWarningInfoBar"
+                x:Uid="OverviewDataLoadWarningInfoBar"
+                AutomationProperties.AutomationId="OverviewDataLoadWarningInfoBar"
+                AutomationProperties.HelpText="{x:Bind ViewModel.DataLoadWarningMessage, Mode=OneWay}"
+                AutomationProperties.LiveSetting="Polite"
+                Closed="DataLoadWarningInfoBar_Closed"
+                IsOpen="{x:Bind ViewModel.IsDataLoadWarningInfoBarOpen, Mode=OneWay}"
+                Message="{x:Bind ViewModel.DataLoadWarningMessage, Mode=OneWay}"
+                Severity="Warning" />
+            <InfoBar
                 x:Name="StartupErrorInfoBar"
                 x:Uid="OverviewStartupErrorInfoBar"
                 AutomationProperties.AutomationId="OverviewStartupErrorInfoBar"

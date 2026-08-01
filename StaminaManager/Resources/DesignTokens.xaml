@@ -9,6 +9,14 @@
             <SolidColorBrush x:Key="SafeBrush" Color="#FF107C10" />
             <SolidColorBrush x:Key="AttentionBrush" Color="#FFCA5010" />
             <SolidColorBrush x:Key="UrgentBrush" Color="#FFC42B1C" />
+            <SolidColorBrush x:Key="DestructiveButtonBackgroundBrush" Color="#FFC42B1C" />
+            <SolidColorBrush x:Key="DestructiveButtonBackgroundPointerOverBrush" Color="#FFA4262C" />
+            <SolidColorBrush x:Key="DestructiveButtonBackgroundPressedBrush" Color="#FF8E1F1F" />
+            <SolidColorBrush x:Key="DestructiveButtonBackgroundDisabledBrush" Color="#66C42B1C" />
+            <SolidColorBrush x:Key="DestructiveButtonForegroundBrush" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="DestructiveButtonForegroundPointerOverBrush" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="DestructiveButtonForegroundPressedBrush" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="DestructiveButtonForegroundDisabledBrush" Color="#99FFFFFF" />
             <SolidColorBrush x:Key="AppSurfaceBrush" Color="#FFF3F3F3" />
             <SolidColorBrush x:Key="CardSurfaceBrush" Color="#FFFFFFFF" />
             <SolidColorBrush x:Key="PrimaryTextBrush" Color="#FF1A1A1A" />
@@ -24,6 +32,14 @@
             <SolidColorBrush x:Key="SafeBrush" Color="#FF6CCB5F" />
             <SolidColorBrush x:Key="AttentionBrush" Color="#FFFFB900" />
             <SolidColorBrush x:Key="UrgentBrush" Color="#FFFF99A4" />
+            <SolidColorBrush x:Key="DestructiveButtonBackgroundBrush" Color="#FFC42B1C" />
+            <SolidColorBrush x:Key="DestructiveButtonBackgroundPointerOverBrush" Color="#FFD13438" />
+            <SolidColorBrush x:Key="DestructiveButtonBackgroundPressedBrush" Color="#FFA4262C" />
+            <SolidColorBrush x:Key="DestructiveButtonBackgroundDisabledBrush" Color="#66C42B1C" />
+            <SolidColorBrush x:Key="DestructiveButtonForegroundBrush" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="DestructiveButtonForegroundPointerOverBrush" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="DestructiveButtonForegroundPressedBrush" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="DestructiveButtonForegroundDisabledBrush" Color="#99FFFFFF" />
             <SolidColorBrush x:Key="AppSurfaceBrush" Color="#FF202020" />
             <SolidColorBrush x:Key="CardSurfaceBrush" Color="#FF2C2C2C" />
             <SolidColorBrush x:Key="PrimaryTextBrush" Color="#FFFFFFFF" />
@@ -39,6 +55,14 @@
             <StaticResource x:Key="SafeBrush" ResourceKey="SystemColorHighlightColorBrush" />
             <StaticResource x:Key="AttentionBrush" ResourceKey="SystemColorHighlightColorBrush" />
             <StaticResource x:Key="UrgentBrush" ResourceKey="SystemColorHighlightColorBrush" />
+            <StaticResource x:Key="DestructiveButtonBackgroundBrush" ResourceKey="SystemColorHighlightColorBrush" />
+            <StaticResource x:Key="DestructiveButtonBackgroundPointerOverBrush" ResourceKey="SystemColorButtonFaceColorBrush" />
+            <StaticResource x:Key="DestructiveButtonBackgroundPressedBrush" ResourceKey="SystemColorButtonTextColorBrush" />
+            <StaticResource x:Key="DestructiveButtonBackgroundDisabledBrush" ResourceKey="SystemColorButtonFaceColorBrush" />
+            <StaticResource x:Key="DestructiveButtonForegroundBrush" ResourceKey="SystemColorHighlightTextColorBrush" />
+            <StaticResource x:Key="DestructiveButtonForegroundPointerOverBrush" ResourceKey="SystemColorButtonTextColorBrush" />
+            <StaticResource x:Key="DestructiveButtonForegroundPressedBrush" ResourceKey="SystemColorButtonFaceColorBrush" />
+            <StaticResource x:Key="DestructiveButtonForegroundDisabledBrush" ResourceKey="SystemColorGrayTextColorBrush" />
             <StaticResource x:Key="AppSurfaceBrush" ResourceKey="SystemColorWindowColorBrush" />
             <StaticResource x:Key="CardSurfaceBrush" ResourceKey="SystemColorButtonFaceColorBrush" />
             <StaticResource x:Key="PrimaryTextBrush" ResourceKey="SystemColorWindowTextColorBrush" />

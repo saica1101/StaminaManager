@@ -8,7 +8,8 @@ namespace StaminaManager.Infrastructure.Persistence;
 
 internal sealed record DecodedDataEnvelope(
     int SourceSchemaVersion,
-    DataEnvelope Envelope);
+    DataEnvelope Envelope,
+    bool WasBackdropNormalized);
 
 internal static class DataEnvelopeCodec
 {
@@ -31,9 +32,13 @@ internal static class DataEnvelopeCodec
                 "The data schema is not supported."),
         };
 
+        BackdropKind sourceBackdrop = envelope.Settings?.Backdrop
+            ?? throw new InvalidDataException("The app settings are invalid.");
+        DataEnvelope normalized = NormalizeAndValidate(envelope);
         return new DecodedDataEnvelope(
             sourceSchemaVersion,
-            NormalizeAndValidate(envelope));
+            normalized,
+            sourceBackdrop != normalized.Settings.Backdrop);
     }
 
     public static DataEnvelope NormalizeAndValidate(DataEnvelope envelope)
@@ -92,7 +97,16 @@ internal static class DataEnvelopeCodec
                 "The selected game does not exist.");
         }
 
-        return envelope with { Games = games.MoveToImmutable() };
+        AppSettings normalizedSettings = envelope.Settings with
+        {
+            Backdrop = BackdropPolicy.NormalizeLegacy(
+                envelope.Settings.Backdrop),
+        };
+        return envelope with
+        {
+            Games = games.MoveToImmutable(),
+            Settings = normalizedSettings,
+        };
     }
 
     private static int ReadSchemaVersion(JsonElement root)

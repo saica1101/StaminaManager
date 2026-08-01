@@ -36,6 +36,7 @@ public sealed partial class BackupCoordinator
                             "バックアップ対象のデータがありません。");
                     IReadOnlyList<ExportAsset> assets =
                         ResolveExportAssets(data);
+                    EnsureExpandedAssetsWithinLimit(assets);
                     Directory.CreateDirectory(
                         Path.GetDirectoryName(fullDestination)
                         ?? throw new InvalidOperationException(
@@ -100,6 +101,8 @@ public sealed partial class BackupCoordinator
             output,
             ZipArchiveMode.Create,
             leaveOpen: true);
+        ExpandedSizeBudget expandedSizeBudget = new(
+            BackupLimits.MaxExpandedBytes);
         BackupManifest manifest = new(
             BackupManifest.CurrentSchemaVersion,
             DataEnvelope.CurrentSchemaVersion,
@@ -112,14 +115,18 @@ public sealed partial class BackupCoordinator
             archive,
             "manifest.json",
             manifest,
+            expandedSizeBudget,
             cancellationToken).ConfigureAwait(false);
         ZipArchiveEntry dataEntry = archive.CreateEntry(
             DataFileName,
             CompressionLevel.NoCompression);
         await using (Stream dataStream = dataEntry.Open())
         {
-            await JsonSerializer.SerializeAsync(
+            BudgetedWriteStream budgetedData = new(
                 dataStream,
+                expandedSizeBudget);
+            await JsonSerializer.SerializeAsync(
+                budgetedData,
                 data,
                 JsonSerializationContext.Configured.DataEnvelope,
                 cancellationToken).ConfigureAwait(false);
@@ -131,8 +138,13 @@ public sealed partial class BackupCoordinator
                 asset.EntryPath,
                 CompressionLevel.NoCompression);
             await using Stream destination = entry.Open();
+            BudgetedWriteStream budgetedDestination = new(
+                destination,
+                expandedSizeBudget);
             await using FileStream source = OpenRead(asset.SourcePath);
-            await source.CopyToAsync(destination, cancellationToken)
+            await source.CopyToAsync(
+                    budgetedDestination,
+                    cancellationToken)
                 .ConfigureAwait(false);
         }
     }
@@ -141,14 +153,18 @@ public sealed partial class BackupCoordinator
         ZipArchive archive,
         string entryName,
         T value,
+        ExpandedSizeBudget expandedSizeBudget,
         CancellationToken cancellationToken)
     {
         ZipArchiveEntry entry = archive.CreateEntry(
             entryName,
             CompressionLevel.NoCompression);
         await using Stream stream = entry.Open();
-        await JsonSerializer.SerializeAsync(
+        BudgetedWriteStream budgetedStream = new(
             stream,
+            expandedSizeBudget);
+        await JsonSerializer.SerializeAsync(
+            budgetedStream,
             value,
             SerializerOptions,
             cancellationToken).ConfigureAwait(false);
@@ -196,6 +212,33 @@ public sealed partial class BackupCoordinator
         }
 
         return assets;
+    }
+
+    private static void EnsureExpandedAssetsWithinLimit(
+        IReadOnlyList<ExportAsset> assets)
+        => EnsureExpandedAssetLengthsWithinLimit(assets.Select(
+            static asset => new FileInfo(asset.SourcePath).Length));
+
+    internal static void EnsureExpandedAssetLengthsWithinLimit(
+        IEnumerable<long> lengths)
+    {
+        long totalBytes = 0;
+        foreach (long length in lengths)
+        {
+            if (length < 0)
+            {
+                throw new InvalidDataException(
+                    "An asset length is invalid.");
+            }
+
+            if (length > BackupLimits.MaxExpandedBytes - totalBytes)
+            {
+                throw new InvalidDataException(
+                    "The expanded backup is too large.");
+            }
+
+            totalBytes += length;
+        }
     }
 
     private sealed record ExportAsset(

@@ -1,3 +1,4 @@
+using StaminaManager.Core.Models;
 using StaminaManager.Infrastructure.Backup;
 using System.IO.Compression;
 using System.Text;
@@ -153,6 +154,29 @@ public sealed class SafeZipReaderTests
     }
 
     [TestMethod]
+    [DataRow("Blur")]
+    [DataRow("Transparent")]
+    public async Task ReadAsync_旧背景をAcrylicへ正規化する(
+        string legacyBackdrop)
+    {
+        string data = ValidData.Replace(
+            "\"backdrop\": \"Mica\"",
+            $"\"backdrop\": \"{legacyBackdrop}\"",
+            StringComparison.Ordinal);
+        await using MemoryStream archive = CreateArchive(
+            ("manifest.json", ValidManifest),
+            ("data.json", data));
+
+        ValidatedBackup backup = await new SafeZipReader().ReadAsync(
+            archive,
+            CancellationToken.None);
+
+        Assert.AreEqual(
+            BackdropKind.Acrylic,
+            backup.Data.Settings.Backdrop);
+    }
+
+    [TestMethod]
     public async Task ReadAsync_存在しないSelectedCompactGameIdを拒否する()
     {
         await using MemoryStream archive = CreateArchive(
@@ -199,22 +223,41 @@ public sealed class SafeZipReaderTests
     }
 
     [TestMethod]
-    public async Task ReadAsync_5MiBを超える画像を拒否する()
+    public async Task ReadAsync_5MiBを超える有効画像を受け入れる()
     {
         string assetId = Guid.NewGuid().ToString("N");
         string manifest = CreateManifest(assetId);
         string data = CreateDataWithGames(1, assetId);
-        string image = new('x', 5 * 1024 * 1024 + 1);
-        await using MemoryStream archive = CreateArchive(
-            CompressionLevel.NoCompression,
-            ("manifest.json", manifest),
-            ("data.json", data),
-            ($"assets/{assetId}.png", image));
+        string fixturePath = Path.Combine(
+            AppContext.BaseDirectory,
+            "TestData",
+            "Images",
+            "valid-1x1.png.base64");
+        byte[] image = Convert.FromBase64String(
+            await File.ReadAllTextAsync(fixturePath));
+        Array.Resize(ref image, 6 * 1024 * 1024);
+        await using MemoryStream archive = new();
+        using (ZipArchive zip = new(
+            archive,
+            ZipArchiveMode.Create,
+            leaveOpen: true))
+        {
+            WriteTextEntry(zip, "manifest.json", manifest);
+            WriteTextEntry(zip, "data.json", data);
+            ZipArchiveEntry imageEntry = zip.CreateEntry(
+                $"assets/{assetId}.png",
+                CompressionLevel.NoCompression);
+            await using Stream output = imageEntry.Open();
+            await output.WriteAsync(image);
+        }
+        archive.Position = 0;
 
-        await Assert.ThrowsExactlyAsync<InvalidDataException>(
-            () => new SafeZipReader().ReadAsync(
-                archive,
-                CancellationToken.None));
+        ValidatedBackup backup = await new SafeZipReader().ReadAsync(
+            archive,
+            CancellationToken.None);
+
+        Assert.HasCount(1, backup.Assets);
+        Assert.IsGreaterThan(5L * 1024 * 1024, backup.Assets[0].Length);
     }
 
     [TestMethod]
@@ -231,6 +274,40 @@ public sealed class SafeZipReaderTests
             () => new SafeZipReader().ReadAsync(
                 archive,
                 CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task ReadToStageAsync_decode失敗時に途中画像を回収する()
+    {
+        string assetId = Guid.NewGuid().ToString("N");
+        string root = Path.Combine(
+            Path.GetTempPath(),
+            "StaminaManager.InvalidImageCleanupTests",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            await using MemoryStream archive = CreateArchive(
+                CompressionLevel.NoCompression,
+                ("manifest.json", CreateManifest(assetId)),
+                ("data.json", CreateDataWithGames(1, assetId)),
+                ($"assets/{assetId}.png", "not an image"));
+
+            await Assert.ThrowsExactlyAsync<InvalidDataException>(
+                () => new SafeZipReader().ReadToStageAsync(
+                    archive,
+                    root,
+                    CancellationToken.None));
+
+            Assert.IsEmpty(Directory.EnumerateFiles(root));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
     }
 
     [TestMethod]
@@ -333,6 +410,58 @@ public sealed class SafeZipReaderTests
                 4 * 1024 * 1024,
                 retainedBytes.Max());
             Assert.AreEqual(0, retainedBytes[^1]);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [TestMethod]
+    public async Task ReadToStageAsync_実展開量が予算を超えたら途中画像を全て回収する()
+    {
+        string root = Path.Combine(
+            Path.GetTempPath(),
+            "StaminaManager.ExpandedBudgetCleanupTests",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            await using MemoryStream archive =
+                await CreateImageArchiveAsync(assetCount: 2);
+            long almostEnoughBudget;
+            using (ZipArchive zip = new(
+                archive,
+                ZipArchiveMode.Read,
+                leaveOpen: true))
+            {
+                ZipArchiveEntry[] images = zip.Entries
+                    .Where(entry => entry.FullName.StartsWith(
+                        "assets/",
+                        StringComparison.Ordinal))
+                    .ToArray();
+                almostEnoughBudget = zip.GetEntry("manifest.json")!.Length
+                    + zip.GetEntry("data.json")!.Length
+                    + images[0].Length
+                    + images[1].Length
+                    - 1;
+            }
+
+            archive.Position = 0;
+            SafeZipReader reader = new(
+                bufferedBytesObserver: null,
+                maxExpandedBytes: almostEnoughBudget);
+
+            await Assert.ThrowsExactlyAsync<InvalidDataException>(
+                () => reader.ReadToStageAsync(
+                    archive,
+                    root,
+                    CancellationToken.None));
+
+            Assert.IsEmpty(Directory.EnumerateFiles(root));
         }
         finally
         {

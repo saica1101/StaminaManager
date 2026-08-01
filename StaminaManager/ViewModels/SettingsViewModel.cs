@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using StaminaManager.Application;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
+using StaminaManager.Core.Validation;
 using System.Diagnostics;
 
 namespace StaminaManager.ViewModels;
@@ -226,7 +227,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         ? Visibility.Visible
         : Visibility.Collapsed;
 
-    public int SelectedBackdropIndex => (int)SelectedBackdrop;
+    public int SelectedBackdropIndex =>
+        BackdropPolicy.ToSelectionIndex(SelectedBackdrop);
 
     public int CloseBehaviorIndex => (int)CloseBehavior;
 

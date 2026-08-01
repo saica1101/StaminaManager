@@ -19,11 +19,18 @@ public enum DataLoadStatus
     Corrupt,
 }
 
+public enum DataLoadWarning
+{
+    None,
+    LegacyBackdropWritebackFailed,
+}
+
 public sealed record DataLoadResult(
     DataLoadStatus Status,
     DataEnvelope? Envelope,
     string PrimaryPath,
-    string RecoveryPath);
+    string RecoveryPath,
+    DataLoadWarning Warning = DataLoadWarning.None);
 
 public sealed record RecoveryPromotionResult(
     DataEnvelope Envelope,

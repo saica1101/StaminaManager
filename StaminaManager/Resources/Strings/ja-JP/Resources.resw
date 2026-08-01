@@ -26,6 +26,8 @@
   <data name="OverviewInfoBar.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Overviewの操作エラー</value></data>
   <data name="OverviewRecoveryInfoBar.Title" xml:space="preserve"><value>データを回復しました</value></data>
   <data name="OverviewRecoveryInfoBar.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>前回正常データからの回復案内</value></data>
+  <data name="OverviewDataLoadWarningInfoBar.Title" xml:space="preserve"><value>背景設定を再保存できませんでした</value></data>
+  <data name="OverviewDataLoadWarningInfoBar.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>背景設定の再保存案内</value></data>
   <data name="OverviewLoadingProgressRing.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>ゲーム情報を読み込み中</value></data>
   <data name="OverviewLoadingText.Text" xml:space="preserve"><value>ゲーム情報を読み込んでいます</value></data>
   <data name="OverviewItems.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>登録ゲームと追加操作</value></data>
@@ -50,7 +52,7 @@
   <data name="SettingsFailedStatus.Title" xml:space="preserve"><value>設定を読み込めませんでした</value></data>
   <data name="SettingsFailedStatus.Message" xml:space="preserve"><value>設定の操作を無効にしています。Overviewの復旧案内を確認してから、アプリを再起動してください。</value></data>
   <data name="SettingsFailedStatus.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>設定の読み込みに失敗しました。Overviewの復旧案内を確認してください</value></data>
-  <data name="SettingsAppearanceHeading.Text" xml:space="preserve"><value>Appearance</value></data>
+  <data name="SettingsAppearanceHeading.Text" xml:space="preserve"><value>外観</value></data>
   <data name="ThemeToggle.Header" xml:space="preserve"><value>テーマ</value></data>
   <data name="ThemeToggle.OffContent" xml:space="preserve"><value>Light</value></data>
   <data name="ThemeToggle.OnContent" xml:space="preserve"><value>Dark</value></data>
@@ -59,10 +61,8 @@
   <data name="BackdropSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>ウィンドウの背景を選択</value></data>
   <data name="BackdropMicaItem.Content" xml:space="preserve"><value>Mica</value></data>
   <data name="BackdropAcrylicItem.Content" xml:space="preserve"><value>Acrylic</value></data>
-  <data name="BackdropBlurItem.Content" xml:space="preserve"><value>Blur</value></data>
-  <data name="BackdropTransparentItem.Content" xml:space="preserve"><value>Transparent</value></data>
   <data name="BackdropSolidItem.Content" xml:space="preserve"><value>Solid</value></data>
-  <data name="SettingsGeneralHeading.Text" xml:space="preserve"><value>General</value></data>
+  <data name="SettingsGeneralHeading.Text" xml:space="preserve"><value>動作</value></data>
   <data name="CloseBehaviorSelector.Header" xml:space="preserve"><value>閉じるボタンの動作</value></data>
   <data name="CloseBehaviorSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>閉じるボタンの動作を選択</value></data>
   <data name="CloseBehaviorTrayItem.Content" xml:space="preserve"><value>タスクトレイへ格納</value></data>
@@ -71,7 +71,7 @@
   <data name="StartupToggle.OffContent" xml:space="preserve"><value>オフ</value></data>
   <data name="StartupToggle.OnContent" xml:space="preserve"><value>オン</value></data>
   <data name="StartupToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Windowsログイン時の起動を切り替える</value></data>
-  <data name="SettingsNotificationsHeading.Text" xml:space="preserve"><value>Notifications</value></data>
+  <data name="SettingsNotificationsHeading.Text" xml:space="preserve"><value>通知</value></data>
   <data name="NotificationsToggle.Header" xml:space="preserve"><value>全回復前の通知</value></data>
   <data name="NotificationsToggle.OffContent" xml:space="preserve"><value>オフ</value></data>
   <data name="NotificationsToggle.OnContent" xml:space="preserve"><value>オン</value></data>
@@ -81,12 +81,12 @@
   <data name="NotificationLeadInput.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>全回復前の通知時間（分）</value></data>
   <data name="OpenWindowsNotificationSettingsButton.Content" xml:space="preserve"><value>Windowsの通知設定を開く</value></data>
   <data name="OpenWindowsNotificationSettingsButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Windowsの通知設定を開く</value></data>
-  <data name="SettingsDataHeading.Text" xml:space="preserve"><value>Data</value></data>
-  <data name="SettingsDataDescription.Text" xml:space="preserve"><value>ゲーム、画像、設定をバックアップへ書き出したり、バックアップから置き換えたりできます。アンインストールすると端末内のデータは削除されるため、事前のバックアップをおすすめします。</value></data>
-  <data name="ExportBackupButton.Content" xml:space="preserve"><value>バックアップを書き出す</value></data>
-  <data name="ExportBackupButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>バックアップを書き出す</value></data>
-  <data name="ImportBackupButton.Content" xml:space="preserve"><value>バックアップから置き換える</value></data>
-  <data name="ImportBackupButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>バックアップから現在のデータを置き換える</value></data>
+  <data name="SettingsDataHeading.Text" xml:space="preserve"><value>バックアップ</value></data>
+  <data name="SettingsDataDescription.Text" xml:space="preserve"><value>ゲーム、画像、設定をエクスポートしたり、インポートしたりできます。アンインストールすると端末内のデータは削除されるため、事前のバックアップをおすすめします。</value></data>
+  <data name="ExportBackupButton.Content" xml:space="preserve"><value>エクスポート</value></data>
+  <data name="ExportBackupButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>バックアップをエクスポートする</value></data>
+  <data name="ImportBackupButton.Content" xml:space="preserve"><value>インポート</value></data>
+  <data name="ImportBackupButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>バックアップをインポートして現在のデータを置き換える</value></data>
   <data name="GameNameInput.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>ゲーム名</value></data>
   <data name="CurrentStaminaInput.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>現在のスタミナ</value></data>
   <data name="MaxStaminaInput.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>スタミナの最大値</value></data>

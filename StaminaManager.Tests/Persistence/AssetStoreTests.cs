@@ -96,26 +96,26 @@ public sealed class AssetStoreTests
     }
 
     [TestMethod]
-    public async Task SaveAsync_AllowsValidImageAtFiveMiB()
+    public async Task SaveAsync_AllowsValidImageOverFiveMiB()
     {
         await using MemoryStream source = await OpenFixtureAsync(
             GetValidFixtureName(ImageFormat.Png));
-        source.SetLength(AssetStore.MaxSourceBytes);
+        source.SetLength(6 * 1024 * 1024);
         source.Position = 0;
 
         StoredAsset asset = await _store.SaveAsync(
             source,
-            "boundary.png",
+            "large.png",
             CancellationToken.None);
 
         Assert.IsTrue(File.Exists(asset.FilePath));
     }
 
     [TestMethod]
-    public async Task SaveAsync_RejectsInputOverFiveMiB()
+    public async Task SaveAsync_LargeInvalidInputIsRejected()
     {
         await using MemoryStream source = new(
-            new byte[AssetStore.MaxSourceBytes + 1],
+            new byte[6 * 1024 * 1024],
             writable: false);
 
         await Assert.ThrowsAsync<AssetValidationException>(
@@ -123,6 +123,28 @@ public sealed class AssetStoreTests
                 source,
                 "oversize.jpg",
                 CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task SaveAsync_FailureRemovesInputTemporaryFile()
+    {
+        await using MemoryStream source = new(
+            new byte[6 * 1024 * 1024],
+            writable: false);
+
+        await Assert.ThrowsAsync<AssetValidationException>(
+            () => _store.SaveAsync(
+                source,
+                "invalid.png",
+                CancellationToken.None));
+
+        string assetsPath = Path.Combine(_rootPath, "Assets");
+        Assert.IsFalse(
+            Directory.Exists(assetsPath)
+            && Directory.EnumerateFiles(
+                assetsPath,
+                "*.input.tmp",
+                SearchOption.TopDirectoryOnly).Any());
     }
 
     [TestMethod]
@@ -240,10 +262,14 @@ public sealed class AssetStoreTests
         string assetId = Guid.NewGuid().ToString("N");
         string ownedPngTemp = Path.Combine(assetsPath, $"{assetId}.png.tmp");
         string ownedJpegTemp = Path.Combine(assetsPath, $"{assetId}.jpg.tmp");
+        string ownedInputTemp = Path.Combine(
+            assetsPath,
+            $"{assetId}.input.tmp");
         string arbitraryTemp = Path.Combine(assetsPath, "notes.tmp");
         string unsupportedTemp = Path.Combine(assetsPath, $"{assetId}.gif.tmp");
         await File.WriteAllTextAsync(ownedPngTemp, "partial");
         await File.WriteAllTextAsync(ownedJpegTemp, "partial");
+        await File.WriteAllTextAsync(ownedInputTemp, "partial");
         await File.WriteAllTextAsync(arbitraryTemp, "keep");
         await File.WriteAllTextAsync(unsupportedTemp, "keep");
 
@@ -253,6 +279,7 @@ public sealed class AssetStoreTests
 
         Assert.IsFalse(File.Exists(ownedPngTemp));
         Assert.IsFalse(File.Exists(ownedJpegTemp));
+        Assert.IsFalse(File.Exists(ownedInputTemp));
         Assert.IsTrue(File.Exists(arbitraryTemp));
         Assert.IsTrue(File.Exists(unsupportedTemp));
     }

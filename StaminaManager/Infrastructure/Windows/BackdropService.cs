@@ -3,11 +3,10 @@ using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.System;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
+using StaminaManager.Core.Validation;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using Windows.Foundation.Metadata;
 using Windows.UI.ViewManagement;
-using WinUIEx;
 using XamlSystemBackdrop = Microsoft.UI.Xaml.Media.SystemBackdrop;
 
 namespace StaminaManager.Infrastructure.Windows;
@@ -98,9 +97,6 @@ public sealed class WindowsBackdropEnvironment(
     {
         BackdropKind.Mica => MicaController.IsSupported(),
         BackdropKind.Acrylic => DesktopAcrylicController.IsSupported(),
-        BackdropKind.Blur or BackdropKind.Transparent =>
-            ApiInformation.IsTypePresent(
-                "Windows.UI.Composition.Compositor"),
         BackdropKind.Solid => true,
         _ => false,
     };
@@ -140,6 +136,9 @@ public sealed class BackdropService : IBackdropService
                 BackdropFallbackReason.Unsupported,
                 "背景の設定値が正しくないため、単色背景を使用します。");
         }
+
+        requestedBackdrop = BackdropPolicy.NormalizeLegacy(
+            requestedBackdrop);
 
         if (requestedBackdrop == BackdropKind.Solid)
         {
@@ -275,14 +274,6 @@ public sealed class BackdropService : IBackdropService
             typeof(Microsoft.UI.Xaml.Media.DesktopAcrylicBackdrop),
             static () =>
                 new Microsoft.UI.Xaml.Media.DesktopAcrylicBackdrop(),
-            IsSolidSurface: false),
-        BackdropKind.Blur => new BackdropDefinition(
-            typeof(BlurredBackdrop),
-            static () => new BlurredBackdrop(),
-            IsSolidSurface: false),
-        BackdropKind.Transparent => new BackdropDefinition(
-            typeof(TransparentTintBackdrop),
-            static () => new TransparentTintBackdrop(),
             IsSolidSurface: false),
         _ => throw new ArgumentOutOfRangeException(nameof(backdrop)),
     };

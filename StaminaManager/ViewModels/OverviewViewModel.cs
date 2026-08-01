@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using StaminaManager.Application;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
+using StaminaManager.Core.Persistence;
 using System.Collections.ObjectModel;
 
 namespace StaminaManager.ViewModels;
@@ -33,6 +34,13 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     public partial string RecoveryMessage { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial bool IsDataLoadWarningInfoBarOpen { get; private set; }
+
+    [ObservableProperty]
+    public partial string DataLoadWarningMessage { get; private set; } =
+        string.Empty;
 
     public OverviewViewModel(
         GameManager gameManager,
@@ -138,6 +146,29 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
     }
 
     public void CloseRecoveryInfoBar() => IsRecoveryInfoBarOpen = false;
+
+    public Task ShowDataLoadWarningAsync(
+        DataLoadWarning warning,
+        CancellationToken cancellationToken = default) =>
+        _uiDispatcher.InvokeAsync(
+            () =>
+            {
+                if (warning != DataLoadWarning.LegacyBackdropWritebackFailed)
+                {
+                    DataLoadWarningMessage = string.Empty;
+                    IsDataLoadWarningInfoBarOpen = false;
+                    return;
+                }
+
+                DataLoadWarningMessage =
+                    "以前の背景設定をAcrylicへ更新しましたが、データへ再保存できませんでした。"
+                    + "設定を一度変更して保存し直してください。";
+                IsDataLoadWarningInfoBarOpen = true;
+            },
+            cancellationToken);
+
+    public void CloseDataLoadWarningInfoBar() =>
+        IsDataLoadWarningInfoBarOpen = false;
 
     public Task ClearErrorAsync(
         CancellationToken cancellationToken = default) =>

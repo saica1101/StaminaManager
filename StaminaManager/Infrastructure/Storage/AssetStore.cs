@@ -1,6 +1,7 @@
 using StaminaManager.Infrastructure.Persistence;
 using System.Runtime.InteropServices;
 using Windows.Graphics.Imaging;
+using Windows.Storage;
 using Windows.Storage.Streams;
 
 namespace StaminaManager.Infrastructure.Storage;
@@ -25,7 +26,6 @@ public sealed class AssetValidationException : IOException
 
 public sealed class AssetStore
 {
-    public const int MaxSourceBytes = 5 * 1024 * 1024;
     public const uint MaxDimension = 4096;
 
     private const string AssetsDirectoryName = "Assets";
@@ -71,51 +71,40 @@ public sealed class AssetStore
         Stream source,
         CancellationToken cancellationToken)
     {
-        byte[] sourceBytes = await ReadBoundedAsync(
-            source,
-            cancellationToken).ConfigureAwait(false);
-        using InMemoryRandomAccessStream input = await CreateInputAsync(
-            sourceBytes,
-            cancellationToken).ConfigureAwait(false);
-
-        ImageFormat format;
-        SoftwareBitmap bitmap;
+        string assetsPath = GetAssetsPath();
+        Directory.CreateDirectory(assetsPath);
+        string inputPath = Path.Combine(
+            assetsPath,
+            $"{Guid.NewGuid():N}.input.tmp");
+        bool ownsInput = false;
         try
         {
-            BitmapDecoder decoder = await BitmapDecoder.CreateAsync(input)
+            await CopyInputAsync(
+                source,
+                inputPath,
+                cancellationToken).ConfigureAwait(false);
+            ownsInput = true;
+            StorageFile inputFile = await StorageFile.GetFileFromPathAsync(
+                    inputPath)
                 .AsTask(cancellationToken).ConfigureAwait(false);
-            format = GetFormat(decoder.DecoderInformation.CodecId);
-            ValidateDimensions(decoder.PixelWidth, decoder.PixelHeight);
-            BitmapAlphaMode alphaMode = format == ImageFormat.Jpeg
-                ? BitmapAlphaMode.Ignore
-                : BitmapAlphaMode.Premultiplied;
-            bitmap = await decoder.GetSoftwareBitmapAsync(
-                    BitmapPixelFormat.Bgra8,
-                    alphaMode)
-                .AsTask(cancellationToken).ConfigureAwait(false);
-        }
-        catch (AssetValidationException)
-        {
-            throw;
-        }
-        catch (Exception exception) when (IsImagingFailure(exception))
-        {
-            throw new AssetValidationException(
-                "The source is not a valid PNG or JPEG image.",
-                exception);
-        }
+            using IRandomAccessStreamWithContentType input =
+                await inputFile.OpenReadAsync()
+                    .AsTask(cancellationToken).ConfigureAwait(false);
 
-        using (bitmap)
-        using (InMemoryRandomAccessStream encoded = new())
-        {
+            ImageFormat format;
+            SoftwareBitmap bitmap;
             try
             {
-                BitmapEncoder encoder = await BitmapEncoder.CreateAsync(
-                        format.EncoderId,
-                        encoded)
+                BitmapDecoder decoder = await BitmapDecoder.CreateAsync(input)
                     .AsTask(cancellationToken).ConfigureAwait(false);
-                encoder.SetSoftwareBitmap(bitmap);
-                await encoder.FlushAsync()
+                format = GetFormat(decoder.DecoderInformation.CodecId);
+                ValidateDimensions(decoder.PixelWidth, decoder.PixelHeight);
+                BitmapAlphaMode alphaMode = format == ImageFormat.Jpeg
+                    ? BitmapAlphaMode.Ignore
+                    : BitmapAlphaMode.Premultiplied;
+                bitmap = await decoder.GetSoftwareBitmapAsync(
+                        BitmapPixelFormat.Bgra8,
+                        alphaMode)
                     .AsTask(cancellationToken).ConfigureAwait(false);
             }
             catch (AssetValidationException)
@@ -125,14 +114,46 @@ public sealed class AssetStore
             catch (Exception exception) when (IsImagingFailure(exception))
             {
                 throw new AssetValidationException(
-                    "The image could not be normalized.",
+                    "The source is not a valid PNG or JPEG image.",
                     exception);
             }
 
-            return await SaveEncodedAsync(
-                encoded,
-                format,
-                cancellationToken).ConfigureAwait(false);
+            using (bitmap)
+            using (InMemoryRandomAccessStream encoded = new())
+            {
+                try
+                {
+                    BitmapEncoder encoder = await BitmapEncoder.CreateAsync(
+                            format.EncoderId,
+                            encoded)
+                        .AsTask(cancellationToken).ConfigureAwait(false);
+                    encoder.SetSoftwareBitmap(bitmap);
+                    await encoder.FlushAsync()
+                        .AsTask(cancellationToken).ConfigureAwait(false);
+                }
+                catch (AssetValidationException)
+                {
+                    throw;
+                }
+                catch (Exception exception) when (IsImagingFailure(exception))
+                {
+                    throw new AssetValidationException(
+                        "The image could not be normalized.",
+                        exception);
+                }
+
+                return await SaveEncodedAsync(
+                    encoded,
+                    format,
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            if (ownsInput && File.Exists(inputPath))
+            {
+                File.Delete(inputPath);
+            }
         }
     }
 
@@ -223,56 +244,37 @@ public sealed class AssetStore
         }
     }
 
-    private static async Task<byte[]> ReadBoundedAsync(
+    private static async Task CopyInputAsync(
         Stream source,
+        string destinationPath,
         CancellationToken cancellationToken)
     {
-        using MemoryStream buffer = new(capacity: MaxSourceBytes);
-        byte[] chunk = new byte[CopyBufferSize];
-        int totalBytes = 0;
-        while (true)
-        {
-            int remainingRead = MaxSourceBytes + 1 - totalBytes;
-            int bytesRead = await source.ReadAsync(
-                chunk.AsMemory(0, Math.Min(chunk.Length, remainingRead)),
-                cancellationToken).ConfigureAwait(false);
-            if (bytesRead == 0)
-            {
-                return buffer.ToArray();
-            }
-
-            totalBytes += bytesRead;
-            if (totalBytes > MaxSourceBytes)
-            {
-                throw new AssetValidationException(
-                    "Images must be 5 MiB or smaller.");
-            }
-
-            await buffer.WriteAsync(
-                chunk.AsMemory(0, bytesRead),
-                cancellationToken).ConfigureAwait(false);
-        }
-    }
-
-    private static async Task<InMemoryRandomAccessStream> CreateInputAsync(
-        byte[] bytes,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        InMemoryRandomAccessStream? input = new();
+        bool ownsDestination = false;
         try
         {
-            using DataWriter writer = new(input);
-            writer.WriteBytes(bytes);
-            _ = await writer.StoreAsync()
-                .AsTask(cancellationToken).ConfigureAwait(false);
-            writer.DetachStream();
-            input.Seek(0);
-            return input;
+            await using FileStream destination = new(
+                destinationPath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                CopyBufferSize,
+                FileOptions.Asynchronous | FileOptions.SequentialScan);
+            ownsDestination = true;
+            await source.CopyToAsync(
+                destination,
+                CopyBufferSize,
+                cancellationToken).ConfigureAwait(false);
+            await destination.FlushAsync(cancellationToken)
+                .ConfigureAwait(false);
+            destination.Flush(flushToDisk: true);
         }
         catch
         {
-            input.Dispose();
+            if (ownsDestination && File.Exists(destinationPath))
+            {
+                File.Delete(destinationPath);
+            }
+
             throw;
         }
     }
@@ -348,6 +350,21 @@ public sealed class AssetStore
         out bool isTemporary)
     {
         string fileName = Path.GetFileName(path);
+        if (fileName.EndsWith(".input.tmp", StringComparison.Ordinal))
+        {
+            string inputId = fileName[..^".input.tmp".Length];
+            isTemporary = Guid.TryParseExact(
+                inputId,
+                "N",
+                out Guid parsedInput)
+                && string.Equals(
+                    inputId,
+                    parsedInput.ToString("N"),
+                    StringComparison.Ordinal);
+            assetId = string.Empty;
+            return isTemporary;
+        }
+
         isTemporary = fileName.EndsWith(".tmp", StringComparison.Ordinal);
         string assetFileName = isTemporary
             ? fileName[..^".tmp".Length]

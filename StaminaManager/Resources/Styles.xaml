@@ -85,6 +85,121 @@
     </Style>
 
     <Style
+        x:Key="AppDestructiveButtonStyle"
+        TargetType="Button">
+        <Setter Property="Foreground" Value="{ThemeResource DestructiveButtonForegroundBrush}" />
+        <Setter Property="Background" Value="{ThemeResource DestructiveButtonBackgroundBrush}" />
+        <Setter Property="BackgroundSizing" Value="OuterBorderEdge" />
+        <Setter Property="BorderBrush" Value="{ThemeResource DestructiveButtonBackgroundBrush}" />
+        <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <ContentPresenter
+                        x:Name="ContentPresenter"
+                        AutomationProperties.AccessibilityView="Raw"
+                        Background="{TemplateBinding Background}"
+                        BackgroundSizing="{TemplateBinding BackgroundSizing}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        Content="{TemplateBinding Content}"
+                        ContentTemplate="{TemplateBinding ContentTemplate}"
+                        ContentTransitions="{TemplateBinding ContentTransitions}"
+                        CornerRadius="{TemplateBinding CornerRadius}"
+                        Foreground="{TemplateBinding Foreground}"
+                        HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                        Padding="{TemplateBinding Padding}"
+                        VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}">
+                        <ContentPresenter.BackgroundTransition>
+                            <BrushTransition Duration="0:0:0.083" />
+                        </ContentPresenter.BackgroundTransition>
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal" />
+                                <VisualState x:Name="PointerOver">
+                                    <Storyboard>
+                                        <ObjectAnimationUsingKeyFrames
+                                            Storyboard.TargetName="ContentPresenter"
+                                            Storyboard.TargetProperty="Background">
+                                            <DiscreteObjectKeyFrame
+                                                KeyTime="0"
+                                                Value="{ThemeResource DestructiveButtonBackgroundPointerOverBrush}" />
+                                        </ObjectAnimationUsingKeyFrames>
+                                        <ObjectAnimationUsingKeyFrames
+                                            Storyboard.TargetName="ContentPresenter"
+                                            Storyboard.TargetProperty="BorderBrush">
+                                            <DiscreteObjectKeyFrame
+                                                KeyTime="0"
+                                                Value="{ThemeResource DestructiveButtonBackgroundPointerOverBrush}" />
+                                        </ObjectAnimationUsingKeyFrames>
+                                        <ObjectAnimationUsingKeyFrames
+                                            Storyboard.TargetName="ContentPresenter"
+                                            Storyboard.TargetProperty="Foreground">
+                                            <DiscreteObjectKeyFrame
+                                                KeyTime="0"
+                                                Value="{ThemeResource DestructiveButtonForegroundPointerOverBrush}" />
+                                        </ObjectAnimationUsingKeyFrames>
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <Storyboard>
+                                        <ObjectAnimationUsingKeyFrames
+                                            Storyboard.TargetName="ContentPresenter"
+                                            Storyboard.TargetProperty="Background">
+                                            <DiscreteObjectKeyFrame
+                                                KeyTime="0"
+                                                Value="{ThemeResource DestructiveButtonBackgroundPressedBrush}" />
+                                        </ObjectAnimationUsingKeyFrames>
+                                        <ObjectAnimationUsingKeyFrames
+                                            Storyboard.TargetName="ContentPresenter"
+                                            Storyboard.TargetProperty="BorderBrush">
+                                            <DiscreteObjectKeyFrame
+                                                KeyTime="0"
+                                                Value="{ThemeResource DestructiveButtonBackgroundPressedBrush}" />
+                                        </ObjectAnimationUsingKeyFrames>
+                                        <ObjectAnimationUsingKeyFrames
+                                            Storyboard.TargetName="ContentPresenter"
+                                            Storyboard.TargetProperty="Foreground">
+                                            <DiscreteObjectKeyFrame
+                                                KeyTime="0"
+                                                Value="{ThemeResource DestructiveButtonForegroundPressedBrush}" />
+                                        </ObjectAnimationUsingKeyFrames>
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <Storyboard>
+                                        <ObjectAnimationUsingKeyFrames
+                                            Storyboard.TargetName="ContentPresenter"
+                                            Storyboard.TargetProperty="Background">
+                                            <DiscreteObjectKeyFrame
+                                                KeyTime="0"
+                                                Value="{ThemeResource DestructiveButtonBackgroundDisabledBrush}" />
+                                        </ObjectAnimationUsingKeyFrames>
+                                        <ObjectAnimationUsingKeyFrames
+                                            Storyboard.TargetName="ContentPresenter"
+                                            Storyboard.TargetProperty="BorderBrush">
+                                            <DiscreteObjectKeyFrame
+                                                KeyTime="0"
+                                                Value="{ThemeResource DestructiveButtonBackgroundDisabledBrush}" />
+                                        </ObjectAnimationUsingKeyFrames>
+                                        <ObjectAnimationUsingKeyFrames
+                                            Storyboard.TargetName="ContentPresenter"
+                                            Storyboard.TargetProperty="Foreground">
+                                            <DiscreteObjectKeyFrame
+                                                KeyTime="0"
+                                                Value="{ThemeResource DestructiveButtonForegroundDisabledBrush}" />
+                                        </ObjectAnimationUsingKeyFrames>
+                                    </Storyboard>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                    </ContentPresenter>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style
         x:Key="RestoreDialogPrimaryButtonStyle"
         BasedOn="{StaticResource AccentButtonStyle}"
         TargetType="Button">

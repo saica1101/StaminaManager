@@ -229,7 +229,10 @@ public sealed partial class MainPage : Page
                 _assetStore,
                 _gameManager,
                 ((App)Microsoft.UI.Xaml.Application.Current)
-                    .MainWindowHandle);
+                    .MainWindowHandle)
+            {
+                RequestedTheme = ActualTheme,
+            };
             _ = await dialog.ShowAsync(
                 XamlRoot,
                 focusCurrent,

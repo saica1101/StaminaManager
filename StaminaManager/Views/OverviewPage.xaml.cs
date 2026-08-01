@@ -23,6 +23,11 @@ public sealed partial class OverviewPage : Page
         InfoBar sender,
         InfoBarClosedEventArgs args) => ViewModel.CloseRecoveryInfoBar();
 
+    private void DataLoadWarningInfoBar_Closed(
+        InfoBar sender,
+        InfoBarClosedEventArgs args) =>
+        ViewModel.CloseDataLoadWarningInfoBar();
+
     public async Task<bool> FocusGameAsync(Guid gameId)
     {
         if (!IsLoaded)

@@ -22,6 +22,31 @@ public sealed class AppCoordinatorTests
         TimeSpan.Zero);
 
     [TestMethod]
+    public async Task InitializeForLaunchAsync_旧背景の保存失敗をOverviewで案内する()
+    {
+        CoordinatorDataStore store = new(new DataLoadResult(
+            DataLoadStatus.Primary,
+            CreateEnvelope("Loaded"),
+            "private-primary-path",
+            "private-recovery-path",
+            DataLoadWarning.LegacyBackdropWritebackFailed));
+        GameManager manager = CreateManager(store);
+        RecordingUiDispatcher dispatcher = new();
+        AppCoordinator coordinator = new(store, manager, dispatcher);
+        OverviewViewModel overview = new(manager, new FakeClock(NowUtc), dispatcher);
+
+        await global::StaminaManager.App.InitializeForLaunchAsync(
+            coordinator,
+            overview,
+            CancellationToken.None);
+
+        Assert.IsTrue(overview.IsDataLoadWarningInfoBarOpen);
+        StringAssert.Contains(overview.DataLoadWarningMessage, "背景設定");
+        StringAssert.Contains(overview.DataLoadWarningMessage, "再保存");
+        Assert.DoesNotContain("private-", overview.DataLoadWarningMessage);
+    }
+
+    [TestMethod]
     public async Task InitializeForLaunchAsync_Recoveryを恒久昇格して案内後も保存できる()
     {
         DataEnvelope recovered = CreateEnvelope("Recovered");
@@ -406,7 +431,7 @@ public sealed class AppCoordinatorTests
     {
         AppSettings settings = AppSettings.CreateDefault(AppTheme.Dark) with
         {
-            Backdrop = BackdropKind.Transparent,
+            Backdrop = BackdropKind.Acrylic,
         };
         CoordinatorDataStore store = new(new DataLoadResult(
             DataLoadStatus.Primary,
@@ -420,7 +445,7 @@ public sealed class AppCoordinatorTests
         RecordingBackdropService backdropService = new()
         {
             NextResult = new BackdropResult(
-                BackdropKind.Transparent,
+                BackdropKind.Acrylic,
                 BackdropKind.Solid,
                 BackdropFallbackReason.TransparencyDisabled,
                 "透明効果が無効です。"),
@@ -438,10 +463,10 @@ public sealed class AppCoordinatorTests
             new[] { AppTheme.Dark },
             themeService.Requests);
         CollectionAssert.AreEqual(
-            new[] { BackdropKind.Transparent },
+            new[] { BackdropKind.Acrylic },
             backdropService.Requests);
         Assert.AreEqual(
-            BackdropKind.Transparent,
+            BackdropKind.Acrylic,
             manager.CurrentData.Settings.Backdrop);
         Assert.AreEqual(
             BackdropKind.Solid,

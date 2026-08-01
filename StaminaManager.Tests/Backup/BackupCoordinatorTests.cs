@@ -3,6 +3,7 @@ using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Calculations;
 using StaminaManager.Core.Models;
 using StaminaManager.Core.Persistence;
+using StaminaManager.Core.Validation;
 using StaminaManager.Infrastructure.Backup;
 using StaminaManager.Infrastructure.Persistence;
 using StaminaManager.Tests.TestDoubles;
@@ -47,6 +48,14 @@ public sealed class BackupCoordinatorTests
         Assert.AreEqual(
             2,
             data.RootElement.GetProperty("schemaVersion").GetInt32());
+    }
+
+    [TestMethod]
+    public void ExportAsync_画像実サイズ合計が展開上限を超える場合は事前拒否する()
+    {
+        Assert.ThrowsExactly<InvalidDataException>(() =>
+            BackupCoordinator.EnsureExpandedAssetLengthsWithinLimit(
+            [BackupLimits.MaxExpandedBytes, 1]));
     }
 
     [TestMethod]

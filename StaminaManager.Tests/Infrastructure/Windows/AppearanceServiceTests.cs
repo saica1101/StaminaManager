@@ -69,7 +69,7 @@ public sealed class AppearanceServiceTests
     }
 
     [STATestMethod]
-    public void BackdropService_AppliesEachConcreteBackdropType()
+    public void BackdropService_AppliesSelectableBackdropTypes()
     {
         RecordingBackdropTarget target = new();
         MutableBackdropEnvironment environment = new();
@@ -83,19 +83,29 @@ public sealed class AppearanceServiceTests
             service,
             target,
             BackdropKind.Acrylic);
-        AssertBackdrop<BlurredBackdrop>(
-            service,
-            target,
-            BackdropKind.Blur);
-        AssertBackdrop<TransparentTintBackdrop>(
-            service,
-            target,
-            BackdropKind.Transparent);
-
         BackdropResult solidResult = service.Apply(BackdropKind.Solid);
         Assert.IsTrue(solidResult.IsRequestedBackdropApplied);
         Assert.IsNull(target.BackdropType);
         Assert.IsTrue(target.IsSolidSurface);
+    }
+
+    [STATestMethod]
+    [DataRow(BackdropKind.Blur)]
+    [DataRow(BackdropKind.Transparent)]
+    public void BackdropService_旧背景はAcrylicとして適用する(
+        BackdropKind legacyBackdrop)
+    {
+        RecordingBackdropTarget target = new();
+        BackdropService service = new(
+            target,
+            new MutableBackdropEnvironment());
+
+        BackdropResult result = service.Apply(legacyBackdrop);
+
+        Assert.AreEqual(BackdropKind.Acrylic, result.RequestedBackdrop);
+        Assert.AreEqual(BackdropKind.Acrylic, result.ActualBackdrop);
+        Assert.AreEqual(typeof(DesktopAcrylicBackdrop), target.BackdropType);
+        Assert.IsFalse(target.IsSolidSurface);
     }
 
     [STATestMethod]
@@ -108,9 +118,9 @@ public sealed class AppearanceServiceTests
         };
         BackdropService service = new(target, environment);
 
-        BackdropResult result = service.Apply(BackdropKind.Transparent);
+        BackdropResult result = service.Apply(BackdropKind.Acrylic);
 
-        Assert.AreEqual(BackdropKind.Transparent, result.RequestedBackdrop);
+        Assert.AreEqual(BackdropKind.Acrylic, result.RequestedBackdrop);
         Assert.AreEqual(BackdropKind.Solid, result.ActualBackdrop);
         Assert.AreEqual(
             BackdropFallbackReason.HighContrast,
@@ -142,7 +152,7 @@ public sealed class AppearanceServiceTests
         };
         BackdropService service = new(target, environment);
 
-        BackdropResult result = service.Apply(BackdropKind.Blur);
+        BackdropResult result = service.Apply(BackdropKind.Acrylic);
 
         Assert.AreEqual(BackdropKind.Solid, result.ActualBackdrop);
         Assert.AreEqual(expectedReason, result.FallbackReason);

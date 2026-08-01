@@ -124,6 +124,9 @@ public partial class App : Microsoft.UI.Xaml.Application
         ArgumentNullException.ThrowIfNull(overviewViewModel);
         DataLoadResult result = await coordinator.InitializeAsync(
             cancellationToken);
+        await overviewViewModel.ShowDataLoadWarningAsync(
+            result.Warning,
+            cancellationToken);
         await overviewViewModel.ShowStartupRecoveryAsync(
             coordinator.StartupRecovery,
             cancellationToken);
