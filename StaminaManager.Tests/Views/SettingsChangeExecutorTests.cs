@@ -1,4 +1,5 @@
 using StaminaManager.Infrastructure.Windows;
+using StaminaManager.Core.Models;
 using StaminaManager.Views;
 
 namespace StaminaManager.Tests.Views;
@@ -132,6 +133,41 @@ public sealed class SettingsChangeExecutorTests
 
         Assert.AreEqual(1, failureCount);
         Assert.AreEqual(1, synchronizationCount);
+    }
+
+    [TestMethod]
+    public async Task DeferredExecuteAsync_キュー投入前の要求値をそれぞれ保持する()
+    {
+        RecordingUiWorkQueue queue = new();
+        List<AppTheme> applied = [];
+        DeferredSettingsChangeExecutor executor = new(queue);
+
+        Task first = executor.ExecuteAsync(
+            AppTheme.Dark,
+            theme =>
+            {
+                applied.Add(theme);
+                return Task.CompletedTask;
+            },
+            () => { },
+            () => { });
+        Task second = executor.ExecuteAsync(
+            AppTheme.Light,
+            theme =>
+            {
+                applied.Add(theme);
+                return Task.CompletedTask;
+            },
+            () => { },
+            () => { });
+
+        queue.RunNext();
+        queue.RunNext();
+        await Task.WhenAll(first, second);
+
+        CollectionAssert.AreEqual(
+            new[] { AppTheme.Dark, AppTheme.Light },
+            applied);
     }
 
     private static TaskCompletionSource CreateSource() => new(

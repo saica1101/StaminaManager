@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.Windows.Storage.Pickers;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
+using StaminaManager.Infrastructure.Windows;
 using StaminaManager.ViewModels;
 using System.Diagnostics;
 
@@ -11,6 +12,7 @@ namespace StaminaManager.Views;
 
 public sealed partial class SettingsPage : Page
 {
+    private readonly SettingsAppearanceChangeRouter _appearanceChangeRouter;
     private bool _isSynchronizingControls = true;
     private bool _areControlEventsAttached;
 
@@ -19,6 +21,14 @@ public sealed partial class SettingsPage : Page
         ArgumentNullException.ThrowIfNull(viewModel);
         ViewModel = viewModel;
         InitializeComponent();
+        DeferredSettingsChangeExecutor executor = new(
+            new DispatcherQueueUiWorkQueue(DispatcherQueue));
+        _appearanceChangeRouter = new SettingsAppearanceChangeRouter(
+            executor,
+            theme => ViewModel.SetThemeAsync(theme),
+            backdrop => ViewModel.SetBackdropAsync(backdrop),
+            ViewModel.ReportUnexpectedFailure,
+            SynchronizeControls);
         Loaded += SettingsPage_Loaded;
     }
 
@@ -57,11 +67,10 @@ public sealed partial class SettingsPage : Page
             return;
         }
 
-        await ExecuteSettingChangeAsync(async () =>
-        {
-            await ViewModel.SetThemeAsync(
-                ThemeToggle.IsOn ? AppTheme.Dark : AppTheme.Light);
-        });
+        AppTheme requestedTheme = ThemeToggle.IsOn
+            ? AppTheme.Dark
+            : AppTheme.Light;
+        await _appearanceChangeRouter.ChangeThemeAsync(requestedTheme);
     }
 
     private async void BackdropSelector_SelectionChanged(
@@ -74,11 +83,10 @@ public sealed partial class SettingsPage : Page
             return;
         }
 
-        await ExecuteSettingChangeAsync(async () =>
-        {
-            await ViewModel.SetBackdropAsync(
-                (BackdropKind)BackdropSelector.SelectedIndex);
-        });
+        BackdropKind requestedBackdrop =
+            (BackdropKind)BackdropSelector.SelectedIndex;
+        await _appearanceChangeRouter.ChangeBackdropAsync(
+            requestedBackdrop);
     }
 
     private async void CloseBehaviorSelector_SelectionChanged(

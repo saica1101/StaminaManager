@@ -41,6 +41,19 @@ internal sealed class DeferredSettingsChangeExecutor
         return completion.Task;
     }
 
+    internal Task ExecuteAsync<T>(
+        T requestedValue,
+        Func<T, Task> settingChange,
+        Action reportFailure,
+        Action synchronizeControls)
+    {
+        ArgumentNullException.ThrowIfNull(settingChange);
+        return ExecuteAsync(
+            () => settingChange(requestedValue),
+            reportFailure,
+            synchronizeControls);
+    }
+
     private async Task ExecuteQueuedAsync(
         Func<Task> settingChange,
         Action reportFailure,
