@@ -75,7 +75,7 @@
 - [x] `.msixupload` のfile listはx64 MSIXと`appxsym`の2件である。
   内包MSIXはName `saica1101.StaminaManager`、Publisher
   `CN=E42D0651-60BF-47A1-BD3B-ECCF464087D2`、Version `1.0.0.0`、
-  ProcessorArchitecture `x64` と確認した。生成物は79,851,460 bytes。
+  ProcessorArchitecture `x64` と確認した。生成物は約79.9 MB。
 - [x] 内包MSIXのPublisherDisplayName `saica1101`、Universal/Desktop
   MinVersion `10.0.22000.0`、`StaminaManager.exe`の存在、StartupTaskの
   Executable一致、`AppxSignature.p7x`不存在を確認した。さらに
