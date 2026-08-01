@@ -67,6 +67,42 @@ settings を保持した `games=[]` fixture と空の通知 ledger を書き、�
   ComboBox、ToggleSwitch に AutomationId と accessible name があること
 - 必須 AutomationId が収集した状態のいずれかへ現れること
 
+## テーマ・背景切り替えのクラッシュ回帰テスト
+
+`appearance-navigation-stress.ps1` は、Settings で Light / Dark と
+Mica / Acrylic / Blur / Transparent / Solid を切り替えながら、
+`Settings → Overview → Settings` を最低3周往復します。各操作の直後だけでなく
+待機中も同じ PID と実行ファイルパスの生存をポーリングするため、背景変更後に遅れて
+発生するクラッシュも検出します。実際に適用された背景は、UI Automation の
+`ActualBackdropDiagnostic` で確認します。
+
+起動済みアプリの PID を指定して実行します。同じ package の別UIテストとは named
+mutex で競合を防ぎます。
+
+```powershell
+.\BuildAndRun.ps1 .\StaminaManager\StaminaManager.csproj -Detach
+.\tests\ui\appearance-navigation-stress.ps1 -AppPid <launched PID>
+```
+
+スクリプトは初期テーマと背景を保存し、成功・失敗にかかわらず `finally` で復元を
+試みます。プロセスが終了して復元できない場合は、結果JSONに復元不能と初期値、
+package、実行ファイル、`data.json` の各パスを記録します。次回起動後はJSONの
+`restoration.initialThemeName` と `initialBackdrop` を Settings から設定し直して
+ください。ユーザーデータファイルを直接編集・削除する処理はありません。
+
+スクリプトは1つのPIDを1回だけ試験します。1回で再現しない場合は、
+操作者が新しいプロセスを起動し、合計最大3回まで繰り返します。
+3回とも生存した場合はPASSを「今回の環境では非再現」として記録し、
+クラッシュを再現したことにはしません。
+結果JSONの `status` は次のように解釈します。
+
+- `PASS_NON_REPRODUCED`: 3周、初期値の復元、復元後15秒間の生存確認が
+  完了。クラッシュの修正済みを意味するのではなく、その実行では非再現。
+- `RED_CRASH_REPRODUCED`: 同じPIDのプロセス消失または実行ファイルパス変化を
+  検出。`restoration` で復元成否と次回起動時の操作を確認。
+- `FAIL`: UI Automation操作、診断値、復元のいずれかが失敗したが、
+  プロセスクラッシュは検出していない。
+
 `SettingsInfoBar`、`OpenWindowsNotificationSettingsButton`、各エラー InfoBar、
 復元確認ボタンなどは状態依存です。スクリプトは XAML source に宣言があることを
 確認し、実行中に非表示なら ID ごとの具体的理由とともに `SKIP` を記録します。
