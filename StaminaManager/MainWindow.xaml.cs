@@ -1,3 +1,4 @@
+using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -8,7 +9,10 @@ using StaminaManager.Application;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Calculations;
 using StaminaManager.Core.Models;
+using StaminaManager.Infrastructure.Windows;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Windows.UI;
 
 namespace StaminaManager;
 
@@ -45,12 +49,16 @@ public sealed class MainWindow : WinUIEx.WindowEx
     private bool _isLifecycleConfigured;
     private bool _isLifecycleDisposed;
     private readonly MainWindowContent _windowContent;
+    private readonly CoalescingUiAction _captionColorUpdate;
 
     public MainWindow(MainPage mainPage)
     {
         ArgumentNullException.ThrowIfNull(mainPage);
         _windowContent = new MainWindowContent();
         Content = _windowContent;
+        _captionColorUpdate = new CoalescingUiAction(
+            new DispatcherQueueUiWorkQueue(DispatcherQueue),
+            ApplyCaptionButtonColors);
         SystemBackdrop = new MicaBackdrop();
 
         string appTitle = ResolveAppTitle();
@@ -61,6 +69,66 @@ public sealed class MainWindow : WinUIEx.WindowEx
         AppWindow.SetIcon("Assets/AppIcon.ico");
         _windowContent.RootFrameControl.Content = mainPage;
         UpdateBackdropDiagnostic();
+
+        _windowContent.ActualThemeChanged += OnActualThemeChanged;
+        ApplyCaptionButtonColors();
+    }
+
+    private void OnActualThemeChanged(
+        FrameworkElement sender,
+        object args)
+    {
+        if (!_captionColorUpdate.Request())
+        {
+            Debug.WriteLine(
+                "タイトルバー色の更新をキューへ投入できませんでした。");
+        }
+    }
+
+    private void ApplyCaptionButtonColors()
+    {
+        try
+        {
+            if (!AppWindowTitleBar.IsCustomizationSupported())
+            {
+                return;
+            }
+
+            AppWindowTitleBar titleBar = AppWindow.TitleBar;
+            bool isDark =
+                _windowContent.ActualTheme == ElementTheme.Dark;
+
+            Windows.UI.Color foreground = isDark
+                ? Color.FromArgb(255, 255, 255, 255)
+                : Color.FromArgb(255, 26, 26, 26);
+            Windows.UI.Color inactiveForeground = isDark
+                ? Color.FromArgb(255, 207, 207, 207)
+                : Color.FromArgb(255, 93, 93, 93);
+            Windows.UI.Color hoverBackground = isDark
+                ? Color.FromArgb(40, 255, 255, 255)
+                : Color.FromArgb(20, 0, 0, 0);
+            Windows.UI.Color pressedBackground = isDark
+                ? Color.FromArgb(60, 255, 255, 255)
+                : Color.FromArgb(35, 0, 0, 0);
+
+            titleBar.ButtonBackgroundColor = Colors.Transparent;
+            titleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
+            titleBar.ButtonForegroundColor = foreground;
+            titleBar.ButtonInactiveForegroundColor = inactiveForeground;
+            titleBar.ButtonHoverBackgroundColor = hoverBackground;
+            titleBar.ButtonHoverForegroundColor = foreground;
+            titleBar.ButtonPressedBackgroundColor = pressedBackground;
+            titleBar.ButtonPressedForegroundColor = foreground;
+        }
+        catch (Exception exception) when (
+            exception is COMException
+                or ArgumentException
+                or InvalidOperationException)
+        {
+            Debug.WriteLine(
+                "タイトルバー色の更新に失敗しました: "
+                + exception.GetType().Name);
+        }
     }
 
     internal void ConfigureLifecycle(
