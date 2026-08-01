@@ -1,6 +1,6 @@
 # StaminaManager リリースチェックリスト
 
-最終更新: 2026-07-29
+最終更新: 2026-08-02
 
 このチェックリストは Windows 11 x64 向け初回 Microsoft Store 提出の
 現在地を記録する。`[ ]` は未完了であり、Store 提出前に担当者が証跡とともに
@@ -13,7 +13,7 @@
 - [x] `win-x64.pubxml` が `Release`、`x64`、`win-x64`、self-contained、
   ReadyToRun を指定している。ここでの self-contained は .NET runtime を指し、
   Windows App SDK runtime は manifest の framework dependency を利用する。
-- [x] Release unit test が 408 passed / 0 failed で完了している。
+- [x] Release unit test が 583 passed / 0 failed で完了している。
 - [x] `BuildAndRun.ps1 -SkipRun` による x64 Release build が、
   0 warnings / 0 errors で成功している。
 - [x] パッケージ起動した Release build の UI 自動試験が
@@ -37,14 +37,20 @@
 
 ## Manifest、identity、version
 
-- [x] ローカル開発用 identity
-  `35F978A4-DE78-42D1-AA68-26AAB5754821` と
-  `CN=AppPublisher` を維持している。
+- [x] Partner Center の予約済み identity へ関連付けている。
+  - Package/Identity/Name: `saica1101.StaminaManager`
+  - Package/Identity/Publisher:
+    `CN=E42D0651-60BF-47A1-BD3B-ECCF464087D2`
+  - Package/Properties/PublisherDisplayName: `saica1101`
 - [x] Display name、自然な日本語 description、logo、app notification
   activation、無効初期状態の StartupTask を manifest で確認した。
 - [x] `internetClient` などの network capability を追加していない。
-- [x] ローカル manifest version は `1.0.0.0` である。
-- [ ] Partner Center の予約済み Store identity / Publisher へ関連付けた。
+- [x] 不要な `mp:PhoneIdentity`、phone manifest namespace、旧開発用GUIDを
+  manifestから削除した。
+- [x] `Windows.Universal` と `Windows.Desktop` の `MinVersion` を
+  Windows 11初版の `10.0.22000.0` に揃えた。
+- [x] manifest versionは4部の数値 `1.0.0.0` であり、生成パッケージと
+  一致している。
 - [ ] 提出版 version が Partner Center の既存 submission より大きく、
   package と submission で一致している。
 
@@ -52,20 +58,32 @@
 
 - [x] コミット対象を再確認し、パスワード、token、PFX、秘密鍵、
   接続文字列が追跡されていないことを確認した。
-- [ ] 署名用 PFX をリポジトリ外または ignore 済み `artifacts/` に置いた。
-- [ ] 証明書パスワードをコード・引数ログ・ドキュメントへ記録せず、
-  `STAMINA_CERT_PASSWORD` など安全な実行時入力から渡した。
-- [ ] Release MSIX を提出先に合う証明書で署名し、署名を検証した。
+- [x] Store提出物は `AppxPackageSigningEnabled=false` で生成し、PFX、
+  証明書、パスワードを要求・生成していない。
+- [x] `.msixupload` 内のMSIXに `AppxSignature.p7x` が存在しないことを
+  確認した。Microsoft Storeがcertification後の配布物へ署名する。
+- [ ] Partner Center certification後の配布パッケージの署名を確認した。
 
 ## パッケージ認証と Store 提出
 
-- [ ] 署名済み x64 MSIX に Windows App Certification Kit を実行し、
-  required test が 0 failed である。
-- [ ] WACK report を `artifacts/wack-report.xml` に保存し、失敗・警告を
-  レビューした。
-- [ ] Partner Center 関連付け後の x64 `.msixupload` を生成した。
-- [ ] `.msixupload` の package identity、architecture、version、
-  file list を提出前に確認した。
+- [ ] Windows App Certification Kitは2026年時点でdeprecatedであり、
+  ローカルの任意preflightとしては未実行。Partner Center certificationを
+  Store受け入れの最終判定とする。
+- [x] `BuildStorePackage.ps1 -Version 1.0.0.0` でPartner Center
+  関連付け後のx64 `.msixupload` を `artifacts/store/1.0.0.0/<run-id>/`
+  に生成した（0 warnings / 0 errors）。
+- [x] `.msixupload` のfile listはx64 MSIXと`appxsym`の2件である。
+  内包MSIXはName `saica1101.StaminaManager`、Publisher
+  `CN=E42D0651-60BF-47A1-BD3B-ECCF464087D2`、Version `1.0.0.0`、
+  ProcessorArchitecture `x64` と確認した。生成物は79,851,460 bytes。
+- [x] 内包MSIXのPublisherDisplayName `saica1101`、Universal/Desktop
+  MinVersion `10.0.22000.0`、`StaminaManager.exe`の存在、StartupTaskの
+  Executable一致、`AppxSignature.p7x`不存在を確認した。さらに
+  `AppxBlockMap.xml`と`[Content_Types].xml`の存在、およびBlockMapの
+  SHA2-256ハッシュを全ファイル・全64 KiBブロックで検証した。
+  disk-backed検証後の一時ディレクトリ残骸は0件。
+- [ ] `.msixupload` をPartner Centerへアップロードし、certificationを
+  完了した。
 - [ ] Store listing 用 screenshot を実アプリから作成し、ゲーム会社の
   mark、個人データ、秘密情報が写っていないことを確認した。
 - [ ] Store listing の説明、system requirements、既知の制約、
@@ -83,11 +101,9 @@
 
 ## 現在の外部依存
 
-- [ ] `STAMINA_CERT_PASSWORD` が未設定のため、開発証明書と署名 MSIX は
-  未生成。値をリポジトリへ保存しない。
-- [ ] Partner Center の予約済み Store identity / Publisher が未関連付けの
-  ため、Store 用 `.msixupload` は未生成。
-- [ ] WACK は署名済み MSIX と管理者権限での実行が必要なため未実行。
+- [ ] Partner Centerで既存submissionとのversion比較、upload、
+  certification、配布物の署名確認を行う。
+- [ ] deprecatedなWACKを任意preflightとして実施するかを判断する。
 - [ ] taskbar / Start / Store tile の実機目視と Store screenshot は、
   UI 実機試験時に実施する。
 
@@ -96,3 +112,7 @@
 - [Windows アプリのアイコンを作成する](https://learn.microsoft.com/ja-jp/windows/apps/design/iconography/app-icon-construction)
 - [MRT Core で言語、スケール、コントラストに合わせてリソースを調整する](https://learn.microsoft.com/windows/apps/windows-app-sdk/mrtcore/tailor-resources-lang-scale-contrast)
 - [uap:VisualElements manifest schema](https://learn.microsoft.com/uwp/schemas/appxpackage/uapmanifestschema/element-uap-visualelements)
+- [単一プロジェクトMSIXでアプリをパッケージ化する](https://learn.microsoft.com/windows/apps/windows-app-sdk/single-project-msix)
+- [製品identityの詳細を表示する](https://learn.microsoft.com/windows/apps/publish/view-app-identity-details)
+- [MSIXアプリのパッケージ化](https://learn.microsoft.com/windows/msix/package/packaging-uwp-apps)
+- [Microsoft Storeを開始する](https://learn.microsoft.com/windows/apps/publish/get-started)
