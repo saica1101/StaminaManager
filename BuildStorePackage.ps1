@@ -391,20 +391,18 @@ function Assert-StoreUpload {
 
         $deviceFamilies = @(
             $packageManifest.Package.Dependencies.TargetDeviceFamily)
-        foreach ($familyName in @(
-            'Windows.Universal',
-            'Windows.Desktop')) {
-            $familyMatches = @($deviceFamilies | Where-Object {
-                [string]$_.Name -ceq $familyName
-            })
-            if ($familyMatches.Count -ne 1 -or
-                [string]$familyMatches[0].MinVersion -cne `
-                    $expectedMinVersion) {
-                $actualMinVersion = @($familyMatches | ForEach-Object {
-                    [string]$_.MinVersion
-                }) -join ', '
-                throw "$familyName MinVersion does not match: $actualMinVersion"
-            }
+        $desktopFamilies = @($deviceFamilies | Where-Object {
+            [string]$_.Name -ceq 'Windows.Desktop'
+        })
+        if ($deviceFamilies.Count -ne 1 -or
+            $desktopFamilies.Count -ne 1) {
+            throw 'Generated package must target exactly one Windows.Desktop device family.'
+        }
+
+        if ([string]$desktopFamilies[0].MinVersion -cne `
+                $expectedMinVersion) {
+            $actualMinVersion = [string]$desktopFamilies[0].MinVersion
+            throw "Windows.Desktop MinVersion does not match: $actualMinVersion"
         }
 
         $namespaceManager = [System.Xml.XmlNamespaceManager]::new(

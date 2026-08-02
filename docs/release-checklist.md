@@ -13,7 +13,7 @@
 - [x] `win-x64.pubxml` が `Release`、`x64`、`win-x64`、self-contained、
   ReadyToRun を指定している。ここでの self-contained は .NET runtime を指し、
   Windows App SDK runtime は manifest の framework dependency を利用する。
-- [x] Release unit test が 583 passed / 0 failed で完了している。
+- [x] Release unit test が 584 passed / 0 failed で完了している。
 - [x] `BuildAndRun.ps1 -SkipRun` による x64 Release build が、
   0 warnings / 0 errors で成功している。
 - [x] パッケージ起動した Release build の UI 自動試験が
@@ -47,8 +47,8 @@
 - [x] `internetClient` などの network capability を追加していない。
 - [x] 不要な `mp:PhoneIdentity`、phone manifest namespace、旧開発用GUIDを
   manifestから削除した。
-- [x] `Windows.Universal` と `Windows.Desktop` の `MinVersion` を
-  Windows 11初版の `10.0.22000.0` に揃えた。
+- [x] `TargetDeviceFamily`を`Windows.Desktop`だけに限定し、`MinVersion`を
+  Windows 11初版の`10.0.22000.0`に設定した。
 - [x] manifest versionは4部の数値 `1.0.0.0` であり、生成パッケージと
   一致している。
 - [ ] 提出版 version が Partner Center の既存 submission より大きく、
@@ -76,7 +76,7 @@
   内包MSIXはName `saica1101.StaminaManager`、Publisher
   `CN=E42D0651-60BF-47A1-BD3B-ECCF464087D2`、Version `1.0.0.0`、
   ProcessorArchitecture `x64` と確認した。生成物は約79.9 MB。
-- [x] 内包MSIXのPublisherDisplayName `saica1101`、Universal/Desktop
+- [x] 内包MSIXのPublisherDisplayName `saica1101`、Windows.Desktop
   MinVersion `10.0.22000.0`、`StaminaManager.exe`の存在、StartupTaskの
   Executable一致、`AppxSignature.p7x`不存在を確認した。さらに
   `AppxBlockMap.xml`と`[Content_Types].xml`の存在、およびBlockMapの

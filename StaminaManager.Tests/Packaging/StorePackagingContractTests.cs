@@ -69,14 +69,15 @@ public sealed class StorePackagingContractTests
 
         XElement[] deviceFamilies = manifest
             .Descendants(foundation + "TargetDeviceFamily")
-            .Where(element =>
-                (string?)element.Attribute("Name") is
-                    "Windows.Universal" or "Windows.Desktop")
             .ToArray();
 
-        Assert.HasCount(2, deviceFamilies);
-        Assert.IsTrue(deviceFamilies.All(element =>
-            (string?)element.Attribute("MinVersion") == ExpectedMinVersion));
+        Assert.HasCount(1, deviceFamilies);
+        Assert.AreEqual(
+            "Windows.Desktop",
+            (string?)deviceFamilies[0].Attribute("Name"));
+        Assert.AreEqual(
+            ExpectedMinVersion,
+            (string?)deviceFamilies[0].Attribute("MinVersion"));
     }
 
     [TestMethod]
@@ -204,6 +205,7 @@ public sealed class StorePackagingContractTests
     [DataRow("VersionMismatch", "Version does not match")]
     [DataRow("PublisherDisplayNameMismatch", "PublisherDisplayName does not match")]
     [DataRow("MinVersionMismatch", "Windows.Desktop MinVersion does not match")]
+    [DataRow("UniversalDeviceFamily", "exactly one Windows.Desktop")]
     [DataRow("ArchitectureMismatch", "architecture is not x64")]
     [DataRow("StartupTaskMismatch", "StartupTask Executable does not match")]
     public void StoreScript_ValidateOnlyRejectsInvalidUpload(
@@ -443,12 +445,14 @@ public sealed class StorePackagingContractTests
                         foundation + "Dependencies",
                         CreateDeviceFamily(
                             foundation,
-                            "Windows.Universal",
-                            ExpectedMinVersion),
-                        CreateDeviceFamily(
-                            foundation,
                             "Windows.Desktop",
-                            desktopMinVersion)),
+                            desktopMinVersion),
+                        mutation == "UniversalDeviceFamily"
+                            ? CreateDeviceFamily(
+                                foundation,
+                                "Windows.Universal",
+                                ExpectedMinVersion)
+                            : null),
                     new XElement(
                         foundation + "Applications",
                         new XElement(
