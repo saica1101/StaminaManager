@@ -1,22 +1,71 @@
 .worktrees/
 
 # Build outputs
-bin/
-obj/
+[Bb]in/
+[Oo]bj/
+[Pp]ackages/
 AppPackages/
+BundleArtifacts/
 TestResults/
+coverage/
+*.coverage
+*.coveragexml
+*.trx
+
+# Compiled binaries and symbols
+*.exe
+*.dll
+*.pdb
+*.winmd
+*.nupkg
+*.snupkg
 
 # IDE and local tooling
 .vs/
+.idea/
+.vscode/
 *.user
 *.suo
+*.rsuser
+*.DotSettings.user
+*.pubxml.user
 *.log
+*.binlog
 
 # Signing and package outputs
 *.pfx
+*.p12
+*.pvk
+*.snk
 *.cer
+*.appx
+*.appxbundle
+*.appxupload
+*.appinstaller
 *.msix
+*.msixbundle
 *.msixupload
 AppX/
 artifacts/
 tests/ui/results/
+
+# Crash dumps and temporary files
+*.dmp
+*.tmp
+*.bak
+*.cache
+
+# Local secrets
+.env
+.env.*
+!.env.example
+secrets.json
+
+# OS metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local directory listings
+dir.txt
+directory.txt
