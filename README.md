@@ -13,6 +13,7 @@ Windows 11向けアプリです。
 
 ## 目次
 
+- [スクリーンショット](#スクリーンショット)
 - [主な機能](#主な機能)
 - [動作環境](#動作環境)
 - [基本的な使い方](#基本的な使い方)
@@ -23,6 +24,15 @@ Windows 11向けアプリです。
 - [よくある質問](#よくある質問)
 - [プライバシー](#プライバシー)
 - [ソースからビルドする](#ソースからビルドする)
+- [ライセンス](#ライセンス)
+
+## スクリーンショット
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="screenshot/Overview_dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="screenshot/Overview.png">
+  <img src="screenshot/Overview.png" alt="StaminaManagerのOverview画面。登録したゲームのスタミナ回復状況をカード形式で一覧表示しています。">
+</picture>
 
 ## 主な機能
 
@@ -108,6 +118,8 @@ Windows 11向けアプリです。
 
 コンパクト表示では、現在値の更新とゲーム情報の編集も行えます。左上の戻るボタンで
 通常の`Overview`へ戻ります。
+
+<img src="screenshot/Compact.png" alt="選択した1ゲームのスタミナ回復状況を表示するコンパクト画面" width="406">
 
 ## Settings
 
@@ -205,6 +217,18 @@ dotnet test StaminaManager.Tests\StaminaManager.Tests.csproj `
 ```
 
 依存パッケージのバージョンは`Directory.Packages.props`で一元管理しています。
+
+## ライセンス
+
+StaminaManager固有のソースコードと、このリポジトリに含まれるプロジェクト固有の素材は、
+[GNU General Public License v3.0 only](LICENSE)で公開します。Windows向けのMicrosoft製
+再配布可能コンポーネントと組み合わせて配布できるよう、GPLv3第7条に基づく
+[追加許可](LICENSE-EXCEPTION.md)を適用します。
+
+Microsoft Store版には、Store既定のライセンス条項ではなく、このライセンスと追加許可を
+「追加のライセンス条項」として指定する必要があります。第三者製のライブラリやランタイムは
+GPLの対象にはならず、それぞれのライセンスが引き続き適用されます。監査内容と配布時の注意は
+[ライセンス監査](docs/licensing.md)を参照してください。
 
 ## サードパーティ製ソフトウェア
 
