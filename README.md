@@ -8,11 +8,12 @@ Windows 11向けアプリです。
 満タン予定時刻を計算します。
 
 > [!NOTE]
+> 一般利用者向けの最新版は[Microsoft Store](https://apps.microsoft.com/detail/9p85qzcpwwt7?hl=ja-JP&gl=JP)から無料で入手できます。
 > このリポジトリでは`.exe`、MSIXなどのバイナリを配布しません。
-> 一般利用者向けの配布はMicrosoft Storeを予定しています。
 
 ## 目次
 
+- [入手方法](#入手方法)
 - [スクリーンショット](#スクリーンショット)
 - [主な機能](#主な機能)
 - [動作環境](#動作環境)
@@ -22,9 +23,21 @@ Windows 11向けアプリです。
 - [Settings](#settings)
 - [バックアップと復元](#バックアップと復元)
 - [よくある質問](#よくある質問)
+- [サポート](#サポート)
 - [プライバシー](#プライバシー)
 - [ソースからビルドする](#ソースからビルドする)
 - [ライセンス](#ライセンス)
+
+## 入手方法
+
+[Microsoft StoreでStaminaManagerを入手する](https://apps.microsoft.com/detail/9p85qzcpwwt7?hl=ja-JP&gl=JP)
+
+- 価格：無料
+- 対応環境：Windows 11 x64
+- Microsoft Store Product ID：`9P85QZCPWWT7`
+
+インストールとアップデートはMicrosoft Storeから行えます。開発やソースコードの確認が目的の
+場合は、[ソースからビルドする](#ソースからビルドする)を参照してください。
 
 ## スクリーンショット
 
@@ -179,6 +192,12 @@ StaminaManagerはゲーム内データを自動取得しません。ゲーム内
 ### アンインストール前に何をすればよいですか
 
 必要なデータがある場合は、`Settings`の「バックアップ」からエクスポートしてください。
+
+## サポート
+
+不具合の報告や機能の要望は、[GitHub Issues](https://github.com/saica1101/StaminaManager/issues)で
+受け付けています。不具合を報告する際は、Windowsのバージョン、発生までの操作、再現頻度を
+可能な範囲で記載してください。
 
 ## プライバシー
 
