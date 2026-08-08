@@ -41,11 +41,21 @@ public sealed class AdjustableAcrylicBackdropTests
 
         lifecycle.Connect();
         lifecycle.SetTintOpacityPercent(80);
+        controller.ClearOperations();
         stateSource.SetTheme(ElementTheme.Dark);
 
         Assert.AreEqual(1, controller.ResetPropertiesCallCount);
         Assert.AreEqual(0.8f, controller.TintOpacity);
         Assert.AreEqual(ElementTheme.Dark, controller.LastState.Theme);
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "ApplyState:Dark",
+                "ResetProperties",
+                "TintOpacity:-1.0",
+                "TintOpacity:0.8",
+            },
+            controller.Operations);
     }
 
     [TestMethod]
@@ -73,9 +83,58 @@ public sealed class AdjustableAcrylicBackdropTests
         Assert.AreEqual(0, stateSource.SubscriberCount);
     }
 
+    [TestMethod]
+    public void Connection_StateSourceFactory失敗時はControllerを解放する()
+    {
+        RecordingController controller = new();
+        StateSourceInitializationProbe probe = new();
+
+        Assert.ThrowsExactly<InvalidOperationException>(
+            () => AdjustableAcrylicConnection.Connect(
+                controller,
+                probe.CreateThenThrow,
+                static () => { },
+                static () => { },
+                tintOpacityPercent: 80));
+
+        Assert.AreEqual(1, controller.DisposeCallCount);
+        Assert.AreEqual(0, probe.SubscriberCount);
+    }
+
+    [TestMethod]
+    public void Connection_Attach失敗時はStateとControllerを解放する()
+    {
+        RecordingController controller = new();
+        MutableStateSource stateSource = new();
+
+        Assert.ThrowsExactly<InvalidOperationException>(
+            () => AdjustableAcrylicConnection.Connect(
+                controller,
+                () => stateSource,
+                () => throw new InvalidOperationException("attach failure"),
+                static () => { },
+                tintOpacityPercent: 80));
+
+        Assert.IsTrue(stateSource.IsDisposed);
+        Assert.AreEqual(0, stateSource.SubscriberCount);
+        Assert.AreEqual(1, controller.DisposeCallCount);
+    }
+
     private sealed class RecordingController : IAdjustableAcrylicController
     {
-        public float TintOpacity { get; set; }
+        private float _tintOpacity;
+
+        public List<string> Operations { get; } = [];
+
+        public float TintOpacity
+        {
+            get => _tintOpacity;
+            set
+            {
+                _tintOpacity = value;
+                Operations.Add($"TintOpacity:{value:0.0}");
+            }
+        }
 
         public int ResetPropertiesCallCount { get; private set; }
 
@@ -84,12 +143,22 @@ public sealed class AdjustableAcrylicBackdropTests
         public AdjustableAcrylicState LastState { get; private set; } =
             new(true, false, ElementTheme.Light);
 
-        public void ApplyState(AdjustableAcrylicState state) =>
+        public void ApplyState(AdjustableAcrylicState state)
+        {
             LastState = state;
+            Operations.Add($"ApplyState:{state.Theme}");
+        }
 
-        public void ResetProperties() => ResetPropertiesCallCount++;
+        public void ResetProperties()
+        {
+            ResetPropertiesCallCount++;
+            Operations.Add("ResetProperties");
+            TintOpacity = -1;
+        }
 
         public void Dispose() => DisposeCallCount++;
+
+        public void ClearOperations() => Operations.Clear();
     }
 
     private sealed class MutableStateSource : IAdjustableAcrylicStateSource
@@ -101,6 +170,8 @@ public sealed class AdjustableAcrylicBackdropTests
 
         public int SubscriberCount => _stateChanged?.GetInvocationList()
             .Length ?? 0;
+
+        public bool IsDisposed { get; private set; }
 
         public event EventHandler? StateChanged
         {
@@ -114,6 +185,30 @@ public sealed class AdjustableAcrylicBackdropTests
             _stateChanged?.Invoke(this, EventArgs.Empty);
         }
 
-        public void Dispose() { }
+        public void Dispose() => IsDisposed = true;
+    }
+
+    private sealed class StateSourceInitializationProbe
+    {
+        private EventHandler? _stateChanged;
+
+        public int SubscriberCount => _stateChanged?.GetInvocationList()
+            .Length ?? 0;
+
+        public IAdjustableAcrylicStateSource CreateThenThrow()
+        {
+            _stateChanged += OnStateChanged;
+            try
+            {
+                throw new InvalidOperationException(
+                    "state source initialization failure");
+            }
+            finally
+            {
+                _stateChanged -= OnStateChanged;
+            }
+        }
+
+        private void OnStateChanged(object? sender, EventArgs args) { }
     }
 }

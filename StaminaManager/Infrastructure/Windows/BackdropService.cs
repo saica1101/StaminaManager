@@ -53,13 +53,7 @@ public sealed class MainWindowBackdropTarget(
         MainWindow window = windowAccessor()
             ?? throw new InvalidOperationException(
                 "バックドロップの適用先がまだ作成されていません。");
-        if (window.SystemBackdrop is not AdjustableAcrylicBackdrop backdrop)
-        {
-            return false;
-        }
-
-        backdrop.SetTintOpacityPercent(tintOpacityPercent);
-        return true;
+        return window.TryUpdateAcrylicTintOpacity(tintOpacityPercent);
     }
 }
 

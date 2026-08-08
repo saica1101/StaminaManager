@@ -146,6 +146,47 @@ internal sealed class AdjustableAcrylicLifecycle
         _tintOpacityPercent / 100f;
 }
 
+internal static class AdjustableAcrylicConnection
+{
+    public static AdjustableAcrylicLifecycle Connect(
+        IAdjustableAcrylicController controller,
+        Func<IAdjustableAcrylicStateSource> createStateSource,
+        Action attachTarget,
+        Action detachTarget,
+        int tintOpacityPercent)
+    {
+        ArgumentNullException.ThrowIfNull(controller);
+        ArgumentNullException.ThrowIfNull(createStateSource);
+        IAdjustableAcrylicStateSource stateSource;
+        try
+        {
+            stateSource = createStateSource();
+        }
+        catch
+        {
+            controller.Dispose();
+            throw;
+        }
+
+        AdjustableAcrylicLifecycle lifecycle = new(
+            controller,
+            stateSource,
+            attachTarget,
+            detachTarget);
+        try
+        {
+            lifecycle.SetTintOpacityPercent(tintOpacityPercent);
+            lifecycle.Connect();
+            return lifecycle;
+        }
+        catch
+        {
+            lifecycle.Disconnect();
+            throw;
+        }
+    }
+}
+
 internal sealed class DesktopAcrylicControllerAdapter :
     IAdjustableAcrylicController
 {
@@ -231,19 +272,17 @@ public sealed class AdjustableAcrylicBackdrop : SystemBackdrop
     {
         base.OnTargetConnected(connectedTarget, xamlRoot);
         _lifecycle?.Disconnect();
+        _lifecycle = null;
 
         DesktopAcrylicControllerAdapter controller = new(connectedTarget);
-        XamlBackdropStateSource stateSource = new(
-            connectedTarget,
-            xamlRoot);
-        AdjustableAcrylicLifecycle lifecycle = new(
+        _lifecycle = AdjustableAcrylicConnection.Connect(
             controller,
-            stateSource,
+            () => new XamlBackdropStateSource(
+                connectedTarget,
+                xamlRoot),
             controller.AttachTarget,
-            controller.DetachTarget);
-        _lifecycle = lifecycle;
-        lifecycle.SetTintOpacityPercent(_tintOpacityPercent);
-        lifecycle.Connect();
+            controller.DetachTarget,
+            _tintOpacityPercent);
     }
 
     protected override void OnTargetDisconnected(
@@ -281,14 +320,40 @@ public sealed class AdjustableAcrylicBackdrop : SystemBackdrop
                     "UI DispatcherQueueを取得できませんでした。");
             _dispatcherQueue.EnsureSystemDispatcherQueue();
             _rootElement = xamlRoot.Content as FrameworkElement;
-            _rootElement?.ActualThemeChanged += OnActualThemeChanged;
             _window = target as Window;
             if (_window is not null)
             {
-                _window.Activated += OnWindowActivated;
                 _themeSettings = ThemeSettings.CreateForWindowId(
                     _window.AppWindow.Id);
-                _themeSettings.Changed += OnThemeSettingsChanged;
+            }
+
+            try
+            {
+                _rootElement?.ActualThemeChanged += OnActualThemeChanged;
+                _window?.Activated += OnWindowActivated;
+                if (_themeSettings is not null)
+                {
+                    _themeSettings.Changed += OnThemeSettingsChanged;
+                }
+            }
+            catch
+            {
+                if (_rootElement is not null)
+                {
+                    _rootElement.ActualThemeChanged -= OnActualThemeChanged;
+                }
+
+                if (_window is not null)
+                {
+                    _window.Activated -= OnWindowActivated;
+                }
+
+                if (_themeSettings is not null)
+                {
+                    _themeSettings.Changed -= OnThemeSettingsChanged;
+                }
+
+                throw;
             }
         }
 

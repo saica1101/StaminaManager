@@ -174,6 +174,18 @@ public sealed class MainWindow : WinUIEx.WindowEx
         UpdateBackdropDiagnostic();
     }
 
+    internal bool TryUpdateAcrylicTintOpacity(int tintOpacityPercent)
+    {
+        if (SystemBackdrop is not AdjustableAcrylicBackdrop backdrop)
+        {
+            return false;
+        }
+
+        backdrop.SetTintOpacityPercent(tintOpacityPercent);
+        UpdateBackdropDiagnostic();
+        return true;
+    }
+
     internal string GetActualBackdropDiagnostic()
     {
         string backdrop = SystemBackdrop switch
