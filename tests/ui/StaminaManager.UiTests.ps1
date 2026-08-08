@@ -1605,8 +1605,8 @@ function Assert-AboutLayoutBounds {
     param([string]$State)
 
     $window = Get-MainWindowInfo
-    if ([int]$window.x -lt 0 -or [int]$window.y -lt 0) {
-        throw "$State window bounds are outside the screen."
+    if ([int]$window.width -le 0 -or [int]$window.height -le 0) {
+        throw "$State window bounds have no area."
     }
 
     $viewport = Get-ElementMatch AboutScrollViewer
@@ -1614,18 +1614,25 @@ function Assert-AboutLayoutBounds {
     $windowRight = [int]$window.x + [int]$window.width
     $windowBottom = [int]$window.y + [int]$window.height
     $viewportRight = [int]$viewport.x + [int]$viewport.width
-    if ([int]$viewport.x -lt [int]$window.x -or
+    $viewportBottom = [int]$viewport.y + [int]$viewport.height
+    if ([int]$viewport.width -le 0 -or [int]$viewport.height -le 0 -or
+        [int]$viewport.x -lt [int]$window.x -or
         [int]$viewport.y -lt [int]$window.y -or
         $viewportRight -gt $windowRight -or
-        [int]$viewport.y + [int]$viewport.height -gt $windowBottom) {
+        $viewportBottom -gt $windowBottom) {
         throw "$State AboutScrollViewer is outside the window."
     }
-    if ([int]$root.x -lt 0 -or [int]$root.y -lt 0 -or
-        [int]$root.width -le 0 -or [int]$root.height -le 0 -or
+    $rootRight = [int]$root.x + [int]$root.width
+    $rootBottom = [int]$root.y + [int]$root.height
+    if ([int]$root.width -le 0 -or [int]$root.height -le 0 -or
         [int]$root.x -lt [int]$window.x -or
-        [int]$root.x + [int]$root.width -gt $windowRight -or
+        $rootRight -gt $windowRight -or
+        [int]$root.y -lt [int]$window.y -or
+        $rootBottom -gt $windowBottom -or
         [int]$root.x -lt [int]$viewport.x -or
-        [int]$root.x + [int]$root.width -gt $viewportRight) {
+        $rootRight -gt $viewportRight -or
+        [int]$root.y -lt [int]$viewport.y -or
+        $rootBottom -gt $viewportBottom) {
         throw "$State bounds are invalid for AboutPageRoot."
     }
     foreach ($automationId in @(
@@ -1641,24 +1648,24 @@ function Assert-AboutLayoutBounds {
         $y = [int]$bounds.y
         $right = $x + [int]$bounds.width
         $bottom = $y + [int]$bounds.height
-        if ($x -lt 0 -or $y -lt 0 -or
-            [int]$bounds.width -le 0 -or [int]$bounds.height -le 0 -or
+        if ([int]$bounds.width -le 0 -or [int]$bounds.height -le 0 -or
             $x -lt [int]$window.x -or $right -gt $windowRight) {
             throw "$State bounds are invalid for $automationId."
         }
         if ($x -lt [int]$viewport.x -or $right -gt $viewportRight -or
-            $y -lt [int]$window.y -or $bottom -gt $windowBottom) {
+            $y -lt [int]$viewport.y -or $bottom -gt $viewportBottom) {
             throw "$State viewport bounds are invalid for $automationId."
         }
     }
 
     $scrollProperties = (
         Invoke-WinApp ui get-property AboutScrollViewer -a $AppPid `
-            -p IsHorizontallyScrollable --json | ConvertFrom-Json).properties
-    if ($null -eq $scrollProperties.IsHorizontallyScrollable) {
+            -p HorizontallyScrollable --json | ConvertFrom-Json).properties
+    $horizontalScrollable = [string]$scrollProperties.HorizontallyScrollable
+    if ([string]::IsNullOrWhiteSpace($horizontalScrollable)) {
         throw "$State horizontal scroll state was not exposed by UIA."
     }
-    if ([string]$scrollProperties.IsHorizontallyScrollable -ieq 'true') {
+    if ($horizontalScrollable -notin @('0x0', 'false', '0')) {
         throw "$State unexpectedly allows horizontal scrolling."
     }
 }
@@ -1666,26 +1673,28 @@ function Assert-AboutLayoutBounds {
 function Invoke-AboutUiAudit {
     param([string]$State)
 
-    Invoke-WinApp ui wait-for NavAbout -a $AppPid -t 5000 | Out-Null
-    Invoke-WinApp ui invoke NavAbout -a $AppPid | Out-Null
-    if ($State -eq 'About') {
-        Invoke-WinApp ui wait-for VersionFooterText -a $AppPid -t 5000 |
-            Out-Null
-    }
-    foreach ($automationId in @(
-            'AboutPageRoot',
-            'AboutVersionText',
-            'OpenGitHubButton',
-            'OpenReadmeButton',
-            'AboutReadmeHeading',
-            'AboutReadmeDescription')) {
-        Invoke-WinApp ui wait-for $automationId -a $AppPid -t 5000 |
-            Out-Null
-    }
-    Assert-AboutButtonAccessibility
-
-    $savedBounds = Get-MainWindowInfo
+    $savedBounds = $null
+    $primaryError = $null
     try {
+        Invoke-WinApp ui wait-for NavAbout -a $AppPid -t 5000 | Out-Null
+        Invoke-WinApp ui invoke NavAbout -a $AppPid | Out-Null
+        if ($State -eq 'About') {
+            Invoke-WinApp ui wait-for VersionFooterText -a $AppPid -t 5000 |
+                Out-Null
+        }
+        foreach ($automationId in @(
+                'AboutPageRoot',
+                'AboutVersionText',
+                'OpenGitHubButton',
+                'OpenReadmeButton',
+                'AboutReadmeHeading',
+                'AboutReadmeDescription')) {
+            Invoke-WinApp ui wait-for $automationId -a $AppPid -t 5000 |
+                Out-Null
+        }
+        Assert-AboutButtonAccessibility
+
+        $savedBounds = Get-MainWindowInfo
         $narrowWidth = [Math]::Max(
             320,
             [Math]::Min(560, [int]$savedBounds.width - 160))
@@ -1696,21 +1705,53 @@ function Invoke-AboutUiAudit {
                 height = [int]$savedBounds.height
             })
         $narrowBounds = Get-MainWindowInfo
-        if ([int]$savedBounds.width -gt 560 -and
-            [int]$narrowBounds.width -ge [int]$savedBounds.width) {
-            throw 'The About narrow-width case did not resize the window.'
+        $actualNarrowWidth = [int]$narrowBounds.width
+        if ($actualNarrowWidth -ge [int]$savedBounds.width -or
+            ($actualNarrowWidth -ne $narrowWidth -and
+                $actualNarrowWidth -gt 560)) {
+            throw "The About narrow-width case measured $actualNarrowWidth; " +
+                "target was $narrowWidth and original was " +
+                "$($savedBounds.width)."
         }
         Assert-AboutLayoutBounds $State
         Collect-AuditSnapshot $State
     }
+    catch {
+        $primaryError = $_
+    }
     finally {
-        Move-TestWindowToBounds $savedBounds
-        Assert-WindowBoundsEqual $savedBounds (Get-MainWindowInfo) `
-            "$State restoration"
+        if ($null -ne $savedBounds) {
+            try {
+                Move-TestWindowToBounds $savedBounds
+                Assert-WindowBoundsEqual $savedBounds (Get-MainWindowInfo) `
+                    "$State restoration"
+            }
+            catch {
+                Add-Result About "$State window bounds復元" FAIL `
+                    $_.Exception.Message
+                if ($null -eq $primaryError) {
+                    $primaryError = $_
+                }
+            }
+        }
+
+        try {
+            Invoke-WinApp ui invoke NavOverview -a $AppPid | Out-Null
+            Invoke-WinApp ui wait-for AddGameCard -a $AppPid -t 5000 |
+                Out-Null
+        }
+        catch {
+            Add-Result About "$State Overview復帰" FAIL `
+                $_.Exception.Message
+            if ($null -eq $primaryError) {
+                $primaryError = $_
+            }
+        }
     }
 
-    Invoke-WinApp ui invoke NavOverview -a $AppPid | Out-Null
-    Invoke-WinApp ui wait-for AddGameCard -a $AppPid -t 5000 | Out-Null
+    if ($null -ne $primaryError) {
+        throw $primaryError
+    }
 }
 
 New-Item -ItemType Directory -Force -Path $OutputDirectory |
