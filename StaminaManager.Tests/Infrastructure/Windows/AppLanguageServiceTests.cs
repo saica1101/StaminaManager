@@ -29,6 +29,57 @@ public sealed class AppLanguageServiceTests
     }
 
     [TestMethod]
+    public void SetLanguage_UnsetOverrideIsSynchronizedEvenWhenOsFallbackMatches()
+    {
+        List<string> setTags = [];
+        AppLanguageService service = new(
+            () => null,
+            () => ["ja-JP"],
+            setTags.Add);
+
+        Assert.AreEqual(AppLanguage.Japanese, service.GetEffectiveLanguage());
+        LanguageChangeResult result = service.SetLanguage(
+            AppLanguage.Japanese);
+
+        Assert.IsTrue(result.IsApplied);
+        CollectionAssert.AreEqual(new[] { "ja-JP" }, setTags);
+    }
+
+    [TestMethod]
+    public void SetLanguage_UnsupportedOverrideIsSynchronizedEvenWhenOsFallbackMatches()
+    {
+        List<string> setTags = [];
+        AppLanguageService service = new(
+            () => "fr-FR",
+            () => ["ja-JP"],
+            setTags.Add);
+
+        Assert.AreEqual(AppLanguage.Japanese, service.GetEffectiveLanguage());
+        LanguageChangeResult result = service.SetLanguage(
+            AppLanguage.Japanese);
+
+        Assert.IsTrue(result.IsApplied);
+        CollectionAssert.AreEqual(new[] { "ja-JP" }, setTags);
+    }
+
+    [TestMethod]
+    public void SetLanguage_ExactRawOverrideIsTheOnlyPlatformNoOp()
+    {
+        int setterCallCount = 0;
+        AppLanguageService service = new(
+            () => "ja-JP",
+            () => ["en-US"],
+            _ => setterCallCount++);
+
+        Assert.AreEqual(AppLanguage.Japanese, service.GetEffectiveLanguage());
+        LanguageChangeResult result = service.SetLanguage(
+            AppLanguage.Japanese);
+
+        Assert.IsTrue(result.IsApplied);
+        Assert.AreEqual(0, setterCallCount);
+    }
+
+    [TestMethod]
     public void SetLanguage_UndefinedEnumIsRejectedWithoutCallingSetter()
     {
         int setterCallCount = 0;

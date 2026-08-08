@@ -80,6 +80,17 @@ public sealed class AppLanguageService : IAppLanguageService
 
         try
         {
+            if (string.Equals(
+                _getPrimaryLanguageOverride(),
+                languageTag,
+                StringComparison.Ordinal))
+            {
+                return new LanguageChangeResult(
+                    language,
+                    IsApplied: true,
+                    LanguageFailureReason.None);
+            }
+
             _setPrimaryLanguageOverride(languageTag);
             return new LanguageChangeResult(
                 language,

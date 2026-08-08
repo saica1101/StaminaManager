@@ -933,7 +933,7 @@ public sealed class SettingsViewModelTests
     }
 
     [TestMethod]
-    public async Task SetLanguageAsync_SameSavedLanguageIsNoOp()
+    public async Task SetLanguageAsync_SameSavedLanguageStillSynchronizes()
     {
         Context context = await Context.CreateAsync();
         SettingsViewModel viewModel = context.CreateLanguageViewModel();
@@ -943,9 +943,14 @@ public sealed class SettingsViewModelTests
             CancellationToken.None);
 
         Assert.IsTrue(changed);
+        CollectionAssert.AreEqual(
+            new[] { "Override", "Notifications" },
+            context.Store.Operations);
         Assert.AreEqual(0, context.Store.SaveCount);
-        Assert.IsEmpty(context.LanguageService.SetRequests);
-        Assert.AreEqual(0, context.NotificationReconciler.CallCount);
+        CollectionAssert.AreEqual(
+            new[] { AppLanguage.Japanese },
+            context.LanguageService.SetRequests);
+        Assert.AreEqual(1, context.NotificationReconciler.CallCount);
     }
 
     [TestMethod]

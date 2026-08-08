@@ -513,12 +513,6 @@ public sealed partial class SettingsViewModel : ObservableObject
         {
             AppLanguage previousLanguage = _gameManager.CurrentData
                 .Settings.Language;
-            if (previousLanguage == requestedLanguage)
-            {
-                Language = previousLanguage;
-                return true;
-            }
-
             try
             {
                 await _gameManager.UpdateSettingsAsync(

@@ -260,6 +260,10 @@ public sealed class BackupCoordinatorTests_RestoreWorkflow
             NextResults =
             [
                 new LanguageChangeResult(
+                    AppLanguage.Japanese,
+                    IsApplied: true,
+                    LanguageFailureReason.None),
+                new LanguageChangeResult(
                     AppLanguage.English,
                     IsApplied: false,
                     LanguageFailureReason.PlatformError),
@@ -322,7 +326,7 @@ public sealed class BackupCoordinatorTests_RestoreWorkflow
     }
 
     [TestMethod]
-    public async Task Restore_MatchingLanguageDoesNotCallSetter()
+    public async Task Restore_MatchingLanguageStillSynchronizes()
     {
         await using RestoreWorkflowTestStore source =
             await RestoreWorkflowTestStore.CreateAsync(
@@ -356,7 +360,9 @@ public sealed class BackupCoordinatorTests_RestoreWorkflow
             isReplacementConfirmed: true,
             CancellationToken.None);
 
-        Assert.IsEmpty(language.SetRequests);
+        CollectionAssert.AreEqual(
+            new[] { AppLanguage.English },
+            language.SetRequests);
     }
 
     private static async Task<WorkflowResult> RunRestoreAsync(

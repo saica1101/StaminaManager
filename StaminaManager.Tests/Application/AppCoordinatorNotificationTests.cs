@@ -113,7 +113,7 @@ public sealed class AppCoordinatorNotificationTests
     }
 
     [TestMethod]
-    public async Task InitializeAsync_MatchingLanguageDoesNotCallSetter()
+    public async Task InitializeAsync_EffectiveLanguageMatchesButStillCallsSetter()
     {
         RecordingNotificationReconciler reconciler = new();
         RecordingLanguageService language = new(reconciler.Operations)
@@ -127,7 +127,9 @@ public sealed class AppCoordinatorNotificationTests
 
         await coordinator.InitializeAsync(CancellationToken.None);
 
-        Assert.IsEmpty(language.SetRequests);
+        CollectionAssert.AreEqual(
+            new[] { AppLanguage.English },
+            language.SetRequests);
         Assert.AreEqual(1, reconciler.CallCount);
     }
 

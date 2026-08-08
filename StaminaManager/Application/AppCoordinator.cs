@@ -741,35 +741,6 @@ public sealed class AppCoordinator
         LanguageReconcileFailureReason = LanguageFailureReason.PlatformError;
         AppLanguage desiredLanguage = _gameManager.CurrentData.Settings
             .Language;
-        AppLanguage effectiveLanguage;
-        try
-        {
-            effectiveLanguage = _appLanguageService.GetEffectiveLanguage();
-        }
-        catch (Exception exception) when (!IsProcessFatal(exception))
-        {
-            Debug.WriteLine(
-                "Effective application language read failed: "
-                + exception.GetType().Name);
-            LastLanguageResult = new LanguageChangeResult(
-                desiredLanguage,
-                IsApplied: false,
-                LanguageFailureReason.PlatformError);
-            return Task.CompletedTask;
-        }
-
-        if (effectiveLanguage == desiredLanguage)
-        {
-            LastLanguageResult = new LanguageChangeResult(
-                desiredLanguage,
-                IsApplied: true,
-                LanguageFailureReason.None);
-            IsLanguageSynchronized = true;
-            LanguageConsistencyState = LanguageConsistencyState.Synchronized;
-            LanguageReconcileFailureReason = LanguageFailureReason.None;
-            return Task.CompletedTask;
-        }
-
         LanguageChangeResult result;
         try
         {
