@@ -2,6 +2,7 @@ using Microsoft.Windows.Globalization;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
 using StaminaManager.Core.Validation;
+using Windows.System.UserProfile;
 
 namespace StaminaManager.Infrastructure.Windows;
 
@@ -13,7 +14,7 @@ public sealed class AppLanguageService : IAppLanguageService
     public AppLanguageService()
         : this(
             () => ApplicationLanguages.PrimaryLanguageOverride,
-            () => ApplicationLanguages.Languages)
+            () => GlobalizationPreferences.Languages)
     {
     }
 
