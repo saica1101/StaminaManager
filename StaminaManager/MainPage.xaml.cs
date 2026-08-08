@@ -166,12 +166,32 @@ public sealed partial class MainPage : Page
             ? Visibility.Visible
             : Visibility.Collapsed;
         CompactContentHost.Content = isCompact ? _compactPage : null;
+        ApplyVersionFooterVisibility();
         if (isCompact)
         {
             _compactPage.ApplySelectedGame(ViewModel.SelectedGameId);
         }
 
     }
+
+    private void ShellNavigation_PaneOpened(
+        NavigationView sender,
+        object args) => ApplyVersionFooterVisibility();
+
+    private void ShellNavigation_PaneClosed(
+        NavigationView sender,
+        object args) => ApplyVersionFooterVisibility();
+
+    private void ApplyVersionFooterVisibility() =>
+        VersionFooterBand.Visibility = GetVersionFooterVisibility(
+            ShellNavigation.IsPaneOpen,
+            ViewModel.DisplayMode == AppDisplayMode.Compact);
+
+    internal static Visibility GetVersionFooterVisibility(
+        bool isPaneOpen,
+        bool isCompact) => isPaneOpen && !isCompact
+            ? Visibility.Visible
+            : Visibility.Collapsed;
 
     private void OnAddGameRequested() =>
         _ = ShowGameEditorAsync(gameId: null, focusCurrent: false);

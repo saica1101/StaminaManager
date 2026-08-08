@@ -22,6 +22,10 @@ Invoke-WinApp @('wait-for', 'OpenGitHubButton', '-a', "$AppPid", '-t', '3000') |
     Out-Null
 Invoke-WinApp @('wait-for', 'OpenReadmeButton', '-a', "$AppPid", '-t', '3000') |
     Out-Null
+Invoke-WinApp @('wait-for', 'AboutReadmeHeading', '-a', "$AppPid", '-t', '3000') |
+    Out-Null
+Invoke-WinApp @('wait-for', 'AboutReadmeDescription', '-a', "$AppPid", '-t', '3000') |
+    Out-Null
 Invoke-WinApp @('wait-for', 'VersionFooterText', '-a', "$AppPid", '-t', '3000') |
     Out-Null
 

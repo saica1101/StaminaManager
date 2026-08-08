@@ -17,6 +17,8 @@
         IsSettingsVisible="False"
         OpenPaneLength="220"
         PaneDisplayMode="Auto"
+        PaneOpened="ShellNavigation_PaneOpened"
+        PaneClosed="ShellNavigation_PaneClosed"
         SelectionChanged="ShellNavigation_SelectionChanged">
         <NavigationView.Resources>
             <StaticResource x:Key="NavigationViewItemBackgroundPointerOver" ResourceKey="NavigationItemInteractionSurfaceBrush" />
@@ -51,15 +53,6 @@
                 Icon="Setting"
                 Tag="Settings" />
         </NavigationView.MenuItems>
-        <NavigationView.FooterMenuItems>
-            <NavigationViewItem
-                x:Name="AboutNavigationItem"
-                x:Uid="NavAbout"
-                AutomationProperties.AutomationId="NavAbout"
-                FontFamily="{StaticResource AppFontFamily}"
-                Icon="Help"
-                Tag="About" />
-        </NavigationView.FooterMenuItems>
         <NavigationView.PaneFooter>
             <Border
                 x:Name="VersionFooterBand"
@@ -84,6 +77,15 @@
                 </StackPanel>
             </Border>
         </NavigationView.PaneFooter>
+        <NavigationView.FooterMenuItems>
+            <NavigationViewItem
+                x:Name="AboutNavigationItem"
+                x:Uid="NavAbout"
+                AutomationProperties.AutomationId="NavAbout"
+                FontFamily="{StaticResource AppFontFamily}"
+                Icon="Help"
+                Tag="About" />
+        </NavigationView.FooterMenuItems>
 
         <ContentControl
             x:Uid="ShellContentHost"

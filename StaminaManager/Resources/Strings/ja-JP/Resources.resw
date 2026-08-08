@@ -141,12 +141,14 @@
   <data name="AboutInfoBar.Title" xml:space="preserve"><value>リンクを開けませんでした</value></data>
   <data name="AboutInfoBar.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>外部リンクのエラー</value></data>
   <data name="AboutLinksHeading.Text" xml:space="preserve"><value>リンク</value></data>
-  <data name="OpenGitHubButton.Content" xml:space="preserve"><value>GitHubリポジトリを開く</value></data>
+  <data name="OpenGitHubButtonText.Text" xml:space="preserve"><value>GitHubリポジトリを開く</value></data>
   <data name="OpenGitHubButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>GitHubリポジトリを既定のブラウザーで開く</value></data>
   <data name="OpenGitHubButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText" xml:space="preserve"><value>GitHubリポジトリを既定のブラウザーで開きます。</value></data>
-  <data name="OpenReadmeButton.Content" xml:space="preserve"><value>READMEを開く</value></data>
+  <data name="OpenReadmeButtonText.Text" xml:space="preserve"><value>READMEを開く</value></data>
   <data name="OpenReadmeButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>READMEを既定のブラウザーで開く</value></data>
   <data name="OpenReadmeButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText" xml:space="preserve"><value>READMEを既定のブラウザーで開きます。</value></data>
+  <data name="AboutReadmeHeading.Text" xml:space="preserve"><value>README</value></data>
+  <data name="AboutReadmeDescription.Text" xml:space="preserve"><value>機能、使い方、ビルド手順、注意事項を GitHub の README で確認できます。</value></data>
   <data name="AboutTechnologyHeading.Text" xml:space="preserve"><value>技術スタック</value></data>
   <data name="AboutTechCSharp.Text" xml:space="preserve"><value>C#</value></data>
   <data name="AboutTechDotNet.Text" xml:space="preserve"><value>.NET 10</value></data>

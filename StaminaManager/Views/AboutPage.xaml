@@ -32,7 +32,7 @@
                 <TextBlock
                     x:Uid="AboutAppName"
                     Style="{StaticResource AppPageTitleTextStyle}" />
-                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Spacing4}">
+                <StackPanel Spacing="{StaticResource Spacing4}">
                     <TextBlock
                         x:Uid="AboutVersionLabel"
                         Style="{StaticResource AppSecondaryTextStyle}" />
@@ -70,15 +70,34 @@
                     x:Uid="OpenGitHubButton"
                     AutomationProperties.AutomationId="OpenGitHubButton"
                     Command="{x:Bind ViewModel.OpenGitHubCommand, Mode=OneWay}"
-                    HorizontalAlignment="Left"
-                    Style="{StaticResource AccentButtonStyle}" />
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Left"
+                    Style="{StaticResource AccentButtonStyle}">
+                    <TextBlock
+                        x:Uid="OpenGitHubButtonText"
+                        TextWrapping="Wrap" />
+                </Button>
                 <Button
                     x:Name="OpenReadmeButton"
                     x:Uid="OpenReadmeButton"
                     AutomationProperties.AutomationId="OpenReadmeButton"
                     Command="{x:Bind ViewModel.OpenReadmeCommand, Mode=OneWay}"
-                    HorizontalAlignment="Left"
-                    Style="{StaticResource DefaultButtonStyle}" />
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Left"
+                    Style="{StaticResource DefaultButtonStyle}">
+                    <TextBlock
+                        x:Uid="OpenReadmeButtonText"
+                        TextWrapping="Wrap" />
+                </Button>
+                <TextBlock
+                    x:Uid="AboutReadmeHeading"
+                    AutomationProperties.AutomationId="AboutReadmeHeading"
+                    Style="{StaticResource AppCardTitleTextStyle}" />
+                <TextBlock
+                    x:Uid="AboutReadmeDescription"
+                    AutomationProperties.AutomationId="AboutReadmeDescription"
+                    Style="{StaticResource AppBodyTextStyle}"
+                    TextWrapping="Wrap" />
             </StackPanel>
 
             <StackPanel Spacing="{StaticResource Spacing12}">
