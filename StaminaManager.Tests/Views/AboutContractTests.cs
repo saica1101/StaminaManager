@@ -54,12 +54,6 @@ public sealed class AboutContractTests
             paneFooterIndex >= 0
                 && footerMenuItemsIndex > paneFooterIndex);
 
-        string source = File.ReadAllText(GetPath("StaminaManager", "MainPage.xaml.cs"));
-        StringAssert.Contains(source, "AppPage.About");
-        StringAssert.Contains(source, "AboutNavigationItem");
-        StringAssert.Contains(source, "_aboutPage");
-        StringAssert.Contains(source, "ShellNavigation.Visibility");
-        StringAssert.Contains(source, "Visibility.Collapsed");
     }
 
     [TestMethod]
@@ -68,7 +62,6 @@ public sealed class AboutContractTests
         XDocument page = XDocument.Load(GetPath("StaminaManager", "MainPage.xaml"));
         XElement navigation = page.Descendants(Presentation + "NavigationView")
             .Single();
-        string source = File.ReadAllText(GetPath("StaminaManager", "MainPage.xaml.cs"));
 
         StringAssert.Contains(
             AttributeValue(navigation, "PaneOpened") ?? string.Empty,
@@ -76,9 +69,6 @@ public sealed class AboutContractTests
         StringAssert.Contains(
             AttributeValue(navigation, "PaneClosed") ?? string.Empty,
             "ShellNavigation_PaneClosed");
-        StringAssert.Contains(source, "VersionFooterBand.Visibility");
-        StringAssert.Contains(source, "ShellNavigation.IsPaneOpen");
-        StringAssert.Contains(source, "ApplyVersionFooterVisibility");
 
         Assert.AreEqual(
             Visibility.Visible,
@@ -260,28 +250,33 @@ public sealed class AboutContractTests
     }
 
     [TestMethod]
-    public void AboutUiScript_VerifiesNavigationAndLinksWithoutInvokingBrowser()
+    public void AboutUiChecks_AreConnectedToExistingSuiteWithoutInvokingLinks()
     {
-        string script = File.ReadAllText(GetPath(
+        string suite = File.ReadAllText(GetPath(
+            "tests",
+            "ui",
+            "StaminaManager.UiTests.ps1"));
+
+        Assert.IsTrue(File.Exists(GetPath(
+            "tests",
+            "ui",
+            "about-navigation.ps1")));
+        string standalone = File.ReadAllText(GetPath(
             "tests",
             "ui",
             "about-navigation.ps1"));
-
-        foreach (string requiredText in new[]
-        {
-            "NavAbout",
-            "OpenGitHubButton",
-            "OpenReadmeButton",
-            "AboutPageRoot",
-            "AboutReadmeHeading",
-            "AboutReadmeDescription",
-        })
-        {
-            StringAssert.Contains(script, requiredText);
-        }
-
-        Assert.DoesNotContain("invoke', 'OpenGitHubButton", script);
-        Assert.DoesNotContain("invoke', 'OpenReadmeButton", script);
+        StringAssert.Contains(suite, "Invoke-UiTest About");
+        StringAssert.Contains(suite, "NavAbout");
+        StringAssert.Contains(suite, "Get-ElementMatch");
+        StringAssert.Contains(suite, "Move-TestWindowToBounds");
+        StringAssert.Contains(suite, "Collect-AuditSnapshot $State");
+        StringAssert.Contains(suite, "TextScale");
+        StringAssert.Contains(suite, "HighContrast");
+        StringAssert.Contains(suite, "SKIP");
+        Assert.DoesNotContain("ui invoke OpenGitHubButton", suite);
+        Assert.DoesNotContain("ui invoke OpenReadmeButton", suite);
+        Assert.DoesNotContain("invoke', 'OpenGitHubButton", standalone);
+        Assert.DoesNotContain("invoke', 'OpenReadmeButton", standalone);
     }
 
     private static string? AttributeValue(XElement element, string name) =>

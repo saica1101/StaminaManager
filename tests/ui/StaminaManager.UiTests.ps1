@@ -81,6 +81,12 @@ Add-Type -AssemblyName UIAutomationClient
 
 $requiredAutomationIds = @(
     'ShellContentFrame',
+    'AboutPageRoot',
+    'AboutVersionText',
+    'OpenGitHubButton',
+    'OpenReadmeButton',
+    'AboutReadmeHeading',
+    'AboutReadmeDescription',
     'NavOverview',
     'NavSettings',
     'OverviewScrollViewer',
@@ -995,6 +1001,17 @@ function Collect-AuditSnapshot {
                 'ExportBackupButton',
                 'ImportBackupButton') + @($conditionalAutomationIds.Keys)
         }
+        'About*' {
+            @(
+                'ShellContentFrame',
+                'AboutScrollViewer',
+                'AboutPageRoot',
+                'AboutVersionText',
+                'OpenGitHubButton',
+                'OpenReadmeButton',
+                'AboutReadmeHeading',
+                'AboutReadmeDescription')
+        }
         default {
             @(
                 'ShellContentFrame',
@@ -1527,15 +1544,180 @@ function Assert-AccessibilityAudit {
     }
 }
 
+function Get-AccessibilityDisplayState {
+    $isHighContrast = $null
+    try {
+        Add-Type -AssemblyName System.Windows.Forms
+        $isHighContrast = [bool][System.Windows.Forms.SystemInformation]::HighContrast
+    }
+    catch {
+    }
+
+    if ($null -eq $isHighContrast) {
+        try {
+            $flags = [int](Get-ItemPropertyValue `
+                -Path 'HKCU:\Control Panel\Accessibility\HighContrast' `
+                -Name Flags -ErrorAction Stop)
+            $isHighContrast = $flags -ne 0
+        }
+        catch {
+        }
+    }
+
+    $textScale = $null
+    try {
+        $textScalePath = 'HKCU:\Software\Microsoft\Accessibility'
+        if (Test-Path -LiteralPath $textScalePath) {
+            $textScale = [int](Get-ItemPropertyValue `
+                -Path $textScalePath -Name TextScaleFactor `
+                -ErrorAction Stop)
+        }
+        else {
+            $textScale = 100
+        }
+    }
+    catch {
+    }
+
+    return [pscustomobject]@{
+        HighContrast = $isHighContrast
+        TextScale = $textScale
+    }
+}
+
+function Assert-AboutButtonAccessibility {
+    foreach ($buttonId in @('OpenGitHubButton', 'OpenReadmeButton')) {
+        Get-ElementMatch $buttonId | Out-Null
+        Wait-ControlEnabled $buttonId $true
+        $properties = (
+            Invoke-WinApp ui get-property $buttonId -a $AppPid --json |
+                ConvertFrom-Json).properties
+        foreach ($propertyName in @('Name', 'HelpText')) {
+            if ([string]::IsNullOrWhiteSpace(
+                    [string]$properties.$propertyName)) {
+                throw "$buttonId has no UIA $propertyName."
+            }
+        }
+    }
+}
+
+function Assert-AboutLayoutBounds {
+    param([string]$State)
+
+    $window = Get-MainWindowInfo
+    if ([int]$window.x -lt 0 -or [int]$window.y -lt 0) {
+        throw "$State window bounds are outside the screen."
+    }
+
+    $viewport = Get-ElementMatch AboutScrollViewer
+    $root = Get-ElementMatch AboutPageRoot
+    $windowRight = [int]$window.x + [int]$window.width
+    $windowBottom = [int]$window.y + [int]$window.height
+    $viewportRight = [int]$viewport.x + [int]$viewport.width
+    if ([int]$viewport.x -lt [int]$window.x -or
+        [int]$viewport.y -lt [int]$window.y -or
+        $viewportRight -gt $windowRight -or
+        [int]$viewport.y + [int]$viewport.height -gt $windowBottom) {
+        throw "$State AboutScrollViewer is outside the window."
+    }
+    if ([int]$root.x -lt 0 -or [int]$root.y -lt 0 -or
+        [int]$root.width -le 0 -or [int]$root.height -le 0 -or
+        [int]$root.x -lt [int]$window.x -or
+        [int]$root.x + [int]$root.width -gt $windowRight -or
+        [int]$root.x -lt [int]$viewport.x -or
+        [int]$root.x + [int]$root.width -gt $viewportRight) {
+        throw "$State bounds are invalid for AboutPageRoot."
+    }
+    foreach ($automationId in @(
+            'AboutVersionText',
+            'OpenGitHubButton',
+            'OpenReadmeButton',
+            'AboutReadmeHeading',
+            'AboutReadmeDescription')) {
+        Invoke-WinApp ui scroll-into-view $automationId -a $AppPid |
+            Out-Null
+        $bounds = Get-ElementMatch $automationId
+        $x = [int]$bounds.x
+        $y = [int]$bounds.y
+        $right = $x + [int]$bounds.width
+        $bottom = $y + [int]$bounds.height
+        if ($x -lt 0 -or $y -lt 0 -or
+            [int]$bounds.width -le 0 -or [int]$bounds.height -le 0 -or
+            $x -lt [int]$window.x -or $right -gt $windowRight) {
+            throw "$State bounds are invalid for $automationId."
+        }
+        if ($x -lt [int]$viewport.x -or $right -gt $viewportRight -or
+            $y -lt [int]$window.y -or $bottom -gt $windowBottom) {
+            throw "$State viewport bounds are invalid for $automationId."
+        }
+    }
+
+    $scrollProperties = (
+        Invoke-WinApp ui get-property AboutScrollViewer -a $AppPid `
+            -p IsHorizontallyScrollable --json | ConvertFrom-Json).properties
+    if ($null -eq $scrollProperties.IsHorizontallyScrollable) {
+        throw "$State horizontal scroll state was not exposed by UIA."
+    }
+    if ([string]$scrollProperties.IsHorizontallyScrollable -ieq 'true') {
+        throw "$State unexpectedly allows horizontal scrolling."
+    }
+}
+
+function Invoke-AboutUiAudit {
+    param([string]$State)
+
+    Invoke-WinApp ui wait-for NavAbout -a $AppPid -t 5000 | Out-Null
+    Invoke-WinApp ui invoke NavAbout -a $AppPid | Out-Null
+    if ($State -eq 'About') {
+        Invoke-WinApp ui wait-for VersionFooterText -a $AppPid -t 5000 |
+            Out-Null
+    }
+    foreach ($automationId in @(
+            'AboutPageRoot',
+            'AboutVersionText',
+            'OpenGitHubButton',
+            'OpenReadmeButton',
+            'AboutReadmeHeading',
+            'AboutReadmeDescription')) {
+        Invoke-WinApp ui wait-for $automationId -a $AppPid -t 5000 |
+            Out-Null
+    }
+    Assert-AboutButtonAccessibility
+
+    $savedBounds = Get-MainWindowInfo
+    try {
+        $narrowWidth = [Math]::Max(
+            320,
+            [Math]::Min(560, [int]$savedBounds.width - 160))
+        Move-TestWindowToBounds ([pscustomobject]@{
+                x = [int]$savedBounds.x
+                y = [int]$savedBounds.y
+                width = $narrowWidth
+                height = [int]$savedBounds.height
+            })
+        $narrowBounds = Get-MainWindowInfo
+        if ([int]$savedBounds.width -gt 560 -and
+            [int]$narrowBounds.width -ge [int]$savedBounds.width) {
+            throw 'The About narrow-width case did not resize the window.'
+        }
+        Assert-AboutLayoutBounds $State
+        Collect-AuditSnapshot $State
+    }
+    finally {
+        Move-TestWindowToBounds $savedBounds
+        Assert-WindowBoundsEqual $savedBounds (Get-MainWindowInfo) `
+            "$State restoration"
+    }
+
+    Invoke-WinApp ui invoke NavOverview -a $AppPid | Out-Null
+    Invoke-WinApp ui wait-for AddGameCard -a $AppPid -t 5000 | Out-Null
+}
+
 New-Item -ItemType Directory -Force -Path $OutputDirectory |
     Out-Null
 New-Item -ItemType Directory -Force -Path $screenshotDirectory |
     Out-Null
-
-Add-Result Manual 'High Contrast' SKIP `
-    'OSのHigh Contrast状態変更が必要なため手動確認。'
-Add-Result Manual '200%テキスト' SKIP `
-    'OSのテキストスケール変更が必要なため手動確認。'
+$accessibilityDisplayState = Get-AccessibilityDisplayState
 
 try {
     $identity = Get-VerifiedAppIdentity $AppPid
@@ -1630,6 +1812,26 @@ try {
             Out-Null
         Save-Screenshot '01-overview-initial'
         Collect-AuditSnapshot Overview
+    }
+
+    Invoke-UiTest About 'About navigationと狭幅UIA監査' {
+        Invoke-AboutUiAudit About
+    }
+
+    if ($accessibilityDisplayState.HighContrast -eq $true -or
+        $accessibilityDisplayState.TextScale -ge 200) {
+        Invoke-UiTest Accessibility 'About HC/200%狭幅UIA監査' {
+            Invoke-AboutUiAudit AboutAccessibility
+        }
+    }
+    elseif ($null -eq $accessibilityDisplayState.HighContrast -or
+        $null -eq $accessibilityDisplayState.TextScale) {
+        Add-Result Accessibility 'About HC/200%狭幅UIA監査' SKIP `
+            'High Contrastまたはテキストスケールのread-only検出に失敗したため実行しない。'
+    }
+    else {
+        Add-Result Accessibility 'About HC/200%狭幅UIA監査' SKIP `
+            '現在のOS状態がHigh Contrastでも200%テキストでもないため実行しない。'
     }
 
     Invoke-UiTest Editor '空入力の検証' {
