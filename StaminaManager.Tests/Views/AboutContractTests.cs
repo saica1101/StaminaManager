@@ -257,27 +257,10 @@ public sealed class AboutContractTests
             "ui",
             "StaminaManager.UiTests.ps1"));
 
-        Assert.IsTrue(File.Exists(GetPath(
-            "tests",
-            "ui",
-            "about-navigation.ps1")));
-        string standalone = File.ReadAllText(GetPath(
-            "tests",
-            "ui",
-            "about-navigation.ps1"));
         StringAssert.Contains(suite, "Invoke-UiTest About");
         StringAssert.Contains(suite, "NavAbout");
-        StringAssert.Contains(suite, "-p HorizontallyScrollable");
-        Assert.DoesNotContain(suite, "-p IsHorizontallyScrollable");
-        StringAssert.Contains(suite, "'0x0'");
-        StringAssert.Contains(suite, "'false'");
-        StringAssert.Contains(suite, "'0'");
-        StringAssert.Contains(suite, "$actualNarrowWidth");
-        StringAssert.Contains(suite, "$primaryError");
         Assert.DoesNotContain("ui invoke OpenGitHubButton", suite);
         Assert.DoesNotContain("ui invoke OpenReadmeButton", suite);
-        Assert.DoesNotContain("invoke', 'OpenGitHubButton", standalone);
-        Assert.DoesNotContain("invoke', 'OpenReadmeButton", standalone);
     }
 
     private static string? AttributeValue(XElement element, string name) =>

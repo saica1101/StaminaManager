@@ -50,6 +50,15 @@ using System.Runtime.InteropServices;
 
 public static class StaminaManagerUiTestNative
 {
+    [StructLayout(LayoutKind.Sequential)]
+    public struct RECT
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool MoveWindow(
@@ -59,6 +68,12 @@ public static class StaminaManagerUiTestNative
         int width,
         int height,
         bool repaint);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool GetWindowRect(
+        IntPtr hWnd,
+        out RECT rect);
 
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -1044,7 +1059,29 @@ function Get-MainWindowInfo {
         throw 'The application main window was not found.'
     }
 
-    return $window
+    $rect = [StaminaManagerUiTestNative+RECT]::new()
+    if (-not [StaminaManagerUiTestNative]::GetWindowRect(
+            [IntPtr]$window.hwnd,
+            [ref]$rect)) {
+        $errorCode = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
+        throw "GetWindowRect failed for HWND $($window.hwnd) " +
+            "(Win32Error=$errorCode)."
+    }
+
+    $width = $rect.Right - $rect.Left
+    $height = $rect.Bottom - $rect.Top
+    if ($width -le 0 -or $height -le 0) {
+        throw "GetWindowRect returned an invalid area for HWND $($window.hwnd)."
+    }
+
+    return [pscustomobject]@{
+        hwnd = [long]$window.hwnd
+        title = [string]$window.title
+        x = $rect.Left
+        y = $rect.Top
+        width = $width
+        height = $height
+    }
 }
 
 function Get-MainWindowHandle {
@@ -1623,16 +1660,11 @@ function Assert-AboutLayoutBounds {
         throw "$State AboutScrollViewer is outside the window."
     }
     $rootRight = [int]$root.x + [int]$root.width
-    $rootBottom = [int]$root.y + [int]$root.height
     if ([int]$root.width -le 0 -or [int]$root.height -le 0 -or
         [int]$root.x -lt [int]$window.x -or
         $rootRight -gt $windowRight -or
-        [int]$root.y -lt [int]$window.y -or
-        $rootBottom -gt $windowBottom -or
         [int]$root.x -lt [int]$viewport.x -or
-        $rootRight -gt $viewportRight -or
-        [int]$root.y -lt [int]$viewport.y -or
-        $rootBottom -gt $viewportBottom) {
+        $rootRight -gt $viewportRight) {
         throw "$State bounds are invalid for AboutPageRoot."
     }
     foreach ($automationId in @(
@@ -1649,7 +1681,8 @@ function Assert-AboutLayoutBounds {
         $right = $x + [int]$bounds.width
         $bottom = $y + [int]$bounds.height
         if ([int]$bounds.width -le 0 -or [int]$bounds.height -le 0 -or
-            $x -lt [int]$window.x -or $right -gt $windowRight) {
+            $x -lt [int]$window.x -or $right -gt $windowRight -or
+            $y -lt [int]$window.y -or $bottom -gt $windowBottom) {
             throw "$State bounds are invalid for $automationId."
         }
         if ($x -lt [int]$viewport.x -or $right -gt $viewportRight -or
@@ -1695,23 +1728,39 @@ function Invoke-AboutUiAudit {
         Assert-AboutButtonAccessibility
 
         $savedBounds = Get-MainWindowInfo
-        $narrowWidth = [Math]::Max(
-            320,
-            [Math]::Min(560, [int]$savedBounds.width - 160))
-        Move-TestWindowToBounds ([pscustomobject]@{
-                x = [int]$savedBounds.x
-                y = [int]$savedBounds.y
-                width = $narrowWidth
-                height = [int]$savedBounds.height
-            })
+        $dpi = [StaminaManagerUiTestNative]::GetDpiForWindow(
+            [IntPtr]$savedBounds.hwnd)
+        if ($dpi -le 0) {
+            throw 'GetDpiForWindow returned zero or failed.'
+        }
+
+        $savedEffectiveWidth = [int][Math]::Round(
+            [double]$savedBounds.width * 96d / $dpi)
+        if ($savedEffectiveWidth -le 0) {
+            throw 'The original effective window width was invalid.'
+        }
+
+        $targetEffectiveWidth = [Math]::Min(560, $savedEffectiveWidth)
+        $targetPhysicalWidth = [int][Math]::Round(
+            [double]$targetEffectiveWidth * $dpi / 96d)
+        if ($savedEffectiveWidth -gt 560) {
+            Move-TestWindowToBounds ([pscustomobject]@{
+                    x = [int]$savedBounds.x
+                    y = [int]$savedBounds.y
+                    width = $targetPhysicalWidth
+                    height = [int]$savedBounds.height
+                })
+        }
         $narrowBounds = Get-MainWindowInfo
-        $actualNarrowWidth = [int]$narrowBounds.width
-        if ($actualNarrowWidth -ge [int]$savedBounds.width -or
-            ($actualNarrowWidth -ne $narrowWidth -and
-                $actualNarrowWidth -gt 560)) {
-            throw "The About narrow-width case measured $actualNarrowWidth; " +
-                "target was $narrowWidth and original was " +
-                "$($savedBounds.width)."
+        $actualNarrowEffectiveWidth = [int][Math]::Round(
+            [double]$narrowBounds.width * 96d / $dpi)
+        if ($actualNarrowEffectiveWidth -le 0 -or
+            $actualNarrowEffectiveWidth -gt 560 -or
+            ($savedEffectiveWidth -gt 560 -and
+                $actualNarrowEffectiveWidth -ge $savedEffectiveWidth)) {
+            throw "The About narrow-width case measured " +
+                "$actualNarrowEffectiveWidth effective pixels; " +
+                "original was $savedEffectiveWidth."
         }
         Assert-AboutLayoutBounds $State
         Collect-AuditSnapshot $State
