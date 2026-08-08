@@ -37,7 +37,7 @@ public sealed class SafeZipReader
     {
     }
 
-    public SafeZipReader(IAppLanguageService appLanguageService)
+    internal SafeZipReader(IAppLanguageService appLanguageService)
         : this(
             bufferedBytesObserver: null,
             BackupLimits.MaxExpandedBytes,

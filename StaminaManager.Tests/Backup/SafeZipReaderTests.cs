@@ -1,6 +1,7 @@
 using StaminaManager.Core.Models;
 using StaminaManager.Infrastructure.Backup;
 using System.IO.Compression;
+using System.Reflection;
 using System.Text;
 
 namespace StaminaManager.Tests.Backup;
@@ -8,6 +9,19 @@ namespace StaminaManager.Tests.Backup;
 [TestClass]
 public sealed class SafeZipReaderTests
 {
+    [TestMethod]
+    public void PublicConstructor_既存のobserver引数だけを公開する()
+    {
+        ConstructorInfo[] constructors = typeof(SafeZipReader)
+            .GetConstructors();
+
+        Assert.HasCount(1, constructors);
+        Assert.HasCount(1, constructors[0].GetParameters());
+        Assert.AreEqual(
+            typeof(Action<int>),
+            constructors[0].GetParameters()[0].ParameterType);
+    }
+
     [TestMethod]
     [DataRow("/absolute.json")]
     [DataRow("C:/absolute.json")]
