@@ -169,6 +169,9 @@ public sealed class Schema3MigrationTests
         : IAppLanguageService
     {
         public AppLanguage GetEffectiveLanguage() => language;
+
+        public LanguageChangeResult SetLanguage(AppLanguage language) =>
+            new(language, IsApplied: true, LanguageFailureReason.None);
     }
 }
 

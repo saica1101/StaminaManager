@@ -239,6 +239,126 @@ public sealed class BackupCoordinatorTests_RestoreWorkflow
             services.BackdropRequests.Single());
     }
 
+    [TestMethod]
+    public async Task Restore_LanguageSyncFailureKeepsDataAndJournalForRetry()
+    {
+        await using RestoreWorkflowTestStore source =
+            await RestoreWorkflowTestStore.CreateAsync(
+                "new",
+                startupEnabled: false,
+                language: AppLanguage.English);
+        string backupPath = await source.ExportAsync();
+        await using RestoreWorkflowTestStore destination =
+            await RestoreWorkflowTestStore.CreateAsync(
+                "old",
+                startupEnabled: false,
+                language: AppLanguage.Japanese);
+        GameManager manager = destination.CreateManager();
+        BackupCoordinator backup = destination.CreateBackup();
+        SequenceLanguageService language = new(AppLanguage.Japanese)
+        {
+            NextResults =
+            [
+                new LanguageChangeResult(
+                    AppLanguage.English,
+                    IsApplied: false,
+                    LanguageFailureReason.PlatformError),
+            ],
+        };
+        RecordingDerivedServices services = new();
+        AppCoordinator app = CreateApp(
+            destination,
+            manager,
+            backup,
+            new RecordingStartupService(StartupState.Disabled),
+            services,
+            language);
+        await app.InitializeAsync(CancellationToken.None);
+
+        PreparedBackupRestore prepared = await app.PreviewRestoreAsync(
+            backupPath,
+            CancellationToken.None);
+        BackupRestoreResult result = await app.RestoreBackupAsync(
+            prepared.SessionId,
+            isReplacementConfirmed: true,
+            CancellationToken.None);
+
+        Assert.IsTrue(result.RequiresDerivedStateRetry);
+        Assert.IsTrue(result.IsPartial);
+        Assert.AreEqual("new", manager.Games.Single().Name);
+        Assert.AreEqual(
+            AppLanguage.English,
+            manager.CurrentData.Settings.Language);
+        Assert.IsFalse(app.IsLanguageSynchronized);
+        Assert.IsNotNull(await backup.ResumeAsync(CancellationToken.None));
+
+        GameManager retryManager = destination.CreateManager();
+        BackupCoordinator retryBackup = destination.CreateBackup();
+        SequenceLanguageService retryLanguage = new(AppLanguage.Japanese)
+        {
+            NextResults =
+            [
+                new LanguageChangeResult(
+                    AppLanguage.English,
+                    IsApplied: true,
+                    LanguageFailureReason.None),
+            ],
+        };
+        AppCoordinator retryApp = CreateApp(
+            destination,
+            retryManager,
+            retryBackup,
+            new RecordingStartupService(StartupState.Disabled),
+            new RecordingDerivedServices(),
+            retryLanguage);
+
+        await retryApp.InitializeAsync(CancellationToken.None);
+
+        Assert.IsTrue(retryApp.IsLanguageSynchronized);
+        Assert.AreEqual(
+            AppLanguage.English,
+            retryManager.CurrentData.Settings.Language);
+        Assert.IsNull(await retryBackup.ResumeAsync(CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task Restore_MatchingLanguageDoesNotCallSetter()
+    {
+        await using RestoreWorkflowTestStore source =
+            await RestoreWorkflowTestStore.CreateAsync(
+                "new",
+                startupEnabled: false,
+                language: AppLanguage.English);
+        string backupPath = await source.ExportAsync();
+        await using RestoreWorkflowTestStore destination =
+            await RestoreWorkflowTestStore.CreateAsync(
+                "old",
+                startupEnabled: false,
+                language: AppLanguage.English);
+        GameManager manager = destination.CreateManager();
+        BackupCoordinator backup = destination.CreateBackup();
+        SequenceLanguageService language = new(AppLanguage.English);
+        AppCoordinator app = CreateApp(
+            destination,
+            manager,
+            backup,
+            new RecordingStartupService(StartupState.Disabled),
+            new RecordingDerivedServices(),
+            language);
+        await app.InitializeAsync(CancellationToken.None);
+        language.SetRequests.Clear();
+
+        PreparedBackupRestore prepared = await app.PreviewRestoreAsync(
+            backupPath,
+            CancellationToken.None);
+        await app.RestoreBackupAsync(
+            prepared.SessionId,
+            isReplacementConfirmed: true,
+            CancellationToken.None);
+
+        Assert.IsEmpty(language.SetRequests);
+    }
+
     private static async Task<WorkflowResult> RunRestoreAsync(
         bool desiredStartupEnabled,
         RecordingStartupService startup)
@@ -277,16 +397,19 @@ public sealed class BackupCoordinatorTests_RestoreWorkflow
         GameManager manager,
         BackupCoordinator backup,
         IStartupService startup,
-        RecordingDerivedServices services) => new(
-            destination.Store,
-            manager,
-            new RecordingUiDispatcher(),
-            services,
-            services,
-            startup,
-            services,
-            services,
-            new RestoreCoordinator(backup, manager));
+        RecordingDerivedServices services,
+        IAppLanguageService? language = null) => new(
+        destination.Store,
+        manager,
+        new RecordingUiDispatcher(),
+        services,
+        services,
+        startup,
+        services,
+        services,
+        new RestoreCoordinator(backup, manager),
+        appLanguageService: language,
+        sessionLanguage: AppLanguage.Japanese);
 
     private sealed record WorkflowResult(
         RestoreWorkflowTestStore Source,
@@ -393,6 +516,41 @@ public sealed class BackupCoordinatorTests_RestoreWorkflow
                     : StartupState.Disabled),
                 IsApplied: true,
                 StartupFailureReason.None));
+        }
+    }
+
+    private sealed class SequenceLanguageService(
+        AppLanguage effectiveLanguage) : IAppLanguageService
+    {
+        public List<LanguageChangeResult> NextResults { get; init; } = [];
+
+        public List<AppLanguage> SetRequests { get; } = [];
+
+        public AppLanguage EffectiveLanguage { get; private set; } =
+            effectiveLanguage;
+
+        public AppLanguage GetEffectiveLanguage() => EffectiveLanguage;
+
+        public LanguageChangeResult SetLanguage(AppLanguage language)
+        {
+            SetRequests.Add(language);
+            LanguageChangeResult result = NextResults.Count > 0
+                ? NextResults[0]
+                : new LanguageChangeResult(
+                    language,
+                    IsApplied: true,
+                    LanguageFailureReason.None);
+            if (NextResults.Count > 0)
+            {
+                NextResults.RemoveAt(0);
+            }
+
+            if (result.IsApplied)
+            {
+                EffectiveLanguage = language;
+            }
+
+            return result;
         }
     }
 

@@ -42,6 +42,8 @@ public sealed class AppCoordinator
     private readonly IStartupService _startupService;
     private readonly IWindowStateService _windowStateService;
     private readonly INotificationReconciler _notificationReconciler;
+    private readonly IAppLanguageService _appLanguageService;
+    private readonly AppLanguage _sessionLanguage;
     private readonly RestoreCoordinator? _restoreCoordinator;
     private readonly SemaphoreSlim _initializationGate = new(1, 1);
     private volatile bool _isInteractiveRestoreInProgress;
@@ -124,7 +126,9 @@ public sealed class AppCoordinator
         IStartupService startupService,
         IWindowStateService windowStateService,
         INotificationReconciler notificationReconciler,
-        RestoreCoordinator? restoreCoordinator = null)
+        RestoreCoordinator? restoreCoordinator = null,
+        IAppLanguageService? appLanguageService = null,
+        AppLanguage? sessionLanguage = null)
     {
         ArgumentNullException.ThrowIfNull(dataStore);
         ArgumentNullException.ThrowIfNull(gameManager);
@@ -142,6 +146,9 @@ public sealed class AppCoordinator
         _startupService = startupService;
         _windowStateService = windowStateService;
         _notificationReconciler = notificationReconciler;
+        _appLanguageService = appLanguageService
+            ?? new PassThroughAppLanguageService();
+        _sessionLanguage = sessionLanguage ?? AppLanguage.Japanese;
         _restoreCoordinator = restoreCoordinator;
     }
 
@@ -163,6 +170,24 @@ public sealed class AppCoordinator
         get;
         private set;
     }
+
+    public LanguageChangeResult? LastLanguageResult { get; private set; }
+
+    public bool IsLanguageSynchronized { get; private set; } = true;
+
+    public LanguageFailureReason LanguageReconcileFailureReason
+    {
+        get;
+        private set;
+    } = LanguageFailureReason.None;
+
+    public LanguageConsistencyState LanguageConsistencyState
+    {
+        get;
+        private set;
+    } = LanguageConsistencyState.Synchronized;
+
+    public AppLanguage SessionLanguage => _sessionLanguage;
 
     public bool IsStartupSynchronized { get; private set; } = true;
 
@@ -400,6 +425,12 @@ public sealed class AppCoordinator
         await RestoreModeAsync(cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
         await ReconcileStartupAsync(cancellationToken).ConfigureAwait(false);
+        await ReconcileLanguageAsync(cancellationToken).ConfigureAwait(false);
+        if (!IsLanguageSynchronized)
+        {
+            return;
+        }
+
         await ReconcileNotificationsAsync(cancellationToken)
             .ConfigureAwait(false);
     }
@@ -502,6 +533,12 @@ public sealed class AppCoordinator
                 desiredStartupEnabled,
                 cancellationToken)
             .ConfigureAwait(false);
+        await ReconcileLanguageAsync(cancellationToken).ConfigureAwait(false);
+        if (!IsLanguageSynchronized)
+        {
+            return;
+        }
+
         await ReconcileNotificationsAsync(cancellationToken)
             .ConfigureAwait(false);
     }
@@ -578,6 +615,7 @@ public sealed class AppCoordinator
     {
         if (_restoreCoordinator is null
             || !IsStartupSynchronized
+            || !IsLanguageSynchronized
             || LastThemeResult?.IsApplied != true
             || LastBackdropResult?.ErrorMessage is not null
             || LastNotificationReconcileResult?.HasFailures == true)
@@ -692,6 +730,76 @@ public sealed class AppCoordinator
                         NotificationDecisionError.None,
                         exception.GetType().Name)));
         }
+    }
+
+    private Task ReconcileLanguageAsync(
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        IsLanguageSynchronized = false;
+        LanguageConsistencyState = LanguageConsistencyState.Inconsistent;
+        LanguageReconcileFailureReason = LanguageFailureReason.PlatformError;
+        AppLanguage desiredLanguage = _gameManager.CurrentData.Settings
+            .Language;
+        AppLanguage effectiveLanguage;
+        try
+        {
+            effectiveLanguage = _appLanguageService.GetEffectiveLanguage();
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Effective application language read failed: "
+                + exception.GetType().Name);
+            LastLanguageResult = new LanguageChangeResult(
+                desiredLanguage,
+                IsApplied: false,
+                LanguageFailureReason.PlatformError);
+            return Task.CompletedTask;
+        }
+
+        if (effectiveLanguage == desiredLanguage)
+        {
+            LastLanguageResult = new LanguageChangeResult(
+                desiredLanguage,
+                IsApplied: true,
+                LanguageFailureReason.None);
+            IsLanguageSynchronized = true;
+            LanguageConsistencyState = LanguageConsistencyState.Synchronized;
+            LanguageReconcileFailureReason = LanguageFailureReason.None;
+            return Task.CompletedTask;
+        }
+
+        LanguageChangeResult result;
+        try
+        {
+            result = _appLanguageService.SetLanguage(desiredLanguage);
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Application language synchronization failed: "
+                + exception.GetType().Name);
+            result = new LanguageChangeResult(
+                desiredLanguage,
+                IsApplied: false,
+                LanguageFailureReason.PlatformError);
+        }
+
+        LastLanguageResult = result;
+        if (!result.IsApplied)
+        {
+            LanguageReconcileFailureReason = result.FailureReason
+                == LanguageFailureReason.None
+                    ? LanguageFailureReason.PlatformError
+                    : result.FailureReason;
+            return Task.CompletedTask;
+        }
+
+        IsLanguageSynchronized = true;
+        LanguageConsistencyState = LanguageConsistencyState.Synchronized;
+        LanguageReconcileFailureReason = LanguageFailureReason.None;
+        return Task.CompletedTask;
     }
 
     private async Task OnGamesChangedAsync(
@@ -809,5 +917,14 @@ public sealed class AppCoordinator
             AppSettings settings,
             CancellationToken cancellationToken) => Task.FromResult(
                 NotificationReconcileResult.Success);
+    }
+
+    private sealed class PassThroughAppLanguageService
+        : IAppLanguageService
+    {
+        public AppLanguage GetEffectiveLanguage() => AppLanguage.Japanese;
+
+        public LanguageChangeResult SetLanguage(AppLanguage language) =>
+            new(language, IsApplied: true, LanguageFailureReason.None);
     }
 }

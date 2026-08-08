@@ -1,3 +1,4 @@
+using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
 using StaminaManager.Infrastructure.Windows;
 
@@ -6,6 +7,62 @@ namespace StaminaManager.Tests.Infrastructure.Windows;
 [TestClass]
 public sealed class AppLanguageServiceTests
 {
+    [TestMethod]
+    public void SetLanguage_JapaneseAndEnglishUseThePolicyTags()
+    {
+        List<string> setTags = [];
+        AppLanguageService service = new(
+            () => null,
+            () => [],
+            setTags.Add);
+
+        LanguageChangeResult japanese = service.SetLanguage(
+            AppLanguage.Japanese);
+        LanguageChangeResult english = service.SetLanguage(
+            AppLanguage.English);
+
+        Assert.IsTrue(japanese.IsApplied);
+        Assert.IsTrue(english.IsApplied);
+        CollectionAssert.AreEqual(
+            new[] { "ja-JP", "en-US" },
+            setTags);
+    }
+
+    [TestMethod]
+    public void SetLanguage_UndefinedEnumIsRejectedWithoutCallingSetter()
+    {
+        int setterCallCount = 0;
+        AppLanguageService service = new(
+            () => null,
+            () => [],
+            _ => setterCallCount++);
+
+        LanguageChangeResult result = service.SetLanguage((AppLanguage)999);
+
+        Assert.IsFalse(result.IsApplied);
+        Assert.AreEqual(
+            LanguageFailureReason.Unsupported,
+            result.FailureReason);
+        Assert.AreEqual(0, setterCallCount);
+    }
+
+    [TestMethod]
+    public void SetLanguage_SetterExceptionBecomesTypedFailure()
+    {
+        AppLanguageService service = new(
+            () => null,
+            () => [],
+            _ => throw new InvalidOperationException("private detail"));
+
+        LanguageChangeResult result = service.SetLanguage(
+            AppLanguage.English);
+
+        Assert.IsFalse(result.IsApplied);
+        Assert.AreEqual(
+            LanguageFailureReason.PlatformError,
+            result.FailureReason);
+    }
+
     [TestMethod]
     public void GetEffectiveLanguage_対応Overrideを最優先する()
     {

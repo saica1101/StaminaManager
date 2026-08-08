@@ -829,6 +829,191 @@ public sealed class SettingsViewModelTests
     }
 
     [TestMethod]
+    public async Task SetLanguageAsync_SavesOverridesThenReconcilesNotifications()
+    {
+        Context context = await Context.CreateAsync();
+        SettingsViewModel viewModel = context.CreateLanguageViewModel();
+
+        bool changed = await viewModel.SetLanguageAsync(
+            AppLanguage.English,
+            CancellationToken.None);
+
+        Assert.IsTrue(changed);
+        CollectionAssert.AreEqual(
+            new[] { "Save", "Override", "Notifications" },
+            context.Store.Operations);
+        Assert.AreEqual(AppLanguage.English, viewModel.Language);
+        Assert.AreEqual(1, viewModel.SelectedLanguageIndex);
+        Assert.IsTrue(viewModel.IsLanguageRestartRequired);
+        Assert.AreEqual(
+            AppLanguage.English,
+            context.Manager.CurrentData.Settings.Language);
+        Assert.AreEqual(
+            AppLanguage.English,
+            context.NotificationReconciler.LastSettings!.Language);
+    }
+
+    [TestMethod]
+    public async Task SetLanguageAsync_SaveFailureDoesNotCallOverride()
+    {
+        Context context = await Context.CreateAsync();
+        context.Store.SaveException = new IOException("save detail");
+        SettingsViewModel viewModel = context.CreateLanguageViewModel();
+
+        bool changed = await viewModel.SetLanguageAsync(
+            AppLanguage.English,
+            CancellationToken.None);
+
+        Assert.IsFalse(changed);
+        Assert.IsEmpty(context.LanguageService.SetRequests);
+        Assert.AreEqual(AppLanguage.Japanese, viewModel.Language);
+        Assert.AreEqual(
+            AppLanguage.Japanese,
+            context.Manager.CurrentData.Settings.Language);
+        Assert.AreEqual(0, context.NotificationReconciler.CallCount);
+    }
+
+    [TestMethod]
+    public async Task SetLanguageAsync_OverrideFailureRollsBackSavedLanguage()
+    {
+        Context context = await Context.CreateAsync();
+        context.LanguageService.NextResult = new LanguageChangeResult(
+            AppLanguage.English,
+            IsApplied: false,
+            LanguageFailureReason.PlatformError);
+        SettingsViewModel viewModel = context.CreateLanguageViewModel();
+
+        bool changed = await viewModel.SetLanguageAsync(
+            AppLanguage.English,
+            CancellationToken.None);
+
+        Assert.IsFalse(changed);
+        CollectionAssert.AreEqual(
+            new[] { "Save", "Override", "Save" },
+            context.Store.Operations);
+        Assert.AreEqual(AppLanguage.Japanese, viewModel.Language);
+        Assert.AreEqual(
+            AppLanguage.Japanese,
+            context.Manager.CurrentData.Settings.Language);
+        Assert.AreEqual(
+            LanguageConsistencyState.Synchronized,
+            viewModel.LanguageConsistencyState);
+        Assert.AreEqual(0, context.NotificationReconciler.CallCount);
+    }
+
+    [TestMethod]
+    public async Task SetLanguageAsync_RollbackFailureKeepsNewLanguageAsInconsistent()
+    {
+        Context context = await Context.CreateAsync();
+        context.LanguageService.NextResult = new LanguageChangeResult(
+            AppLanguage.English,
+            IsApplied: false,
+            LanguageFailureReason.PlatformError);
+        context.Store.SaveExceptions.Enqueue(null);
+        context.Store.SaveExceptions.Enqueue(new IOException("rollback detail"));
+        SettingsViewModel viewModel = context.CreateLanguageViewModel();
+
+        bool changed = await viewModel.SetLanguageAsync(
+            AppLanguage.English,
+            CancellationToken.None);
+
+        Assert.IsFalse(changed);
+        Assert.AreEqual(AppLanguage.English, viewModel.Language);
+        Assert.AreEqual(
+            AppLanguage.English,
+            context.Manager.CurrentData.Settings.Language);
+        Assert.AreEqual(
+            LanguageConsistencyState.Inconsistent,
+            viewModel.LanguageConsistencyState);
+        Assert.IsTrue(viewModel.IsLanguageRestartRequired);
+        Assert.IsTrue(viewModel.IsInfoBarOpen);
+        Assert.IsFalse(viewModel.InfoBarMessage.Contains(
+            "rollback detail",
+            StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public async Task SetLanguageAsync_SameSavedLanguageIsNoOp()
+    {
+        Context context = await Context.CreateAsync();
+        SettingsViewModel viewModel = context.CreateLanguageViewModel();
+
+        bool changed = await viewModel.SetLanguageAsync(
+            AppLanguage.Japanese,
+            CancellationToken.None);
+
+        Assert.IsTrue(changed);
+        Assert.AreEqual(0, context.Store.SaveCount);
+        Assert.IsEmpty(context.LanguageService.SetRequests);
+        Assert.AreEqual(0, context.NotificationReconciler.CallCount);
+    }
+
+    [TestMethod]
+    public async Task SetLanguageAsync_NotificationFailureKeepsLanguageApplied()
+    {
+        Context context = await Context.CreateAsync();
+        context.NotificationReconciler.Result = new NotificationReconcileResult(
+            ImmutableArray.Create(new NotificationReconcileIssue(
+                GameId: null,
+                NotificationDecisionError.None,
+                "notification detail")));
+        SettingsViewModel viewModel = context.CreateLanguageViewModel();
+
+        bool changed = await viewModel.SetLanguageAsync(
+            AppLanguage.English,
+            CancellationToken.None);
+
+        Assert.IsFalse(changed);
+        Assert.AreEqual(AppLanguage.English, viewModel.Language);
+        Assert.AreEqual(
+            AppLanguage.English,
+            context.Manager.CurrentData.Settings.Language);
+        Assert.AreEqual(1, context.NotificationReconciler.CallCount);
+        StringAssert.Contains(viewModel.InfoBarMessage, "通知");
+    }
+
+    [TestMethod]
+    public async Task SetLanguageAsync_SessionLanguageDoesNotRequireRestartWhenMatching()
+    {
+        Context context = await Context.CreateAsync();
+        SettingsViewModel viewModel = context.CreateLanguageViewModel(
+            AppLanguage.English);
+
+        Assert.IsTrue(await viewModel.SetLanguageAsync(
+            AppLanguage.English,
+            CancellationToken.None));
+
+        Assert.IsFalse(viewModel.IsLanguageRestartRequired);
+    }
+
+    [TestMethod]
+    public async Task SynchronizeFromCurrentSettings_LanguageFailureKeepsSavedValueAndWarnsForRetry()
+    {
+        Context context = await Context.CreateAsync();
+        SettingsViewModel viewModel = context.CreateLanguageViewModel();
+        await context.Manager.UpdateSettingsAsync(
+            settings => settings with { Language = AppLanguage.English },
+            CancellationToken.None);
+
+        viewModel.SynchronizeFromCurrentSettings(
+            languageResult: new LanguageChangeResult(
+                AppLanguage.English,
+                IsApplied: false,
+                LanguageFailureReason.PlatformError),
+            isLanguageSynchronized: false,
+            languageConsistencyState: LanguageConsistencyState.Inconsistent);
+
+        Assert.AreEqual(AppLanguage.English, viewModel.Language);
+        Assert.AreEqual(
+            LanguageConsistencyState.Inconsistent,
+            viewModel.LanguageConsistencyState);
+        StringAssert.Contains(viewModel.InfoBarMessage, "次回起動時");
+        Assert.IsFalse(viewModel.InfoBarMessage.Contains(
+            "以前の設定に戻しました",
+            StringComparison.Ordinal));
+    }
+
+    [TestMethod]
     public async Task ReservedActions_ReportPreparationWithoutClaimingSuccess()
     {
         Context context = await Context.CreateAsync();
@@ -900,7 +1085,9 @@ public sealed class SettingsViewModelTests
         MemoryDataStore Store,
         GameManager Manager,
         RecordingThemeService ThemeService,
-        RecordingBackdropService BackdropService)
+        RecordingBackdropService BackdropService,
+        RecordingLanguageService LanguageService,
+        RecordingNotificationReconciler NotificationReconciler)
     {
         public static async Task<Context> CreateAsync(
             BackdropKind backdrop = BackdropKind.Mica,
@@ -917,6 +1104,11 @@ public sealed class SettingsViewModelTests
                 ImmutableArray<GameEntry>.Empty,
                 settings);
             MemoryDataStore store = new(envelope);
+            List<string> operations = [];
+            store.Operations = operations;
+            RecordingLanguageService languageService = new(operations);
+            RecordingNotificationReconciler notificationReconciler = new(
+                operations);
             GameManager manager = new(
                 store,
                 new FakeClock(DateTimeOffset.UtcNow),
@@ -926,7 +1118,9 @@ public sealed class SettingsViewModelTests
                 store,
                 manager,
                 new RecordingThemeService(AppTheme.Light),
-                new RecordingBackdropService());
+                new RecordingBackdropService(),
+                languageService,
+                notificationReconciler);
         }
 
         public SettingsViewModel CreateViewModel()
@@ -940,6 +1134,23 @@ public sealed class SettingsViewModelTests
             Manager,
             ThemeService,
             BackdropService);
+
+        public SettingsViewModel CreateLanguageViewModel(
+            AppLanguage sessionLanguage = AppLanguage.Japanese)
+        {
+            SettingsViewModel viewModel = new(
+                Manager,
+                ThemeService,
+                BackdropService,
+                new PassThroughStartupService(),
+                NotificationReconciler,
+                new PassThroughPermissionService(),
+                new PassThroughSettingsLauncher(),
+                appLanguageService: LanguageService,
+                sessionLanguage: sessionLanguage);
+            viewModel.MarkReady();
+            return viewModel;
+        }
     }
 
     private sealed class RecordingThemeService(AppTheme initialTheme)
@@ -1018,6 +1229,91 @@ public sealed class SettingsViewModelTests
         }
     }
 
+    private sealed class RecordingLanguageService(
+        List<string> operations) : IAppLanguageService
+    {
+        public AppLanguage EffectiveLanguage { get; set; } =
+            AppLanguage.Japanese;
+
+        public List<AppLanguage> SetRequests { get; } = [];
+
+        public LanguageChangeResult? NextResult { get; set; }
+
+        public AppLanguage GetEffectiveLanguage() => EffectiveLanguage;
+
+        public LanguageChangeResult SetLanguage(AppLanguage language)
+        {
+            operations.Add("Override");
+            SetRequests.Add(language);
+            LanguageChangeResult result = NextResult
+                ?? new LanguageChangeResult(
+                    language,
+                    IsApplied: true,
+                    LanguageFailureReason.None);
+            NextResult = null;
+            if (result.IsApplied)
+            {
+                EffectiveLanguage = language;
+            }
+
+            return result;
+        }
+    }
+
+    private sealed class RecordingNotificationReconciler(
+        List<string> operations) : INotificationReconciler
+    {
+        public int CallCount { get; private set; }
+
+        public AppSettings? LastSettings { get; private set; }
+
+        public NotificationReconcileResult Result { get; set; } =
+            NotificationReconcileResult.Success;
+
+        public Task<NotificationReconcileResult> ReconcileAsync(
+            IReadOnlyCollection<GameEntry> games,
+            AppSettings settings,
+            CancellationToken cancellationToken)
+        {
+            operations.Add("Notifications");
+            CallCount++;
+            LastSettings = settings;
+            return Task.FromResult(Result);
+        }
+    }
+
+    private sealed class PassThroughStartupService : IStartupService
+    {
+        public Task<StartupStatus> GetStatusAsync(
+            CancellationToken cancellationToken) => Task.FromResult(
+                new StartupStatus(StartupState.Disabled));
+
+        public Task<StartupChangeResult> SetEnabledAsync(
+            bool isEnabled,
+            CancellationToken cancellationToken) => Task.FromResult(
+                new StartupChangeResult(
+                    new StartupStatus(isEnabled
+                        ? StartupState.Enabled
+                        : StartupState.Disabled),
+                    IsApplied: true,
+                    StartupFailureReason.None));
+    }
+
+    private sealed class PassThroughPermissionService
+        : INotificationPermissionService
+    {
+        public Task<NotificationPermissionStatus> GetStatusAsync(
+            CancellationToken cancellationToken) => Task.FromResult(
+                new NotificationPermissionStatus(
+                    NotificationPermissionState.Enabled));
+    }
+
+    private sealed class PassThroughSettingsLauncher : ISettingsLauncher
+    {
+        public Task<bool> OpenNotificationSettingsAsync(
+            CancellationToken cancellationToken) => Task.FromResult(true);
+    }
+
     private sealed class MemoryDataStore : ILocalDataStore
     {
         private readonly TaskCompletionSource _continueSave = new(
@@ -1032,11 +1328,15 @@ public sealed class SettingsViewModelTests
 
         public Exception? SaveException { get; set; }
 
+        public Queue<Exception?> SaveExceptions { get; } = [];
+
         public int SaveCount { get; private set; }
 
         public DataEnvelope LastSaved { get; private set; }
 
         public bool ShouldBlockSave { get; set; }
+
+        public List<string> Operations { get; set; } = [];
 
         public Task<DataLoadResult> LoadAsync(
             CancellationToken cancellationToken) => Task.FromResult(
@@ -1051,6 +1351,7 @@ public sealed class SettingsViewModelTests
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            Operations.Add("Save");
             SaveCount++;
             if (ShouldBlockSave)
             {
@@ -1058,7 +1359,15 @@ public sealed class SettingsViewModelTests
                     .ConfigureAwait(false);
             }
 
-            if (SaveException is not null)
+            if (SaveExceptions.Count > 0)
+            {
+                Exception? queuedException = SaveExceptions.Dequeue();
+                if (queuedException is not null)
+                {
+                    throw queuedException;
+                }
+            }
+            else if (SaveException is not null)
             {
                 throw SaveException;
             }

@@ -101,7 +101,10 @@ public partial class App : Microsoft.UI.Xaml.Application
                 _coordinator!.LastThemeResult,
                 _coordinator.LastBackdropResult,
                 _coordinator.LastStartupStatus,
-                _coordinator.IsStartupSynchronized);
+                _coordinator.IsStartupSynchronized,
+                _coordinator.LastLanguageResult,
+                _coordinator.IsLanguageSynchronized,
+                _coordinator.LanguageConsistencyState);
             await _settingsViewModel.RefreshNotificationAvailabilityAsync();
             _settingsViewModel.MarkReady();
 
@@ -334,6 +337,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             dispatcherQueue);
         IClock clock = new SystemClock();
         IAppLanguageService appLanguageService = new AppLanguageService();
+        AppLanguage sessionLanguage = appLanguageService.GetEffectiveLanguage();
         IAppDataPathProvider pathProvider = new AppDataPathProvider();
         ILocalDataStore dataStore = new LocalDataStore(
             pathProvider,
@@ -359,7 +363,7 @@ public partial class App : Microsoft.UI.Xaml.Application
         IExternalUriLauncher externalUriLauncher = new ExternalUriLauncher();
         AppSettings initialSettings = AppSettings.CreateDefault(
             themeService.ResolveInitialTheme(),
-            appLanguageService.GetEffectiveLanguage());
+            sessionLanguage);
 
         _gameManager = new GameManager(dataStore, clock, initialSettings);
         _shellViewModel = new ShellViewModel();
@@ -387,7 +391,9 @@ public partial class App : Microsoft.UI.Xaml.Application
             _startupService,
             _windowStateService,
             notificationCoordinator,
-            restoreCoordinator);
+            restoreCoordinator,
+            appLanguageService,
+            sessionLanguage);
         _coordinator.NavigationRequested += OnNavigationRequested;
         _compactViewModel = new CompactViewModel(
             _gameManager,
@@ -417,7 +423,9 @@ public partial class App : Microsoft.UI.Xaml.Application
             notificationCoordinator,
             notificationPermissionService,
             settingsLauncher,
-            _coordinator);
+            _coordinator,
+            appLanguageService,
+            sessionLanguage);
 
         _startupStage = "OverviewPage";
         _overviewPage = new OverviewPage(_overviewViewModel);

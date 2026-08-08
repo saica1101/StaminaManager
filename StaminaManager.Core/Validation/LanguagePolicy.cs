@@ -8,36 +8,86 @@ public static class LanguagePolicy
 
     public const string EnglishLanguageTag = "en-US";
 
+    private static readonly LanguageDefinition[] Definitions =
+    [
+        new(AppLanguage.Japanese, JapaneseLanguageTag, 0),
+        new(AppLanguage.English, EnglishLanguageTag, 1),
+    ];
+
     public static bool TryGetLanguage(
         string? languageTag,
         out AppLanguage language)
     {
-        if (string.Equals(
-            languageTag,
-            JapaneseLanguageTag,
-            StringComparison.OrdinalIgnoreCase))
+        foreach (LanguageDefinition definition in Definitions)
         {
-            language = AppLanguage.Japanese;
-            return true;
-        }
-
-        if (string.Equals(
-            languageTag,
-            EnglishLanguageTag,
-            StringComparison.OrdinalIgnoreCase))
-        {
-            language = AppLanguage.English;
-            return true;
+            if (string.Equals(
+                languageTag,
+                definition.Tag,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                language = definition.Language;
+                return true;
+            }
         }
 
         language = default;
         return false;
     }
 
-    public static string GetLanguageTag(AppLanguage language) => language switch
+    public static bool TryGetLanguageTag(
+        AppLanguage language,
+        out string languageTag)
     {
-        AppLanguage.Japanese => JapaneseLanguageTag,
-        AppLanguage.English => EnglishLanguageTag,
-        _ => throw new ArgumentOutOfRangeException(nameof(language)),
-    };
+        foreach (LanguageDefinition definition in Definitions)
+        {
+            if (definition.Language == language)
+            {
+                languageTag = definition.Tag;
+                return true;
+            }
+        }
+
+        languageTag = string.Empty;
+        return false;
+    }
+
+    public static string GetLanguageTag(AppLanguage language) =>
+        TryGetLanguageTag(language, out string languageTag)
+            ? languageTag
+            : throw new ArgumentOutOfRangeException(nameof(language));
+
+    public static bool TryFromSelectionIndex(
+        int index,
+        out AppLanguage language)
+    {
+        foreach (LanguageDefinition definition in Definitions)
+        {
+            if (definition.SelectionIndex == index)
+            {
+                language = definition.Language;
+                return true;
+            }
+        }
+
+        language = default;
+        return false;
+    }
+
+    public static int ToSelectionIndex(AppLanguage language)
+    {
+        foreach (LanguageDefinition definition in Definitions)
+        {
+            if (definition.Language == language)
+            {
+                return definition.SelectionIndex;
+            }
+        }
+
+        throw new ArgumentOutOfRangeException(nameof(language), language, null);
+    }
+
+    private sealed record LanguageDefinition(
+        AppLanguage Language,
+        string Tag,
+        int SelectionIndex);
 }

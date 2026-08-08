@@ -47,10 +47,99 @@ public sealed class AppCoordinatorNotificationTests
         Assert.HasCount(2, reconciler.LastGames);
     }
 
-    private static (AppCoordinator, GameManager) CreateCoordinator(
-        INotificationReconciler reconciler)
+    [TestMethod]
+    public async Task InitializeAsync_LanguageMismatchIsFixedBeforeNotifications()
     {
-        AppSettings settings = AppSettings.CreateDefault(AppTheme.Light);
+        RecordingNotificationReconciler reconciler = new();
+        RecordingLanguageService language = new(reconciler.Operations)
+        {
+            EffectiveLanguage = AppLanguage.Japanese,
+        };
+        (AppCoordinator coordinator, _) = CreateCoordinator(
+            reconciler,
+            language,
+            savedLanguage: AppLanguage.English);
+
+        await coordinator.InitializeAsync(CancellationToken.None);
+
+        CollectionAssert.AreEqual(
+            new[] { AppLanguage.English },
+            language.SetRequests);
+        Assert.IsLessThan(
+            reconciler.Operations.IndexOf("Notifications"),
+            reconciler.Operations.IndexOf("LanguageSet"));
+        Assert.IsTrue(coordinator.IsLanguageSynchronized);
+    }
+
+    [TestMethod]
+    public async Task InitializeAsync_LanguageFailureKeepsDataAndRetriesBeforeNotifications()
+    {
+        RecordingNotificationReconciler reconciler = new();
+        RecordingLanguageService language = new(reconciler.Operations)
+        {
+            EffectiveLanguage = AppLanguage.Japanese,
+        };
+        language.Results.Enqueue(new LanguageChangeResult(
+            AppLanguage.English,
+            IsApplied: false,
+            LanguageFailureReason.PlatformError));
+        language.Results.Enqueue(new LanguageChangeResult(
+            AppLanguage.English,
+            IsApplied: true,
+            LanguageFailureReason.None));
+        (AppCoordinator coordinator, GameManager manager) = CreateCoordinator(
+            reconciler,
+            language,
+            savedLanguage: AppLanguage.English);
+
+        await coordinator.InitializeAsync(CancellationToken.None);
+
+        Assert.AreEqual(
+            AppLanguage.English,
+            manager.CurrentData.Settings.Language);
+        Assert.IsFalse(coordinator.IsLanguageSynchronized);
+        Assert.AreEqual(
+            LanguageConsistencyState.Inconsistent,
+            coordinator.LanguageConsistencyState);
+        Assert.AreEqual(0, reconciler.CallCount);
+
+        await coordinator.ReconcileDerivedStateAsync(CancellationToken.None);
+
+        Assert.IsTrue(coordinator.IsLanguageSynchronized);
+        Assert.AreEqual(1, reconciler.CallCount);
+        Assert.AreEqual(
+            AppLanguage.English,
+            manager.CurrentData.Settings.Language);
+    }
+
+    [TestMethod]
+    public async Task InitializeAsync_MatchingLanguageDoesNotCallSetter()
+    {
+        RecordingNotificationReconciler reconciler = new();
+        RecordingLanguageService language = new(reconciler.Operations)
+        {
+            EffectiveLanguage = AppLanguage.English,
+        };
+        (AppCoordinator coordinator, _) = CreateCoordinator(
+            reconciler,
+            language,
+            savedLanguage: AppLanguage.English);
+
+        await coordinator.InitializeAsync(CancellationToken.None);
+
+        Assert.IsEmpty(language.SetRequests);
+        Assert.AreEqual(1, reconciler.CallCount);
+    }
+
+    private static (AppCoordinator, GameManager) CreateCoordinator(
+        INotificationReconciler reconciler,
+        IAppLanguageService? language = null,
+        AppLanguage savedLanguage = AppLanguage.Japanese)
+    {
+        AppSettings settings = AppSettings.CreateDefault(AppTheme.Light) with
+        {
+            Language = savedLanguage,
+        };
         GameEntry game = new(
             Guid.NewGuid(),
             "First",
@@ -85,7 +174,9 @@ public sealed class AppCoordinatorNotificationTests
             new PassThroughBackdropService(),
             new PassThroughStartupService(),
             new PassThroughWindowStateService(),
-            reconciler);
+            reconciler,
+            appLanguageService: language,
+            sessionLanguage: AppLanguage.Japanese);
         return (coordinator, manager);
     }
 
@@ -93,6 +184,8 @@ public sealed class AppCoordinatorNotificationTests
         : INotificationReconciler
     {
         public int CallCount { get; private set; }
+
+        public List<string> Operations { get; } = [];
 
         public IReadOnlyCollection<GameEntry> LastGames { get; private set; } =
             Array.Empty<GameEntry>();
@@ -102,9 +195,40 @@ public sealed class AppCoordinatorNotificationTests
             AppSettings settings,
             CancellationToken cancellationToken)
         {
+            Operations.Add("Notifications");
             CallCount++;
             LastGames = games.ToArray();
             return Task.FromResult(NotificationReconcileResult.Success);
+        }
+    }
+
+    private sealed class RecordingLanguageService(
+        List<string> operations) : IAppLanguageService
+    {
+        public AppLanguage EffectiveLanguage { get; set; }
+
+        public List<AppLanguage> SetRequests { get; } = [];
+
+        public Queue<LanguageChangeResult> Results { get; } = [];
+
+        public AppLanguage GetEffectiveLanguage() => EffectiveLanguage;
+
+        public LanguageChangeResult SetLanguage(AppLanguage language)
+        {
+            operations.Add("LanguageSet");
+            SetRequests.Add(language);
+            LanguageChangeResult result = Results.Count > 0
+                ? Results.Dequeue()
+                : new LanguageChangeResult(
+                    language,
+                    IsApplied: true,
+                    LanguageFailureReason.None);
+            if (result.IsApplied)
+            {
+                EffectiveLanguage = language;
+            }
+
+            return result;
         }
     }
 

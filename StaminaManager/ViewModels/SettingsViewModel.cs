@@ -44,6 +44,14 @@ public sealed partial class SettingsViewModel : ObservableObject
         "バックアップ処理中です。完了してからもう一度お試しください。";
     private const string UnexpectedFailureMessage =
         "設定を変更できませんでした。もう一度お試しください。";
+    private const string LanguageSaveFailureMessage =
+        "言語設定を保存できませんでした。以前の設定に戻しました。"
+        + "もう一度お試しください。";
+    private const string LanguageRestartMessage =
+        "言語を変更しました。アプリを再起動すると表示へ反映されます。";
+    private const string LanguageInconsistentMessage =
+        "言語設定は保存しましたが、Windowsの言語を適用できませんでした。"
+        + "次回起動時に再試行します。";
     private readonly GameManager _gameManager;
     private readonly IThemeService _themeService;
     private readonly IBackdropService _backdropService;
@@ -52,7 +60,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly INotificationPermissionService
         _notificationPermissionService;
     private readonly ISettingsLauncher _settingsLauncher;
+    private readonly IAppLanguageService _appLanguageService;
     private readonly AppCoordinator? _appCoordinator;
+    private readonly AppLanguage _sessionLanguage;
     private readonly SemaphoreSlim _mutationGate = new(1, 1);
     private int _lastAppliedAcrylicTintOpacityPercent;
 
@@ -95,7 +105,9 @@ public sealed partial class SettingsViewModel : ObservableObject
         INotificationReconciler notificationReconciler,
         INotificationPermissionService notificationPermissionService,
         ISettingsLauncher settingsLauncher,
-        AppCoordinator? appCoordinator = null)
+        AppCoordinator? appCoordinator = null,
+        IAppLanguageService? appLanguageService = null,
+        AppLanguage? sessionLanguage = null)
     {
         ArgumentNullException.ThrowIfNull(gameManager);
         ArgumentNullException.ThrowIfNull(themeService);
@@ -113,8 +125,13 @@ public sealed partial class SettingsViewModel : ObservableObject
         _notificationPermissionService = notificationPermissionService;
         _settingsLauncher = settingsLauncher;
         _appCoordinator = appCoordinator;
+        _appLanguageService = appLanguageService
+            ?? new PassThroughLanguageService();
+        _sessionLanguage = sessionLanguage
+            ?? _appLanguageService.GetEffectiveLanguage();
         AppSettings settings = gameManager.CurrentData.Settings;
         Theme = settings.Theme;
+        Language = settings.Language;
         SelectedBackdrop = settings.Backdrop;
         ActualBackdrop = settings.Backdrop;
         AcrylicTintOpacityPercent = settings.AcrylicTintOpacityPercent;
@@ -146,6 +163,11 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsDarkTheme))]
     public partial AppTheme Theme { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedLanguageIndex))]
+    [NotifyPropertyChangedFor(nameof(IsLanguageRestartRequired))]
+    public partial AppLanguage Language { get; private set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SelectedBackdropIndex))]
@@ -225,6 +247,17 @@ public sealed partial class SettingsViewModel : ObservableObject
     public partial bool IsAppearanceBusy { get; private set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSettingsInteractionEnabled))]
+    public partial bool IsLanguageBusy { get; private set; }
+
+    [ObservableProperty]
+    public partial LanguageConsistencyState LanguageConsistencyState
+    {
+        get;
+        private set;
+    } = LanguageConsistencyState.Synchronized;
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(BackupStatusVisibility))]
     public partial string BackupStatusText { get; private set; } =
         string.Empty;
@@ -235,7 +268,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         InitializationState == SettingsInitializationState.Ready;
 
     public bool IsSettingsInteractionEnabled =>
-        IsReady && !IsBackupBusy && !IsAppearanceBusy;
+        IsReady && !IsBackupBusy && !IsAppearanceBusy && !IsLanguageBusy;
 
     public bool IsAcrylicOpacityEnabled =>
         IsReady
@@ -274,6 +307,12 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public int SelectedBackdropIndex =>
         BackdropPolicy.ToSelectionIndex(SelectedBackdrop);
+
+    public int SelectedLanguageIndex =>
+        LanguagePolicy.ToSelectionIndex(Language);
+
+    public bool IsLanguageRestartRequired =>
+        Language != _sessionLanguage;
 
     public int CloseBehaviorIndex => (int)CloseBehavior;
 
@@ -445,6 +484,158 @@ public sealed partial class SettingsViewModel : ObservableObject
         finally
         {
             IsAppearanceBusy = false;
+            _mutationGate.Release();
+        }
+    }
+
+    public async Task<bool> SetLanguageAsync(
+        AppLanguage requestedLanguage,
+        CancellationToken cancellationToken = default)
+    {
+        if (!EnsureReady())
+        {
+            return false;
+        }
+
+        if (!LanguagePolicy.TryGetLanguageTag(
+            requestedLanguage,
+            out _))
+        {
+            ShowMessage(
+                "選択した言語は利用できません。",
+                InfoBarSeverity.Error);
+            return false;
+        }
+
+        await _mutationGate.WaitAsync(cancellationToken);
+        IsLanguageBusy = true;
+        try
+        {
+            AppLanguage previousLanguage = _gameManager.CurrentData
+                .Settings.Language;
+            if (previousLanguage == requestedLanguage)
+            {
+                Language = previousLanguage;
+                return true;
+            }
+
+            try
+            {
+                await _gameManager.UpdateSettingsAsync(
+                        settings => settings with
+                        {
+                            Language = requestedLanguage,
+                        },
+                        cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception) when (!IsProcessFatal(exception))
+            {
+                Debug.WriteLine(
+                    "Language setting save failed: "
+                    + exception.GetType().Name);
+                ShowMessage(
+                    LanguageSaveFailureMessage,
+                    InfoBarSeverity.Error);
+                return false;
+            }
+
+            LanguageChangeResult changeResult;
+            try
+            {
+                changeResult = _appLanguageService.SetLanguage(
+                    requestedLanguage);
+            }
+            catch (Exception exception) when (!IsProcessFatal(exception))
+            {
+                Debug.WriteLine(
+                    "Language override failed: "
+                    + exception.GetType().Name);
+                changeResult = new LanguageChangeResult(
+                    requestedLanguage,
+                    IsApplied: false,
+                    LanguageFailureReason.PlatformError);
+            }
+
+            if (!changeResult.IsApplied)
+            {
+                bool wasRolledBack = await RollbackLanguageAsync(
+                    previousLanguage);
+                if (wasRolledBack)
+                {
+                    Language = previousLanguage;
+                    LanguageConsistencyState =
+                        LanguageConsistencyState.Synchronized;
+                    ShowLanguageChangeFailure(
+                        changeResult.FailureReason);
+                }
+                else
+                {
+                    Language = requestedLanguage;
+                    LanguageConsistencyState =
+                        LanguageConsistencyState.Inconsistent;
+                    ShowMessage(
+                        LanguageInconsistentMessage,
+                        InfoBarSeverity.Warning,
+                        "言語設定の同期が完了していません");
+                }
+
+                return false;
+            }
+
+            Language = requestedLanguage;
+            LanguageConsistencyState =
+                LanguageConsistencyState.Synchronized;
+            NotificationReconcileResult notificationResult;
+            try
+            {
+                notificationResult = await _notificationReconciler
+                    .ReconcileAsync(
+                        _gameManager.Games,
+                        _gameManager.CurrentData.Settings,
+                        cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception) when (!IsProcessFatal(exception))
+            {
+                Debug.WriteLine(
+                    "Notification reconciliation failed after language change: "
+                    + exception.GetType().Name);
+                ShowNotificationReconcileFailure(
+                    hasInvalidSchedule: false);
+                return false;
+            }
+
+            if (notificationResult.HasFailures)
+            {
+                ShowNotificationReconcileFailure(
+                    notificationResult.HasInvalidSchedule);
+                return false;
+            }
+
+            if (IsLanguageRestartRequired)
+            {
+                ShowMessage(
+                    LanguageRestartMessage,
+                    InfoBarSeverity.Informational,
+                    "再起動が必要です");
+            }
+            else
+            {
+                CloseInfoBar();
+            }
+
+            return true;
+        }
+        finally
+        {
+            IsLanguageBusy = false;
             _mutationGate.Release();
         }
     }
@@ -947,6 +1138,7 @@ public sealed partial class SettingsViewModel : ObservableObject
                 || coordinator.LastThemeResult?.IsApplied != true
                 || coordinator.LastBackdropResult?.ErrorMessage is not null
                 || !coordinator.IsStartupSynchronized
+                || !coordinator.IsLanguageSynchronized
                 || coordinator.LastNotificationReconcileResult?.HasFailures
                     == true;
             BackupStatusText = hasRetry
@@ -1005,10 +1197,16 @@ public sealed partial class SettingsViewModel : ObservableObject
         ThemeResult? themeResult = null,
         BackdropResult? backdropResult = null,
         StartupStatus? startupStatus = null,
-        bool isStartupSynchronized = true)
+        bool isStartupSynchronized = true,
+        LanguageChangeResult? languageResult = null,
+        bool isLanguageSynchronized = true,
+        LanguageConsistencyState languageConsistencyState =
+            LanguageConsistencyState.Synchronized)
     {
         AppSettings settings = _gameManager.CurrentData.Settings;
         Theme = settings.Theme;
+        Language = settings.Language;
+        LanguageConsistencyState = languageConsistencyState;
         SelectedBackdrop = settings.Backdrop;
         ActualBackdrop = backdropResult?.ActualBackdrop
             ?? settings.Backdrop;
@@ -1033,6 +1231,14 @@ public sealed partial class SettingsViewModel : ObservableObject
                     : "Windowsログイン時起動の実際の状態は画面へ反映しましたが、"
                         + "設定を保存できませんでした。再試行してください。",
                 InfoBarSeverity.Error);
+            return;
+        }
+
+        if (!isLanguageSynchronized)
+        {
+            ShowLanguageSynchronizationFailure(
+                languageResult?.FailureReason
+                ?? LanguageFailureReason.PlatformError);
             return;
         }
 
@@ -1238,6 +1444,8 @@ public sealed partial class SettingsViewModel : ObservableObject
                     ?? restored.AcrylicTintOpacityPercent
                 : restored.AcrylicTintOpacityPercent;
         CloseBehavior = restored.CloseBehavior;
+        Language = restored.Language;
+        LanguageConsistencyState = coordinator.LanguageConsistencyState;
         IsStartupEnabled = restored.StartupEnabled;
         AreNotificationsEnabled = restored.NotificationsEnabled;
         NotificationLeadMinutes = restored.NotificationLeadMinutes;
@@ -1392,6 +1600,55 @@ public sealed partial class SettingsViewModel : ObservableObject
                 + exception.GetType().Name);
             return ApplySafeBackdropFallback();
         }
+    }
+
+    private async Task<bool> RollbackLanguageAsync(
+        AppLanguage previousLanguage)
+    {
+        try
+        {
+            await _gameManager.UpdateSettingsAsync(
+                    settings => settings with
+                    {
+                        Language = previousLanguage,
+                    },
+                    CancellationToken.None);
+            return _gameManager.CurrentData.Settings.Language
+                == previousLanguage;
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Language setting rollback failed: "
+                + exception.GetType().Name);
+            return false;
+        }
+    }
+
+    private void ShowLanguageChangeFailure(
+        LanguageFailureReason reason)
+    {
+        string message = reason switch
+        {
+            LanguageFailureReason.Unsupported =>
+                "選択した言語は利用できません。以前の設定に戻しました。",
+            _ => "Windowsの言語を変更できませんでした。"
+                + "以前の設定に戻しました。もう一度お試しください。",
+        };
+        ShowMessage(message, InfoBarSeverity.Error);
+    }
+
+    private void ShowLanguageSynchronizationFailure(
+        LanguageFailureReason reason)
+    {
+        string message = reason == LanguageFailureReason.Unsupported
+            ? "保存済みの言語はこのバージョンでは利用できません。"
+            : "保存済みの言語をWindowsへ適用できませんでした。"
+                + "次回起動時に再試行します。";
+        ShowMessage(
+            message,
+            InfoBarSeverity.Warning,
+            "言語の同期が完了していません");
     }
 
     private AppearanceRollbackStatus RollbackAcrylicOpacity(
@@ -1619,6 +1876,14 @@ public sealed partial class SettingsViewModel : ObservableObject
             AppSettings settings,
             CancellationToken cancellationToken) => Task.FromResult(
                 NotificationReconcileResult.Success);
+    }
+
+    private sealed class PassThroughLanguageService : IAppLanguageService
+    {
+        public AppLanguage GetEffectiveLanguage() => AppLanguage.Japanese;
+
+        public LanguageChangeResult SetLanguage(AppLanguage language) =>
+            new(language, IsApplied: true, LanguageFailureReason.None);
     }
 
     private sealed class PassThroughPermissionService

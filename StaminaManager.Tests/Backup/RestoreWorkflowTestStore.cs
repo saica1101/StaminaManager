@@ -30,7 +30,8 @@ internal sealed class RestoreWorkflowTestStore : IAsyncDisposable
         string gameName,
         bool startupEnabled,
         BackdropKind backdrop = BackdropKind.Mica,
-        int acrylicTintOpacityPercent = 80)
+        int acrylicTintOpacityPercent = 80,
+        AppLanguage language = AppLanguage.Japanese)
     {
         string root = Path.Combine(
             Path.GetTempPath(),
@@ -44,7 +45,8 @@ internal sealed class RestoreWorkflowTestStore : IAsyncDisposable
                 gameName,
                 startupEnabled,
                 backdrop,
-                acrylicTintOpacityPercent),
+                acrylicTintOpacityPercent,
+                language),
             CancellationToken.None);
         return new RestoreWorkflowTestStore(root, paths, store);
     }
@@ -86,7 +88,8 @@ internal sealed class RestoreWorkflowTestStore : IAsyncDisposable
         string gameName,
         bool startupEnabled,
         BackdropKind backdrop,
-        int acrylicTintOpacityPercent)
+        int acrylicTintOpacityPercent,
+        AppLanguage language)
     {
         GameEntry game = new(
             Guid.NewGuid(),
@@ -108,6 +111,7 @@ internal sealed class RestoreWorkflowTestStore : IAsyncDisposable
                 SelectedCompactGameId = game.Id,
                 Backdrop = backdrop,
                 AcrylicTintOpacityPercent = acrylicTintOpacityPercent,
+                Language = language,
             });
     }
 }
