@@ -46,10 +46,14 @@ $threeColumnMinimumWidth = 720
 if (-not ('StaminaManagerUiTestNative' -as [type])) {
     Add-Type -TypeDefinition @'
 using System;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 
 public static class StaminaManagerUiTestNative
 {
+    private static readonly IntPtr
+        DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = new IntPtr(-4);
+
     [StructLayout(LayoutKind.Sequential)]
     public struct RECT
     {
@@ -59,9 +63,10 @@ public static class StaminaManagerUiTestNative
         public int Bottom;
     }
 
-    [DllImport("user32.dll", SetLastError = true)]
+    [DllImport("user32.dll", EntryPoint = "MoveWindow",
+        SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    public static extern bool MoveWindow(
+    private static extern bool MoveWindowNative(
         IntPtr hWnd,
         int x,
         int y,
@@ -69,11 +74,17 @@ public static class StaminaManagerUiTestNative
         int height,
         bool repaint);
 
-    [DllImport("user32.dll", SetLastError = true)]
+    [DllImport("user32.dll", EntryPoint = "GetWindowRect",
+        SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    public static extern bool GetWindowRect(
+    private static extern bool GetWindowRectNative(
         IntPtr hWnd,
         out RECT rect);
+
+    [DllImport("user32.dll", EntryPoint = "SetThreadDpiAwarenessContext",
+        SetLastError = true)]
+    private static extern IntPtr SetThreadDpiAwarenessContextNative(
+        IntPtr dpiContext);
 
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -89,6 +100,115 @@ public static class StaminaManagerUiTestNative
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool ShowWindow(IntPtr hWnd, int command);
+
+    private static IntPtr EnterPerMonitorAwareV2()
+    {
+        IntPtr previous = SetThreadDpiAwarenessContextNative(
+            DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+        if (previous == IntPtr.Zero)
+        {
+            int errorCode = Marshal.GetLastWin32Error();
+            throw new Win32Exception(
+                errorCode,
+                "SetThreadDpiAwarenessContext failed.");
+        }
+
+        return previous;
+    }
+
+    private static void RestoreDpiAwarenessContext(
+        IntPtr previous,
+        Exception operationError)
+    {
+        try
+        {
+            if (SetThreadDpiAwarenessContextNative(previous) == IntPtr.Zero)
+            {
+                int errorCode = Marshal.GetLastWin32Error();
+                throw new Win32Exception(
+                    errorCode,
+                    "DPI awareness context restoration failed.");
+            }
+        }
+        catch (Exception restoreError)
+        {
+            if (operationError != null)
+            {
+                throw new AggregateException(
+                    "DPI context restoration failed after the operation " +
+                    "failed.",
+                    operationError,
+                    restoreError);
+            }
+
+            throw;
+        }
+    }
+
+    public static bool GetWindowRect(IntPtr hWnd, out RECT rect)
+    {
+        rect = default;
+        IntPtr previous = EnterPerMonitorAwareV2();
+        Exception operationError = null;
+        try
+        {
+            if (!GetWindowRectNative(hWnd, out rect))
+            {
+                int errorCode = Marshal.GetLastWin32Error();
+                throw new Win32Exception(
+                    errorCode,
+                    "GetWindowRect failed.");
+            }
+
+            return true;
+        }
+        catch (Exception error)
+        {
+            operationError = error;
+            throw;
+        }
+        finally
+        {
+            RestoreDpiAwarenessContext(previous, operationError);
+        }
+    }
+
+    public static bool MoveWindow(
+        IntPtr hWnd,
+        int x,
+        int y,
+        int width,
+        int height,
+        bool repaint)
+    {
+        IntPtr previous = EnterPerMonitorAwareV2();
+        Exception operationError = null;
+        try
+        {
+            if (!MoveWindowNative(
+                    hWnd,
+                    x,
+                    y,
+                    width,
+                    height,
+                    repaint))
+            {
+                int errorCode = Marshal.GetLastWin32Error();
+                throw new Win32Exception(errorCode, "MoveWindow failed.");
+            }
+
+            return true;
+        }
+        catch (Exception error)
+        {
+            operationError = error;
+            throw;
+        }
+        finally
+        {
+            RestoreDpiAwarenessContext(previous, operationError);
+        }
+    }
 }
 '@
 }
