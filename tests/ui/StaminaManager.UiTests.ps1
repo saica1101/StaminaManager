@@ -145,7 +145,7 @@ public static class StaminaManagerUiTestNative
         }
     }
 
-    public static bool GetWindowRect(IntPtr hWnd, out RECT rect)
+    public static void GetWindowRect(IntPtr hWnd, out RECT rect)
     {
         rect = default;
         IntPtr previous = EnterPerMonitorAwareV2();
@@ -159,8 +159,6 @@ public static class StaminaManagerUiTestNative
                     errorCode,
                     "GetWindowRect failed.");
             }
-
-            return true;
         }
         catch (Exception error)
         {
@@ -173,7 +171,7 @@ public static class StaminaManagerUiTestNative
         }
     }
 
-    public static bool MoveWindow(
+    public static void MoveWindow(
         IntPtr hWnd,
         int x,
         int y,
@@ -196,8 +194,6 @@ public static class StaminaManagerUiTestNative
                 int errorCode = Marshal.GetLastWin32Error();
                 throw new Win32Exception(errorCode, "MoveWindow failed.");
             }
-
-            return true;
         }
         catch (Exception error)
         {
@@ -1180,13 +1176,9 @@ function Get-MainWindowInfo {
     }
 
     $rect = [StaminaManagerUiTestNative+RECT]::new()
-    if (-not [StaminaManagerUiTestNative]::GetWindowRect(
+    [StaminaManagerUiTestNative]::GetWindowRect(
             [IntPtr]$window.hwnd,
-            [ref]$rect)) {
-        $errorCode = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
-        throw "GetWindowRect failed for HWND $($window.hwnd) " +
-            "(Win32Error=$errorCode)."
-    }
+            [ref]$rect)
 
     $width = $rect.Right - $rect.Left
     $height = $rect.Bottom - $rect.Top
@@ -1248,16 +1240,13 @@ function Set-OverviewContentWidth {
         $window = Get-MainWindowInfo
         $physicalDelta = [int][Math]::Round(
             [double]$effectiveDelta * $dpi / 96d)
-        $moved = [StaminaManagerUiTestNative]::MoveWindow(
+        [StaminaManagerUiTestNative]::MoveWindow(
             $handle,
             [int]$window.x,
             [int]$window.y,
             [int]$window.width + $physicalDelta,
             [int]$window.height,
             $true)
-        if (-not $moved) {
-            throw "MoveWindow failed for content width $EffectiveWidth."
-        }
 
         Start-Sleep -Milliseconds 300
     }
@@ -1278,16 +1267,13 @@ function Set-WindowToStandardMinimumWidth {
     }
 
     [StaminaManagerUiTestNative]::ShowWindow($handle, 9) | Out-Null
-    $moved = [StaminaManagerUiTestNative]::MoveWindow(
+    [StaminaManagerUiTestNative]::MoveWindow(
         $handle,
         [int]$window.x,
         [int]$window.y,
         1,
         [int]$window.height,
         $true)
-    if (-not $moved) {
-        throw 'MoveWindow failed for the Standard minimum width.'
-    }
 
     Start-Sleep -Milliseconds 500
     $content = Get-ElementMatch OverviewScrollViewer
@@ -1508,16 +1494,13 @@ function Move-TestWindowToBounds {
     param([object]$Bounds)
 
     $window = Get-MainWindowInfo
-    $moved = [StaminaManagerUiTestNative]::MoveWindow(
+    [StaminaManagerUiTestNative]::MoveWindow(
         [IntPtr]$window.hwnd,
         [int]$Bounds.x,
         [int]$Bounds.y,
         [int]$Bounds.width,
         [int]$Bounds.height,
         $true)
-    if (-not $moved) {
-        throw 'The original window bounds could not be restored.'
-    }
 
     Start-Sleep -Milliseconds 300
 }
