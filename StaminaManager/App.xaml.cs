@@ -355,6 +355,8 @@ public partial class App : Microsoft.UI.Xaml.Application
         INotificationPermissionService notificationPermissionService =
             new NotificationPermissionService();
         ISettingsLauncher settingsLauncher = new WindowsSettingsLauncher();
+        IAppVersionProvider versionProvider = new AppVersionProvider();
+        IExternalUriLauncher externalUriLauncher = new ExternalUriLauncher();
         AppSettings initialSettings = AppSettings.CreateDefault(
             themeService.ResolveInitialTheme(),
             appLanguageService.GetEffectiveLanguage());
@@ -421,6 +423,9 @@ public partial class App : Microsoft.UI.Xaml.Application
         _overviewPage = new OverviewPage(_overviewViewModel);
         _startupStage = "SettingsPage";
         SettingsPage settingsPage = new(_settingsViewModel);
+        _startupStage = "AboutPage";
+        AboutPage aboutPage = new(
+            new AboutViewModel(versionProvider, externalUriLauncher));
         _startupStage = "CompactPage";
         CompactPage compactPage = new(_compactViewModel);
         _startupStage = "MainPage";
@@ -428,11 +433,13 @@ public partial class App : Microsoft.UI.Xaml.Application
             _shellViewModel,
             _overviewPage,
             settingsPage,
+            aboutPage,
             compactPage,
             _coordinator,
             _gameManager,
             clock,
-            assetStore);
+            assetStore,
+            versionProvider);
         _mainPage = mainPage;
         _startupStage = "MainWindow";
         _window = new MainWindow(mainPage);

@@ -42,6 +42,13 @@ public sealed partial class ShellViewModel : ObservableObject
             GameId: null));
 
     [RelayCommand]
+    private void ShowAbout() => RequestNavigation(
+        new AppNavigationRequest(
+            AppPage.About,
+            AppDisplayMode.Standard,
+            GameId: null));
+
+    [RelayCommand]
     private void EnterCompactMode() => RequestNavigation(
         new AppNavigationRequest(
             AppPage.Overview,

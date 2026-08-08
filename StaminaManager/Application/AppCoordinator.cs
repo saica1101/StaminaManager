@@ -9,6 +9,7 @@ public enum AppPage
 {
     Overview,
     Settings,
+    About,
 }
 
 public sealed record AppNavigationRequest(

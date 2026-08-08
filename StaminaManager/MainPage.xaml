@@ -51,6 +51,39 @@
                 Icon="Setting"
                 Tag="Settings" />
         </NavigationView.MenuItems>
+        <NavigationView.FooterMenuItems>
+            <NavigationViewItem
+                x:Name="AboutNavigationItem"
+                x:Uid="NavAbout"
+                AutomationProperties.AutomationId="NavAbout"
+                FontFamily="{StaticResource AppFontFamily}"
+                Icon="Help"
+                Tag="About" />
+        </NavigationView.FooterMenuItems>
+        <NavigationView.PaneFooter>
+            <Border
+                x:Name="VersionFooterBand"
+                AutomationProperties.AutomationId="VersionFooterBand"
+                BorderBrush="{ThemeResource CardStrokeBrush}"
+                BorderThickness="0,1,0,0"
+                HorizontalAlignment="Stretch"
+                Padding="16,8">
+                <StackPanel
+                    AutomationProperties.AccessibilityView="Content"
+                    Spacing="4">
+                    <TextBlock
+                        x:Uid="VersionFooterLabel"
+                        Style="{StaticResource AppSecondaryTextStyle}" />
+                    <TextBlock
+                        x:Name="VersionFooterText"
+                        AutomationProperties.AutomationId="VersionFooterText"
+                        AutomationProperties.Name="{x:Bind VersionFooterAutomationName}"
+                        AutomationProperties.HelpText="{x:Bind VersionFooterAutomationName}"
+                        Text="{x:Bind VersionText, Mode=OneTime}"
+                        Style="{StaticResource AppSecondaryTextStyle}" />
+                </StackPanel>
+            </Border>
+        </NavigationView.PaneFooter>
 
         <ContentControl
             x:Uid="ShellContentHost"

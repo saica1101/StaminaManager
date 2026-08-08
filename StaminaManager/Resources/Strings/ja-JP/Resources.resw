@@ -14,6 +14,10 @@
   <data name="NavOverview.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Overviewを開く</value></data>
   <data name="NavSettings.Content" xml:space="preserve"><value>Settings</value></data>
   <data name="NavSettings.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Settingsを開く</value></data>
+  <data name="NavAbout.Content" xml:space="preserve"><value>About</value></data>
+  <data name="NavAbout.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Aboutページを表示</value></data>
+  <data name="VersionFooterLabel.Text" xml:space="preserve"><value>バージョン</value></data>
+  <data name="VersionFooterText.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText" xml:space="preserve"><value>Stamina Managerのバージョン</value></data>
   <data name="CompactModeButton.Content" xml:space="preserve"><value>コンパクト表示</value></data>
   <data name="CompactModeButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>コンパクト表示へ切り替える</value></data>
   <data name="ShellContentHost.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>メイン コンテンツ</value></data>
@@ -130,4 +134,28 @@
   <data name="TrayOpenText" xml:space="preserve"><value>開く</value></data>
   <data name="TrayExitText" xml:space="preserve"><value>終了</value></data>
   <data name="StaminaNotificationDetailFormat" xml:space="preserve"><value>全回復予定: {0:g}</value></data>
+  <data name="AboutAppIcon.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Stamina Managerのアプリアイコン</value></data>
+  <data name="AboutAppName.Text" xml:space="preserve"><value>Stamina Manager</value></data>
+  <data name="AboutVersionLabel.Text" xml:space="preserve"><value>バージョン</value></data>
+  <data name="AboutDescription.Text" xml:space="preserve"><value>複数ゲームのスタミナ回復状況をまとめて管理するWindowsアプリです。</value></data>
+  <data name="AboutInfoBar.Title" xml:space="preserve"><value>リンクを開けませんでした</value></data>
+  <data name="AboutInfoBar.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>外部リンクのエラー</value></data>
+  <data name="AboutLinksHeading.Text" xml:space="preserve"><value>リンク</value></data>
+  <data name="OpenGitHubButton.Content" xml:space="preserve"><value>GitHubリポジトリを開く</value></data>
+  <data name="OpenGitHubButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>GitHubリポジトリを既定のブラウザーで開く</value></data>
+  <data name="OpenGitHubButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText" xml:space="preserve"><value>GitHubリポジトリを既定のブラウザーで開きます。</value></data>
+  <data name="OpenReadmeButton.Content" xml:space="preserve"><value>READMEを開く</value></data>
+  <data name="OpenReadmeButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>READMEを既定のブラウザーで開く</value></data>
+  <data name="OpenReadmeButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText" xml:space="preserve"><value>READMEを既定のブラウザーで開きます。</value></data>
+  <data name="AboutTechnologyHeading.Text" xml:space="preserve"><value>技術スタック</value></data>
+  <data name="AboutTechCSharp.Text" xml:space="preserve"><value>C#</value></data>
+  <data name="AboutTechDotNet.Text" xml:space="preserve"><value>.NET 10</value></data>
+  <data name="AboutTechWinUI.Text" xml:space="preserve"><value>WinUI 3</value></data>
+  <data name="AboutTechWindowsAppSdk.Text" xml:space="preserve"><value>Windows App SDK</value></data>
+  <data name="AboutTechToolkit.Text" xml:space="preserve"><value>CommunityToolkit.Mvvm</value></data>
+  <data name="AboutTechWinUIEx.Text" xml:space="preserve"><value>WinUIEx</value></data>
+  <data name="AboutPrivacyHeading.Text" xml:space="preserve"><value>プライバシー</value></data>
+  <data name="AboutPrivacyDescription.Text" xml:space="preserve"><value>アカウント、広告、テレメトリを使用せず、データは端末内に保存します。外部リンクはユーザー操作時だけ開きます。</value></data>
+  <data name="AboutLicenseHeading.Text" xml:space="preserve"><value>ライセンスと第三者コンポーネント</value></data>
+  <data name="AboutLicenseDescription.Text" xml:space="preserve"><value>最新情報はGitHubリポジトリ内の文書をご確認ください。内容は配布形態や依存コンポーネントの確認状況により変更される場合があります。</value></data>
 </root>

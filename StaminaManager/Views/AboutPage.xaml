@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="StaminaManager.Views.AboutPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="Transparent">
+
+    <ScrollViewer
+        x:Name="AboutScrollViewer"
+        AutomationProperties.AutomationId="AboutScrollViewer"
+        HorizontalContentAlignment="Stretch"
+        HorizontalScrollBarVisibility="Disabled"
+        HorizontalScrollMode="Disabled"
+        VerticalScrollBarVisibility="Auto"
+        VerticalScrollMode="Auto">
+        <StackPanel
+            x:Name="AboutPageRoot"
+            AutomationProperties.AutomationId="AboutPageRoot"
+            HorizontalAlignment="Stretch"
+            MaxWidth="720"
+            Padding="20,20,20,32"
+            Spacing="{StaticResource Spacing32}">
+            <StackPanel Spacing="{StaticResource Spacing12}">
+                <Image
+                    x:Uid="AboutAppIcon"
+                    AutomationProperties.AccessibilityView="Raw"
+                    Height="64"
+                    HorizontalAlignment="Left"
+                    Source="ms-appx:///Assets/Square150x150Logo.scale-100.png"
+                    Stretch="Uniform"
+                    Width="64" />
+                <TextBlock
+                    x:Uid="AboutAppName"
+                    Style="{StaticResource AppPageTitleTextStyle}" />
+                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Spacing4}">
+                    <TextBlock
+                        x:Uid="AboutVersionLabel"
+                        Style="{StaticResource AppSecondaryTextStyle}" />
+                    <TextBlock
+                        x:Name="AboutVersionText"
+                        AutomationProperties.AutomationId="AboutVersionText"
+                        Text="{x:Bind ViewModel.VersionText, Mode=OneTime}"
+                        Style="{StaticResource AppSecondaryTextStyle}" />
+                </StackPanel>
+            </StackPanel>
+
+            <TextBlock
+                x:Uid="AboutDescription"
+                Style="{StaticResource AppBodyTextStyle}"
+                TextWrapping="Wrap" />
+
+            <InfoBar
+                x:Name="AboutInfoBar"
+                x:Uid="AboutInfoBar"
+                AutomationProperties.AutomationId="AboutInfoBar"
+                AutomationProperties.HelpText="{x:Bind ViewModel.InfoBarMessage, Mode=OneWay}"
+                AutomationProperties.LiveSetting="Assertive"
+                IsClosable="True"
+                Closed="AboutInfoBar_Closed"
+                IsOpen="{x:Bind ViewModel.IsInfoBarOpen, Mode=OneWay}"
+                Message="{x:Bind ViewModel.InfoBarMessage, Mode=OneWay}"
+                Severity="Error" />
+
+            <StackPanel Spacing="{StaticResource Spacing12}">
+                <TextBlock
+                    x:Uid="AboutLinksHeading"
+                    Style="{StaticResource AppCardTitleTextStyle}" />
+                <Button
+                    x:Name="OpenGitHubButton"
+                    x:Uid="OpenGitHubButton"
+                    AutomationProperties.AutomationId="OpenGitHubButton"
+                    Command="{x:Bind ViewModel.OpenGitHubCommand, Mode=OneWay}"
+                    HorizontalAlignment="Left"
+                    Style="{StaticResource AccentButtonStyle}" />
+                <Button
+                    x:Name="OpenReadmeButton"
+                    x:Uid="OpenReadmeButton"
+                    AutomationProperties.AutomationId="OpenReadmeButton"
+                    Command="{x:Bind ViewModel.OpenReadmeCommand, Mode=OneWay}"
+                    HorizontalAlignment="Left"
+                    Style="{StaticResource DefaultButtonStyle}" />
+            </StackPanel>
+
+            <StackPanel Spacing="{StaticResource Spacing12}">
+                <TextBlock
+                    x:Uid="AboutTechnologyHeading"
+                    Style="{StaticResource AppCardTitleTextStyle}" />
+                <StackPanel Spacing="{StaticResource Spacing8}">
+                    <TextBlock
+                        x:Uid="AboutTechCSharp"
+                        Style="{StaticResource AppBodyTextStyle}" />
+                    <TextBlock
+                        x:Uid="AboutTechDotNet"
+                        Style="{StaticResource AppBodyTextStyle}" />
+                    <TextBlock
+                        x:Uid="AboutTechWinUI"
+                        Style="{StaticResource AppBodyTextStyle}" />
+                    <TextBlock
+                        x:Uid="AboutTechWindowsAppSdk"
+                        Style="{StaticResource AppBodyTextStyle}" />
+                    <TextBlock
+                        x:Uid="AboutTechToolkit"
+                        Style="{StaticResource AppBodyTextStyle}" />
+                    <TextBlock
+                        x:Uid="AboutTechWinUIEx"
+                        Style="{StaticResource AppBodyTextStyle}" />
+                </StackPanel>
+            </StackPanel>
+
+            <StackPanel Spacing="{StaticResource Spacing12}">
+                <TextBlock
+                    x:Uid="AboutPrivacyHeading"
+                    Style="{StaticResource AppCardTitleTextStyle}" />
+                <TextBlock
+                    x:Uid="AboutPrivacyDescription"
+                    Style="{StaticResource AppBodyTextStyle}"
+                    TextWrapping="Wrap" />
+            </StackPanel>
+
+            <StackPanel Spacing="{StaticResource Spacing12}">
+                <TextBlock
+                    x:Uid="AboutLicenseHeading"
+                    Style="{StaticResource AppCardTitleTextStyle}" />
+                <TextBlock
+                    x:Uid="AboutLicenseDescription"
+                    Style="{StaticResource AppBodyTextStyle}"
+                    TextWrapping="Wrap" />
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

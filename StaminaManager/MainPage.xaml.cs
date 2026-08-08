@@ -15,6 +15,7 @@ public sealed partial class MainPage : Page
 {
     private readonly OverviewPage _overviewPage;
     private readonly SettingsPage _settingsPage;
+    private readonly AboutPage _aboutPage;
     private readonly CompactPage _compactPage;
     private readonly AppCoordinator _coordinator;
     private readonly GameManager _gameManager;
@@ -27,29 +28,35 @@ public sealed partial class MainPage : Page
         ShellViewModel viewModel,
         OverviewPage overviewPage,
         SettingsPage settingsPage,
+        AboutPage aboutPage,
         CompactPage compactPage,
         AppCoordinator coordinator,
         GameManager gameManager,
         IClock clock,
-        AssetStore assetStore)
+        AssetStore assetStore,
+        IAppVersionProvider versionProvider)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
         ArgumentNullException.ThrowIfNull(overviewPage);
         ArgumentNullException.ThrowIfNull(settingsPage);
+        ArgumentNullException.ThrowIfNull(aboutPage);
         ArgumentNullException.ThrowIfNull(compactPage);
         ArgumentNullException.ThrowIfNull(coordinator);
         ArgumentNullException.ThrowIfNull(gameManager);
         ArgumentNullException.ThrowIfNull(clock);
         ArgumentNullException.ThrowIfNull(assetStore);
+        ArgumentNullException.ThrowIfNull(versionProvider);
 
         ViewModel = viewModel;
         _overviewPage = overviewPage;
         _settingsPage = settingsPage;
+        _aboutPage = aboutPage;
         _compactPage = compactPage;
         _coordinator = coordinator;
         _gameManager = gameManager;
         _clock = clock;
         _assetStore = assetStore;
+        VersionText = versionProvider.GetVersion().DisplayVersion;
         InitializeComponent();
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         _overviewPage.ViewModel.AddGameRequested += OnAddGameRequested;
@@ -66,6 +73,11 @@ public sealed partial class MainPage : Page
     }
 
     public ShellViewModel ViewModel { get; }
+
+    public string VersionText { get; }
+
+    public string VersionFooterAutomationName =>
+        $"Stamina Manager、バージョン {VersionText}";
 
     internal Task FlushPendingSettingsChangesAsync() =>
         _settingsPage.FlushPendingAppearanceChangesAsync();
@@ -87,6 +99,9 @@ public sealed partial class MainPage : Page
                 break;
             case "Settings":
                 ViewModel.ShowSettingsCommand.Execute(null);
+                break;
+            case "About":
+                ViewModel.ShowAboutCommand.Execute(null);
                 break;
         }
     }
@@ -121,6 +136,11 @@ public sealed partial class MainPage : Page
             {
                 selectedItem = SettingsNavigationItem;
                 ShellContentFrame.Content = _settingsPage;
+            }
+            else if (page == AppPage.About)
+            {
+                selectedItem = AboutNavigationItem;
+                ShellContentFrame.Content = _aboutPage;
             }
             else
             {
