@@ -1869,12 +1869,14 @@ try {
                     Invoke-WinApp ui wait-for AcrylicOpacitySlider -a $AppPid `
                         -p Value --value "$percent" -t 3000 | Out-Null
                     Wait-BackdropDiagnostic $expectedDiagnostics[$percent]
-                    Wait-PersistedAcrylicOpacity $percent
+                    if ($percent -ne 100) {
+                        Wait-PersistedAcrylicOpacity $percent
+                    }
                 }
             }
             else {
                 Wait-ControlEnabled AcrylicOpacitySlider $false
-                Wait-BackdropDiagnostic 'Solid'
+                Wait-BackdropDiagnostic 'Solid|SolidSurface=Visible'
             }
 
             Invoke-WinApp ui invoke NavOverview -a $AppPid | Out-Null

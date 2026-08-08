@@ -129,7 +129,6 @@
                             SmallChange="1"
                             StepFrequency="1"
                             TickFrequency="10"
-                            Value="{x:Bind ViewModel.AcrylicTintOpacityPercent, Mode=OneWay}"
                             ValueChanged="AcrylicOpacitySlider_ValueChanged" />
 
                         <TextBlock

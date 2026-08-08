@@ -226,6 +226,34 @@ public sealed class SettingsPageAppearanceRoutingContractTests
     }
 
     [TestMethod]
+    public void AcrylicOpacityRollback_同期メソッドだけがSlider値を更新する()
+    {
+        string xaml = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "StaminaManager",
+            "Views",
+            "SettingsPage.xaml"));
+        string source = LoadSettingsPageSource();
+        string synchronizeMethod = ExtractMethod(
+            source,
+            "private void SynchronizeControls()",
+            "internal async Task FlushPendingAppearanceChangesAsync()");
+
+        Assert.DoesNotContain(
+            "Value=\"{x:Bind ViewModel.AcrylicTintOpacityPercent, Mode=OneWay}\"",
+            xaml);
+        StringAssert.Contains(
+            synchronizeMethod,
+            "_isSynchronizingControls = true;");
+        StringAssert.Contains(
+            synchronizeMethod,
+            "AcrylicOpacitySlider.Value =");
+        StringAssert.Contains(
+            synchronizeMethod,
+            "_isSynchronizingControls = false;");
+    }
+
+    [TestMethod]
     public void UiScript_AcrylicOpacityExtremesDiagnosticDisabledAndPersistence()
     {
         string script = File.ReadAllText(Path.Combine(
@@ -250,6 +278,50 @@ public sealed class SettingsPageAppearanceRoutingContractTests
         {
             StringAssert.Contains(script, fragment);
         }
+    }
+
+    [TestMethod]
+    public void UiScript_UsesCompleteSolidFallbackDiagnostic()
+    {
+        string script = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "tests",
+            "ui",
+            "StaminaManager.UiTests.ps1"));
+
+        StringAssert.Contains(
+            script,
+            "Wait-BackdropDiagnostic 'Solid|SolidSurface=Visible'");
+    }
+
+    [TestMethod]
+    public void UiScript_WaitsForFinal100PersistenceAfterSettingsRoundTrip()
+    {
+        string script = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "tests",
+            "ui",
+            "StaminaManager.UiTests.ps1"));
+        int diagnosticIndex = script.IndexOf(
+            "Wait-BackdropDiagnostic $expectedDiagnostics[$percent]",
+            StringComparison.Ordinal);
+        int finalGuardIndex = script.IndexOf(
+            "if ($percent -ne 100)",
+            diagnosticIndex,
+            StringComparison.Ordinal);
+        int navigationIndex = script.IndexOf(
+            "Invoke-WinApp ui invoke NavOverview",
+            diagnosticIndex,
+            StringComparison.Ordinal);
+        int finalPersistenceIndex = script.IndexOf(
+            "Wait-PersistedAcrylicOpacity 100",
+            navigationIndex,
+            StringComparison.Ordinal);
+
+        Assert.IsGreaterThanOrEqualTo(0, diagnosticIndex);
+        Assert.IsGreaterThan(diagnosticIndex, finalGuardIndex);
+        Assert.IsGreaterThan(finalGuardIndex, navigationIndex);
+        Assert.IsGreaterThan(navigationIndex, finalPersistenceIndex);
     }
 
     private static string ExtractMethod(
