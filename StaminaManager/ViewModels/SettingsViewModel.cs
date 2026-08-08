@@ -556,6 +556,16 @@ public sealed partial class SettingsViewModel : ObservableObject
 
             if (!changeResult.IsApplied)
             {
+                if (previousLanguage == requestedLanguage)
+                {
+                    Language = previousLanguage;
+                    LanguageConsistencyState =
+                        LanguageConsistencyState.Inconsistent;
+                    ShowLanguageSynchronizationFailure(
+                        changeResult.FailureReason);
+                    return false;
+                }
+
                 bool wasRolledBack = await RollbackLanguageAsync(
                     previousLanguage);
                 if (wasRolledBack)

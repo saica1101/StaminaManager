@@ -954,6 +954,44 @@ public sealed class SettingsViewModelTests
     }
 
     [TestMethod]
+    public async Task SetLanguageAsync_SameSavedLanguageOverrideFailureKeepsSavedValueInconsistent()
+    {
+        Context context = await Context.CreateAsync();
+        context.LanguageService.NextResult = new LanguageChangeResult(
+            AppLanguage.Japanese,
+            IsApplied: false,
+            LanguageFailureReason.PlatformError);
+        SettingsViewModel viewModel = context.CreateLanguageViewModel();
+
+        bool changed = await viewModel.SetLanguageAsync(
+            AppLanguage.Japanese,
+            CancellationToken.None);
+
+        Assert.IsFalse(changed);
+        Assert.AreEqual(
+            AppLanguage.Japanese,
+            context.Store.LastSaved.Settings.Language);
+        Assert.AreEqual(
+            AppLanguage.Japanese,
+            context.Manager.CurrentData.Settings.Language);
+        Assert.AreEqual(0, context.Store.SaveCount);
+        Assert.AreEqual(AppLanguage.Japanese, viewModel.Language);
+        Assert.AreEqual(
+            LanguageConsistencyState.Inconsistent,
+            viewModel.LanguageConsistencyState);
+        Assert.AreEqual(
+            Microsoft.UI.Xaml.Controls.InfoBarSeverity.Warning,
+            viewModel.InfoBarSeverity);
+        StringAssert.Contains(
+            viewModel.InfoBarMessage,
+            "次回起動時に再試行します");
+        StringAssert.Contains(
+            viewModel.InfoBarMessage,
+            "Windowsへ適用できませんでした");
+        Assert.AreEqual(0, context.NotificationReconciler.CallCount);
+    }
+
+    [TestMethod]
     public async Task SetLanguageAsync_NotificationFailureKeepsLanguageApplied()
     {
         Context context = await Context.CreateAsync();
