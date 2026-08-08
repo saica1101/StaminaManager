@@ -1,4 +1,5 @@
 using StaminaManager.Core.Persistence;
+using StaminaManager.Core.Models;
 using StaminaManager.Core.Validation;
 using StaminaManager.Infrastructure.Persistence;
 using System.Collections.Immutable;
@@ -79,12 +80,16 @@ internal static class BackupArchiveValidator
         }
     }
 
-    public static DecodedDataEnvelope DeserializeData(byte[] bytes)
+    public static DecodedDataEnvelope DeserializeData(
+        byte[] bytes,
+        AppLanguage legacyLanguage = AppLanguage.Japanese)
     {
         try
         {
             using JsonDocument document = JsonDocument.Parse(bytes);
-            return DataEnvelopeCodec.Deserialize(document.RootElement);
+            return DataEnvelopeCodec.Deserialize(
+                document.RootElement,
+                legacyLanguage);
         }
         catch (JsonException exception)
         {
@@ -97,8 +102,7 @@ internal static class BackupArchiveValidator
     public static void ValidateManifest(BackupManifest manifest)
     {
         if (manifest.SchemaVersion != BackupManifest.CurrentSchemaVersion
-            || manifest.DataSchemaVersion is not 1
-                and not DataEnvelope.CurrentSchemaVersion
+            || manifest.DataSchemaVersion is not 1 and not 2 and not 3
             || !string.Equals(
                 manifest.DataFile,
                 "data.json",

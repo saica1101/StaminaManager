@@ -286,11 +286,14 @@ public sealed partial class SettingsPage : Page
         {
             $"ゲーム: {preview.GameCount}件",
             $"画像: {preview.ImageCount}件",
-            $"テーマ: {ViewModel.Theme} → {preview.Theme}",
-            $"背景: {ViewModel.SelectedBackdrop} → {preview.Backdrop}",
+            $"テーマ: {ViewModel.Theme} → {FormatTheme(preview.Theme)}",
+            $"背景: {ViewModel.SelectedBackdrop} → {FormatBackdrop(preview.Backdrop)}",
             $"通知: {FormatEnabled(ViewModel.AreNotificationsEnabled)}"
                 + $" → {FormatEnabled(preview.NotificationsEnabled)}",
-            $"閉じる動作: {ViewModel.CloseBehavior} → {preview.CloseBehavior}",
+            $"閉じる動作: {ViewModel.CloseBehavior} → "
+                + FormatCloseBehavior(preview.CloseBehavior),
+            $"Acrylic の色調不透明度: {preview.AcrylicTintOpacityPercent}%",
+            $"言語: {FormatLanguage(preview.Language)}",
             $"自動起動: {FormatEnabled(ViewModel.IsStartupEnabled)}"
                 + $" → {FormatEnabled(preview.StartupEnabled)}",
         })
@@ -307,6 +310,29 @@ public sealed partial class SettingsPage : Page
 
     private static string FormatEnabled(bool isEnabled) =>
         isEnabled ? "オン" : "オフ";
+
+    private static string FormatTheme(AppTheme theme) => theme switch
+    {
+        AppTheme.Light => "ライト",
+        AppTheme.Dark => "ダーク",
+        _ => theme.ToString(),
+    };
+
+    private static string FormatBackdrop(BackdropKind backdrop) => backdrop switch
+    {
+        BackdropKind.Mica => "Mica",
+        BackdropKind.Acrylic => "Acrylic",
+        BackdropKind.Solid => "単色",
+        BackdropKind.Blur => "Blur",
+        BackdropKind.Transparent => "Transparent",
+        _ => backdrop.ToString(),
+    };
+
+    private static string FormatCloseBehavior(CloseBehavior closeBehavior) =>
+        closeBehavior == CloseBehavior.Exit ? "終了" : "最小化";
+
+    private static string FormatLanguage(AppLanguage language) => language ==
+        AppLanguage.English ? "English" : "日本語";
 
     private void SettingsInfoBar_Closed(
         InfoBar sender,

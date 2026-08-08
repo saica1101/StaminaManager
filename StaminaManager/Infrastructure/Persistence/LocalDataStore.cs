@@ -1,4 +1,5 @@
 using StaminaManager.Core.Abstractions;
+using StaminaManager.Core.Models;
 using StaminaManager.Core.Persistence;
 using System.Diagnostics;
 using System.Text.Json;
@@ -14,12 +15,17 @@ public sealed class LocalDataStore : ILocalDataStore
     private const string TemporaryFileName = "data.json.tmp";
     private readonly IAppDataPathProvider _pathProvider;
     private readonly SemaphoreSlim _writeGate;
+    private readonly AppLanguage _legacyLanguage;
 
-    public LocalDataStore(IAppDataPathProvider pathProvider)
+    public LocalDataStore(
+        IAppDataPathProvider pathProvider,
+        IAppLanguageService? appLanguageService = null)
     {
         ArgumentNullException.ThrowIfNull(pathProvider);
         _pathProvider = pathProvider;
         _writeGate = AppDataWriteGate.Get(pathProvider);
+        _legacyLanguage = appLanguageService?.GetEffectiveLanguage()
+            ?? AppLanguage.Japanese;
     }
 
     public async Task<DataLoadResult> LoadAsync(
@@ -57,15 +63,15 @@ public sealed class LocalDataStore : ILocalDataStore
         if (primary is not null)
         {
             DataLoadWarning warning = DataLoadWarning.None;
-            if (primary.WasBackdropNormalized)
+            if (primary.RequiresWriteback)
             {
-                bool wasPersisted = await TryPersistNormalizedPrimaryAsync(
+                bool wasPersisted = await TryPersistMigratedPrimaryAsync(
                     primaryPath,
                     recoveryPath,
                     cancellationToken).ConfigureAwait(false);
                 if (!wasPersisted)
                 {
-                    warning = DataLoadWarning.LegacyBackdropWritebackFailed;
+                    warning = DataLoadWarning.SchemaMigrationWritebackFailed;
                 }
             }
 
@@ -237,7 +243,9 @@ public sealed class LocalDataStore : ILocalDataStore
             using JsonDocument document = await JsonDocument.ParseAsync(
                 stream,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
-            return DataEnvelopeCodec.Deserialize(document.RootElement);
+            return DataEnvelopeCodec.Deserialize(
+                document.RootElement,
+                _legacyLanguage);
         }
         catch (JsonException)
         {
@@ -253,7 +261,7 @@ public sealed class LocalDataStore : ILocalDataStore
         }
     }
 
-    private async Task<bool> TryPersistNormalizedPrimaryAsync(
+    private async Task<bool> TryPersistMigratedPrimaryAsync(
         string primaryPath,
         string recoveryPath,
         CancellationToken cancellationToken)
@@ -267,7 +275,7 @@ public sealed class LocalDataStore : ILocalDataStore
                 await TryReadValidEnvelopeAsync(
                     primaryPath,
                     cancellationToken).ConfigureAwait(false);
-            if (current is null || !current.WasBackdropNormalized)
+            if (current is null || !current.RequiresWriteback)
             {
                 return current is not null;
             }
@@ -292,7 +300,7 @@ public sealed class LocalDataStore : ILocalDataStore
                 or InvalidDataException)
         {
             Debug.WriteLine(
-                "Backdrop migration writeback failed: "
+                "Schema migration writeback failed: "
                 + exception.GetType().Name);
             return false;
         }

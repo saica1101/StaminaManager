@@ -9,25 +9,38 @@ namespace StaminaManager.Infrastructure.Persistence;
 internal sealed record DecodedDataEnvelope(
     int SourceSchemaVersion,
     DataEnvelope Envelope,
-    bool WasBackdropNormalized);
+    bool WasBackdropNormalized)
+{
+    public bool RequiresWriteback => WasBackdropNormalized
+        || SourceSchemaVersion < DataEnvelope.CurrentSchemaVersion;
+}
 
 internal static class DataEnvelopeCodec
 {
-    private const int LegacySchemaVersion = 1;
+    private const int LegacySchema1Version = 1;
+    private const int LegacySchema2Version = 2;
 
-    public static DecodedDataEnvelope Deserialize(JsonElement root)
+    public static DecodedDataEnvelope Deserialize(
+        JsonElement root,
+        AppLanguage legacyLanguage = AppLanguage.Japanese)
     {
         int sourceSchemaVersion = ReadSchemaVersion(root);
         DataEnvelope envelope = sourceSchemaVersion switch
         {
-            LegacySchemaVersion => UpgradeLegacyEnvelope(
+            LegacySchema1Version => UpgradeLegacySchema1Envelope(
                 root.Deserialize(
-                    JsonSerializationContext.Configured.LegacyDataEnvelope)
-                ?? throw new JsonException("The data JSON is empty.")),
-            DataEnvelope.CurrentSchemaVersion =>
-                root.Deserialize(
-                    JsonSerializationContext.Configured.DataEnvelope)
+                    JsonSerializationContext.Configured
+                        .LegacySchema1DataEnvelope)
                 ?? throw new JsonException("The data JSON is empty."),
+                legacyLanguage),
+            LegacySchema2Version => UpgradeLegacySchema2Envelope(
+                root.Deserialize(
+                    JsonSerializationContext.Configured
+                        .LegacySchema2DataEnvelope)
+                ?? throw new JsonException("The data JSON is empty."),
+                legacyLanguage),
+            DataEnvelope.CurrentSchemaVersion =>
+                DeserializeSchema3(root),
             _ => throw new InvalidDataException(
                 "The data schema is not supported."),
         };
@@ -143,10 +156,18 @@ internal static class DataEnvelopeCodec
         return schemaVersion;
     }
 
-    private static DataEnvelope UpgradeLegacyEnvelope(
-        LegacyDataEnvelope legacy)
+    private static DataEnvelope DeserializeSchema3(JsonElement root)
     {
-        if (legacy.SchemaVersion != LegacySchemaVersion
+        EnsureSchema3SettingsFields(root);
+        return root.Deserialize(JsonSerializationContext.Configured.DataEnvelope)
+            ?? throw new JsonException("The data JSON is empty.");
+    }
+
+    private static DataEnvelope UpgradeLegacySchema1Envelope(
+        LegacySchema1DataEnvelope legacy,
+        AppLanguage language)
+    {
+        if (legacy.SchemaVersion != LegacySchema1Version
             || legacy.Games.IsDefault
             || legacy.Settings is null)
         {
@@ -155,7 +176,7 @@ internal static class DataEnvelopeCodec
 
         ImmutableArray<GameEntry>.Builder games =
             ImmutableArray.CreateBuilder<GameEntry>(legacy.Games.Length);
-        foreach (LegacyGameEntry? game in legacy.Games)
+        foreach (LegacySchema1GameEntry? game in legacy.Games)
         {
             if (game is null)
             {
@@ -179,7 +200,51 @@ internal static class DataEnvelopeCodec
         return new DataEnvelope(
             DataEnvelope.CurrentSchemaVersion,
             games.MoveToImmutable(),
-            legacy.Settings);
+            UpgradeSettings(legacy.Settings, language));
+    }
+
+    private static DataEnvelope UpgradeLegacySchema2Envelope(
+        LegacySchema2DataEnvelope legacy,
+        AppLanguage language)
+    {
+        if (legacy.SchemaVersion != LegacySchema2Version
+            || legacy.Games.IsDefault
+            || legacy.Settings is null)
+        {
+            throw new InvalidDataException("The legacy data is invalid.");
+        }
+
+        return new DataEnvelope(
+            DataEnvelope.CurrentSchemaVersion,
+            legacy.Games,
+            UpgradeSettings(legacy.Settings, language));
+    }
+
+    private static AppSettings UpgradeSettings(
+        LegacySchema1And2AppSettings settings,
+        AppLanguage language) => new(
+            settings.Theme,
+            settings.Backdrop,
+            settings.NotificationsEnabled,
+            settings.NotificationLeadMinutes,
+            settings.CloseBehavior,
+            settings.StartupEnabled,
+            settings.LastDisplayMode,
+            settings.SelectedCompactGameId,
+            AcrylicOpacityPolicy.DefaultAcrylicTintOpacityPercent,
+            language);
+
+    private static void EnsureSchema3SettingsFields(JsonElement root)
+    {
+        if (!root.TryGetProperty("settings", out JsonElement settings)
+            || settings.ValueKind != JsonValueKind.Object
+            || !settings.TryGetProperty(
+                "acrylicTintOpacityPercent",
+                out _)
+            || !settings.TryGetProperty("language", out _))
+        {
+            throw new JsonException("The schema 3 settings are incomplete.");
+        }
     }
 
     private static void ValidateSettings(AppSettings settings)
@@ -188,7 +253,10 @@ internal static class DataEnvelopeCodec
             || !Enum.IsDefined(settings.Backdrop)
             || !Enum.IsDefined(settings.CloseBehavior)
             || !Enum.IsDefined(settings.LastDisplayMode)
+            || !Enum.IsDefined(settings.Language)
             || settings.SelectedCompactGameId == Guid.Empty
+            || !AcrylicOpacityPolicy.IsValid(
+                settings.AcrylicTintOpacityPercent)
             || settings.NotificationLeadMinutes is < 0
                 or > GameEntryValidator.MaxRecoveryMinutes)
         {

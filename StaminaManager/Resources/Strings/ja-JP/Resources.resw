@@ -26,8 +26,8 @@
   <data name="OverviewInfoBar.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Overviewの操作エラー</value></data>
   <data name="OverviewRecoveryInfoBar.Title" xml:space="preserve"><value>データを回復しました</value></data>
   <data name="OverviewRecoveryInfoBar.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>前回正常データからの回復案内</value></data>
-  <data name="OverviewDataLoadWarningInfoBar.Title" xml:space="preserve"><value>背景設定を再保存できませんでした</value></data>
-  <data name="OverviewDataLoadWarningInfoBar.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>背景設定の再保存案内</value></data>
+  <data name="OverviewDataLoadWarningInfoBar.Title" xml:space="preserve"><value>データ更新を再保存できませんでした</value></data>
+  <data name="OverviewDataLoadWarningInfoBar.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>データ更新の再保存案内</value></data>
   <data name="OverviewLoadingProgressRing.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>ゲーム情報を読み込み中</value></data>
   <data name="OverviewLoadingText.Text" xml:space="preserve"><value>ゲーム情報を読み込んでいます</value></data>
   <data name="OverviewItems.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>登録ゲームと追加操作</value></data>

@@ -332,8 +332,11 @@ public partial class App : Microsoft.UI.Xaml.Application
         IUiDispatcher uiDispatcher = new DispatcherQueueUiDispatcher(
             dispatcherQueue);
         IClock clock = new SystemClock();
+        IAppLanguageService appLanguageService = new AppLanguageService();
         IAppDataPathProvider pathProvider = new AppDataPathProvider();
-        ILocalDataStore dataStore = new LocalDataStore(pathProvider);
+        ILocalDataStore dataStore = new LocalDataStore(
+            pathProvider,
+            appLanguageService);
         AssetStore assetStore = new(pathProvider);
         INotificationLedgerStore notificationLedgerStore =
             new NotificationLedgerStore(pathProvider);
@@ -352,7 +355,8 @@ public partial class App : Microsoft.UI.Xaml.Application
             new NotificationPermissionService();
         ISettingsLauncher settingsLauncher = new WindowsSettingsLauncher();
         AppSettings initialSettings = AppSettings.CreateDefault(
-            themeService.ResolveInitialTheme());
+            themeService.ResolveInitialTheme(),
+            appLanguageService.GetEffectiveLanguage());
 
         _gameManager = new GameManager(dataStore, clock, initialSettings);
         _shellViewModel = new ShellViewModel();
@@ -365,7 +369,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             notificationLedgerStore,
             clock);
         IBackupService backupService = new BackupCoordinator(
-            new SafeZipReader(),
+            new SafeZipReader(appLanguageService),
             dataStore,
             pathProvider);
         RestoreCoordinator restoreCoordinator = new(

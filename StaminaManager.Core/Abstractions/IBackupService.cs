@@ -6,11 +6,13 @@ namespace StaminaManager.Core.Abstractions;
 public sealed record BackupPreview(
     int GameCount,
     int ImageCount,
-    string Theme,
-    string Backdrop,
+    AppTheme Theme,
+    BackdropKind Backdrop,
     bool NotificationsEnabled,
-    string CloseBehavior,
-    bool StartupEnabled)
+    CloseBehavior CloseBehavior,
+    bool StartupEnabled,
+    int AcrylicTintOpacityPercent,
+    AppLanguage Language)
 {
     public static BackupPreview From(
         AppSettings settings,
@@ -18,11 +20,13 @@ public sealed record BackupPreview(
         int imageCount) => new(
             gameCount,
             imageCount,
-            settings.Theme.ToString(),
-            settings.Backdrop.ToString(),
+            settings.Theme,
+            settings.Backdrop,
             settings.NotificationsEnabled,
-            settings.CloseBehavior.ToString(),
-            settings.StartupEnabled);
+            settings.CloseBehavior,
+            settings.StartupEnabled,
+            settings.AcrylicTintOpacityPercent,
+            settings.Language);
 }
 
 public sealed record BackupRestoreResult(

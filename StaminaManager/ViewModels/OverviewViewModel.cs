@@ -153,7 +153,7 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
         _uiDispatcher.InvokeAsync(
             () =>
             {
-                if (warning != DataLoadWarning.LegacyBackdropWritebackFailed)
+                if (warning != DataLoadWarning.SchemaMigrationWritebackFailed)
                 {
                     DataLoadWarningMessage = string.Empty;
                     IsDataLoadWarningInfoBarOpen = false;
@@ -161,7 +161,7 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
                 }
 
                 DataLoadWarningMessage =
-                    "以前の背景設定をAcrylicへ更新しましたが、データへ再保存できませんでした。"
+                    "データを最新形式へ更新しましたが、再保存できませんでした。"
                     + "設定を一度変更して保存し直してください。";
                 IsDataLoadWarningInfoBarOpen = true;
             },

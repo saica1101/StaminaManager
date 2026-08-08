@@ -63,7 +63,7 @@ public sealed class LocalDataStoreTests
     }
 
     [TestMethod]
-    public async Task LoadAsync_Schema1をSchema2へ正規化する()
+    public async Task LoadAsync_Schema1をSchema3へ正規化する()
     {
         Directory.CreateDirectory(_rootPath);
         await File.WriteAllTextAsync(PrimaryPath, LegacySchema1Json);
@@ -73,7 +73,9 @@ public sealed class LocalDataStoreTests
 
         Assert.AreEqual(DataLoadStatus.Primary, result.Status);
         Assert.IsNotNull(result.Envelope);
-        Assert.AreEqual(2, result.Envelope.SchemaVersion);
+        Assert.AreEqual(3, result.Envelope.SchemaVersion);
+        Assert.AreEqual(80, result.Envelope.Settings.AcrylicTintOpacityPercent);
+        Assert.AreEqual(AppLanguage.Japanese, result.Envelope.Settings.Language);
         Assert.HasCount(1, result.Envelope.Games);
         Assert.AreEqual(0, result.Envelope.Games[0].RecoverySeconds);
         Assert.IsTrue(result.Envelope.Games[0].IsNotificationEnabled);
@@ -137,7 +139,7 @@ public sealed class LocalDataStoreTests
             BackdropKind.Acrylic,
             result.Envelope!.Settings.Backdrop);
         Assert.AreEqual(
-            DataLoadWarning.LegacyBackdropWritebackFailed,
+            DataLoadWarning.SchemaMigrationWritebackFailed,
             result.Warning);
         Assert.AreEqual(legacyJson, await File.ReadAllTextAsync(PrimaryPath));
         Assert.IsFalse(File.Exists(TemporaryPath));
@@ -173,7 +175,7 @@ public sealed class LocalDataStoreTests
 
         Assert.AreEqual(DataLoadStatus.Recovery, result.Status);
         Assert.IsNotNull(result.Envelope);
-        Assert.AreEqual(2, result.Envelope.SchemaVersion);
+        Assert.AreEqual(3, result.Envelope.SchemaVersion);
         Assert.AreEqual(0, result.Envelope.Games[0].RecoverySeconds);
         Assert.IsTrue(result.Envelope.Games[0].IsNotificationEnabled);
     }
@@ -235,7 +237,7 @@ public sealed class LocalDataStoreTests
         string json = await File.ReadAllTextAsync(PrimaryPath);
         using JsonDocument document = JsonDocument.Parse(json);
         JsonElement root = document.RootElement;
-        Assert.AreEqual(2, root.GetProperty("schemaVersion").GetInt32());
+        Assert.AreEqual(3, root.GetProperty("schemaVersion").GetInt32());
         Assert.AreEqual(
             "Offset game",
             root.GetProperty("games")[0].GetProperty("name").GetString());
@@ -258,6 +260,12 @@ public sealed class LocalDataStoreTests
         Assert.AreEqual(
             JsonValueKind.Null,
             settings.GetProperty("selectedCompactGameId").ValueKind);
+        Assert.AreEqual(
+            80,
+            settings.GetProperty("acrylicTintOpacityPercent").GetInt32());
+        Assert.AreEqual(
+            "Japanese",
+            settings.GetProperty("language").GetString());
         Assert.IsFalse(json.Contains("SchemaVersion", StringComparison.Ordinal));
         Assert.IsLessThan(
             json.IndexOf("\"games\"", StringComparison.Ordinal),

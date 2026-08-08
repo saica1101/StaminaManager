@@ -29,7 +29,7 @@ public sealed class AppCoordinatorTests
             CreateEnvelope("Loaded"),
             "private-primary-path",
             "private-recovery-path",
-            DataLoadWarning.LegacyBackdropWritebackFailed));
+            DataLoadWarning.SchemaMigrationWritebackFailed));
         GameManager manager = CreateManager(store);
         RecordingUiDispatcher dispatcher = new();
         AppCoordinator coordinator = new(store, manager, dispatcher);
@@ -41,7 +41,7 @@ public sealed class AppCoordinatorTests
             CancellationToken.None);
 
         Assert.IsTrue(overview.IsDataLoadWarningInfoBarOpen);
-        StringAssert.Contains(overview.DataLoadWarningMessage, "背景設定");
+        StringAssert.Contains(overview.DataLoadWarningMessage, "最新形式");
         StringAssert.Contains(overview.DataLoadWarningMessage, "再保存");
         Assert.DoesNotContain("private-", overview.DataLoadWarningMessage);
     }

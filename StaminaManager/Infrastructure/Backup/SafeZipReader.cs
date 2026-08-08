@@ -1,4 +1,5 @@
 using StaminaManager.Core.Abstractions;
+using StaminaManager.Core.Models;
 using StaminaManager.Core.Persistence;
 using StaminaManager.Core.Validation;
 using StaminaManager.Infrastructure.Persistence;
@@ -26,18 +27,32 @@ public sealed class SafeZipReader
     private const int CopyBufferSize = 80 * 1024;
     private readonly Action<int>? _bufferedBytesObserver;
     private readonly long _maxExpandedBytes;
+    private readonly IAppLanguageService? _appLanguageService;
 
     public SafeZipReader(Action<int>? bufferedBytesObserver = null)
-        : this(bufferedBytesObserver, BackupLimits.MaxExpandedBytes)
+        : this(
+            bufferedBytesObserver,
+            BackupLimits.MaxExpandedBytes,
+            appLanguageService: null)
+    {
+    }
+
+    public SafeZipReader(IAppLanguageService appLanguageService)
+        : this(
+            bufferedBytesObserver: null,
+            BackupLimits.MaxExpandedBytes,
+            appLanguageService)
     {
     }
 
     internal SafeZipReader(
         Action<int>? bufferedBytesObserver,
-        long maxExpandedBytes)
+        long maxExpandedBytes,
+        IAppLanguageService? appLanguageService = null)
     {
         _bufferedBytesObserver = bufferedBytesObserver;
         _maxExpandedBytes = maxExpandedBytes;
+        _appLanguageService = appLanguageService;
     }
 
     public async Task<ValidatedBackup> ReadAsync(
@@ -129,7 +144,10 @@ public sealed class SafeZipReader
             cancellationToken).ConfigureAwait(false);
         _bufferedBytesObserver?.Invoke(dataBytes.Length);
         DecodedDataEnvelope decoded =
-            BackupArchiveValidator.DeserializeData(dataBytes);
+            BackupArchiveValidator.DeserializeData(
+                dataBytes,
+                _appLanguageService?.GetEffectiveLanguage()
+                    ?? AppLanguage.Japanese);
         dataBytes = [];
         _bufferedBytesObserver?.Invoke(0);
         if (manifest.DataSchemaVersion != decoded.SourceSchemaVersion)

@@ -43,10 +43,10 @@ public sealed class BackupCoordinatorTests
         using JsonDocument data = await ReadJsonAsync(
             archive.GetEntry("data.json")!);
         Assert.AreEqual(
-            2,
+            3,
             manifest.RootElement.GetProperty("dataSchemaVersion").GetInt32());
         Assert.AreEqual(
-            2,
+            3,
             data.RootElement.GetProperty("schemaVersion").GetInt32());
     }
 

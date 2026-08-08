@@ -8,7 +8,7 @@ public sealed record DataEnvelope(
     ImmutableArray<GameEntry> Games,
     AppSettings Settings)
 {
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
 }
 
 public enum DataLoadStatus
@@ -22,7 +22,7 @@ public enum DataLoadStatus
 public enum DataLoadWarning
 {
     None,
-    LegacyBackdropWritebackFailed,
+    SchemaMigrationWritebackFailed,
 }
 
 public sealed record DataLoadResult(

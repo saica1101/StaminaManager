@@ -137,7 +137,7 @@ public sealed class SafeZipReaderTests
     }
 
     [TestMethod]
-    public async Task ReadAsync_Schema1BackupをSchema2へ正規化する()
+    public async Task ReadAsync_Schema1BackupをSchema3へ正規化する()
     {
         await using MemoryStream archive = CreateArchive(
             ("manifest.json", LegacySchema1Manifest),
@@ -147,7 +147,9 @@ public sealed class SafeZipReaderTests
             archive,
             CancellationToken.None);
 
-        Assert.AreEqual(2, backup.Data.SchemaVersion);
+        Assert.AreEqual(3, backup.Data.SchemaVersion);
+        Assert.AreEqual(80, backup.Data.Settings.AcrylicTintOpacityPercent);
+        Assert.AreEqual(AppLanguage.Japanese, backup.Data.Settings.Language);
         Assert.HasCount(1, backup.Data.Games);
         Assert.AreEqual(0, backup.Data.Games[0].RecoverySeconds);
         Assert.IsTrue(backup.Data.Games[0].IsNotificationEnabled);
@@ -380,7 +382,32 @@ public sealed class SafeZipReaderTests
 
         Assert.AreEqual(0, backup.Preview.GameCount);
         Assert.AreEqual(0, backup.Preview.ImageCount);
-        Assert.AreEqual("Light", backup.Preview.Theme);
+        Assert.AreEqual(AppTheme.Light, backup.Preview.Theme);
+        Assert.AreEqual(BackdropKind.Mica, backup.Preview.Backdrop);
+        Assert.AreEqual(
+            CloseBehavior.MinimizeToTray,
+            backup.Preview.CloseBehavior);
+        Assert.AreEqual(80, backup.Preview.AcrylicTintOpacityPercent);
+        Assert.AreEqual(AppLanguage.Japanese, backup.Preview.Language);
+    }
+
+    [TestMethod]
+    public async Task ReadAsync_Schema3Backupの型付きPreviewを返す()
+    {
+        await using MemoryStream archive = CreateArchive(
+            ("manifest.json", Schema3Manifest),
+            ("data.json", Schema3Data));
+
+        ValidatedBackup backup = await new SafeZipReader().ReadAsync(
+            archive,
+            CancellationToken.None);
+
+        Assert.AreEqual(3, backup.Data.SchemaVersion);
+        Assert.AreEqual(AppTheme.Dark, backup.Preview.Theme);
+        Assert.AreEqual(BackdropKind.Acrylic, backup.Preview.Backdrop);
+        Assert.AreEqual(CloseBehavior.Exit, backup.Preview.CloseBehavior);
+        Assert.AreEqual(55, backup.Preview.AcrylicTintOpacityPercent);
+        Assert.AreEqual(AppLanguage.English, backup.Preview.Language);
     }
 
     [TestMethod]
@@ -708,6 +735,16 @@ public sealed class SafeZipReaderTests
     private const string LegacySchema1Manifest =
         """
         {"schemaVersion":1,"dataSchemaVersion":1,"dataFile":"data.json","assets":[]}
+        """;
+
+    private const string Schema3Manifest =
+        """
+        {"schemaVersion":1,"dataSchemaVersion":3,"dataFile":"data.json","assets":[]}
+        """;
+
+    private const string Schema3Data =
+        """
+        {"schemaVersion":3,"games":[],"settings":{"theme":"Dark","backdrop":"Acrylic","notificationsEnabled":true,"notificationLeadMinutes":15,"closeBehavior":"Exit","startupEnabled":false,"lastDisplayMode":"Standard","selectedCompactGameId":null,"acrylicTintOpacityPercent":55,"language":"English"}}
         """;
 
     private const string LegacySchema1Data =

@@ -11,7 +11,8 @@ namespace StaminaManager.Infrastructure.Persistence;
     RespectRequiredConstructorParameters = true,
     WriteIndented = false)]
 [JsonSerializable(typeof(DataEnvelope))]
-[JsonSerializable(typeof(LegacyDataEnvelope))]
+[JsonSerializable(typeof(LegacySchema1DataEnvelope))]
+[JsonSerializable(typeof(LegacySchema2DataEnvelope))]
 internal sealed partial class JsonSerializationContext
     : JsonSerializerContext
 {
@@ -27,6 +28,7 @@ internal sealed partial class JsonSerializationContext
             WriteIndented = false,
         };
         options.Converters.Add(new StrictStringEnumConverter<AppTheme>());
+        options.Converters.Add(new StrictStringEnumConverter<AppLanguage>());
         options.Converters.Add(new StrictStringEnumConverter<BackdropKind>());
         options.Converters.Add(new StrictStringEnumConverter<CloseBehavior>());
         options.Converters.Add(

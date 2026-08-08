@@ -268,11 +268,13 @@ public sealed class SettingsViewModelBackupTests
             new BackupPreview(
                 GameCount: 1,
                 ImageCount: 0,
-                Theme: "Light",
-                Backdrop: "Mica",
+                Theme: AppTheme.Light,
+                Backdrop: BackdropKind.Mica,
                 NotificationsEnabled: true,
-                CloseBehavior: "MinimizeToTray",
-                StartupEnabled: false));
+                CloseBehavior: CloseBehavior.MinimizeToTray,
+                StartupEnabled: false,
+                AcrylicTintOpacityPercent: 80,
+                Language: AppLanguage.Japanese));
 
         public void FailPreview(Exception exception) =>
             _previewCompletion.TrySetException(exception);
