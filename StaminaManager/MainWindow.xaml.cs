@@ -11,6 +11,7 @@ using StaminaManager.Core.Calculations;
 using StaminaManager.Core.Models;
 using StaminaManager.Infrastructure.Windows;
 using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using Windows.UI;
 
@@ -178,6 +179,10 @@ public sealed class MainWindow : WinUIEx.WindowEx
         string backdrop = SystemBackdrop switch
         {
             MicaBackdrop => "Mica",
+            AdjustableAcrylicBackdrop adjustableAcrylic =>
+                string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"Acrylic|TintOpacity={adjustableAcrylic.TintOpacityPercent / 100f:F2}"),
             DesktopAcrylicBackdrop => "Acrylic",
             Infrastructure.Windows.BlurredBackdrop => "Blur",
             WinUIEx.TransparentTintBackdrop => "Transparent",

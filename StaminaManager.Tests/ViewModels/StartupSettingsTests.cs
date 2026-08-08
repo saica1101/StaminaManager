@@ -238,11 +238,14 @@ public sealed class StartupSettingsTests
 
     private sealed class PassThroughBackdropService : IBackdropService
     {
-        public BackdropResult Apply(BackdropKind requestedBackdrop) => new(
-            requestedBackdrop,
-            requestedBackdrop,
+        public BackdropResult Apply(BackdropRequest request) => new(
+            request.Kind,
+            request.Kind,
             BackdropFallbackReason.None,
-            ErrorMessage: null);
+            ErrorMessage: null,
+            request.Kind == BackdropKind.Acrylic
+                ? request.AcrylicTintOpacityPercent
+                : null);
     }
 
     private sealed class MemoryDataStore(DataEnvelope envelope)

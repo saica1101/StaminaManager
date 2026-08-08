@@ -237,14 +237,17 @@ public sealed class BackupCoordinatorTests_ResumeWorkflow
                 ErrorMessage: null);
         }
 
-        public BackdropResult Apply(BackdropKind requestedBackdrop)
+        public BackdropResult Apply(BackdropRequest request)
         {
             Calls.Add("Backdrop");
             return new BackdropResult(
-                requestedBackdrop,
-                requestedBackdrop,
+                request.Kind,
+                request.Kind,
                 BackdropFallbackReason.None,
-                ErrorMessage: null);
+                ErrorMessage: null,
+                request.Kind == BackdropKind.Acrylic
+                    ? request.AcrylicTintOpacityPercent
+                    : null);
         }
 
         public void ApplyDisplayMode(AppDisplayMode displayMode)

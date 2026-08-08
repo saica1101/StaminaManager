@@ -160,6 +160,25 @@ public sealed class SettingsViewModelTests
     }
 
     [TestMethod]
+    public async Task SetBackdropAsync_保存済みAcrylic色調不透明度を適用要求へ渡す()
+    {
+        Context context = await Context.CreateAsync();
+        await context.Manager.UpdateSettingsAsync(
+            settings => settings with { AcrylicTintOpacityPercent = 55 },
+            CancellationToken.None);
+        SettingsViewModel viewModel = context.CreateViewModel();
+
+        bool applied = await viewModel.SetBackdropAsync(
+            BackdropKind.Acrylic,
+            CancellationToken.None);
+
+        Assert.IsTrue(applied);
+        Assert.AreEqual(
+            new BackdropRequest(BackdropKind.Acrylic, 55),
+            context.BackdropService.RequestModels.Single());
+    }
+
+    [TestMethod]
     [DataRow(BackdropFallbackReason.HighContrast, "コントラスト テーマ")]
     [DataRow(BackdropFallbackReason.TransparencyDisabled, "透明効果")]
     [DataRow(BackdropFallbackReason.RemoteSession, "リモート接続を終了")]
@@ -666,15 +685,19 @@ public sealed class SettingsViewModelTests
     {
         public List<BackdropKind> Requests { get; } = [];
 
+        public List<BackdropRequest> RequestModels { get; } = [];
+
         public BackdropResult? NextResult { get; set; }
 
         public Exception? RollbackException { get; set; }
 
         public Exception? SafeFallbackException { get; set; }
 
-        public BackdropResult Apply(BackdropKind requestedBackdrop)
+        public BackdropResult Apply(BackdropRequest request)
         {
+            BackdropKind requestedBackdrop = request.Kind;
             Requests.Add(requestedBackdrop);
+            RequestModels.Add(request);
             if (Requests.Count == 2 && RollbackException is not null)
             {
                 throw RollbackException;
@@ -689,7 +712,10 @@ public sealed class SettingsViewModelTests
                 requestedBackdrop,
                 requestedBackdrop,
                 BackdropFallbackReason.None,
-                ErrorMessage: null);
+                ErrorMessage: null,
+                requestedBackdrop == BackdropKind.Acrylic
+                    ? request.AcrylicTintOpacityPercent
+                    : null);
             NextResult = null;
             return result;
         }

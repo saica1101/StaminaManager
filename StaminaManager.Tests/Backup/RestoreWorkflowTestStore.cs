@@ -28,7 +28,9 @@ internal sealed class RestoreWorkflowTestStore : IAsyncDisposable
 
     public static async Task<RestoreWorkflowTestStore> CreateAsync(
         string gameName,
-        bool startupEnabled)
+        bool startupEnabled,
+        BackdropKind backdrop = BackdropKind.Mica,
+        int acrylicTintOpacityPercent = 80)
     {
         string root = Path.Combine(
             Path.GetTempPath(),
@@ -38,7 +40,11 @@ internal sealed class RestoreWorkflowTestStore : IAsyncDisposable
         LocalDataStore store = new(paths);
         Directory.CreateDirectory(paths.DataRootPath);
         await store.SaveAsync(
-            CreateEnvelope(gameName, startupEnabled),
+            CreateEnvelope(
+                gameName,
+                startupEnabled,
+                backdrop,
+                acrylicTintOpacityPercent),
             CancellationToken.None);
         return new RestoreWorkflowTestStore(root, paths, store);
     }
@@ -78,7 +84,9 @@ internal sealed class RestoreWorkflowTestStore : IAsyncDisposable
 
     private static DataEnvelope CreateEnvelope(
         string gameName,
-        bool startupEnabled)
+        bool startupEnabled,
+        BackdropKind backdrop,
+        int acrylicTintOpacityPercent)
     {
         GameEntry game = new(
             Guid.NewGuid(),
@@ -98,6 +106,8 @@ internal sealed class RestoreWorkflowTestStore : IAsyncDisposable
             {
                 StartupEnabled = startupEnabled,
                 SelectedCompactGameId = game.Id,
+                Backdrop = backdrop,
+                AcrylicTintOpacityPercent = acrylicTintOpacityPercent,
             });
     }
 }

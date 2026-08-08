@@ -68,4 +68,16 @@ public sealed class BackdropPolicyTests
         Assert.ThrowsExactly<ArgumentOutOfRangeException>(
             () => BackdropPolicy.NormalizeLegacy((BackdropKind)999));
     }
+
+    [TestMethod]
+    [DataRow(-1)]
+    [DataRow(101)]
+    public void BackdropRequest_範囲外の色調不透明度を拒否する(
+        int tintOpacityPercent)
+    {
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(
+            () => new BackdropRequest(
+                BackdropKind.Acrylic,
+                tintOpacityPercent));
+    }
 }

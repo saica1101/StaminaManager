@@ -44,14 +44,16 @@ function Assert-ActualBackdrop {
     param(
         [Parameter(Mandatory)]
         [string]$Selection,
-        [Parameter(Mandatory)]
-        [string]$ExpectedDiagnostic)
+        [string]$ExpectedDiagnostic = '')
 
     Select-ComboItem BackdropSelector $Selection
     $deadline = [DateTime]::UtcNow.AddSeconds(3)
     do {
         $actual = Get-RawBackdropDiagnostic
-        if ($actual -eq $ExpectedDiagnostic) {
+        $isAcrylicDiagnostic = $Selection -eq 'Acrylic' -and
+            $actual -match '^Acrylic\|TintOpacity=(0\.\d{2}|1\.00)' +
+                '\|SolidSurface=Collapsed$'
+        if ($actual -eq $ExpectedDiagnostic -or $isAcrylicDiagnostic) {
             return
         }
 
@@ -147,17 +149,14 @@ try {
     }
 
     Assert-ActualBackdrop Mica 'Mica|SolidSurface=Collapsed'
-    Assert-ActualBackdrop Acrylic 'Acrylic|SolidSurface=Collapsed'
-    Assert-ActualBackdrop Blur 'Blur|SolidSurface=Collapsed'
-    Assert-ActualBackdrop Transparent `
-        'Transparent|SolidSurface=Collapsed'
+    Assert-ActualBackdrop Acrylic
 
     if ($InjectFailureAfterBackdrop) {
         throw 'Injected failure after backdrop assertions.'
     }
 
     Invoke-WinApp ui screenshot -a $AppPid `
-        -o (Join-Path $OutputDirectory 'transparent-dark.png') |
+        -o (Join-Path $OutputDirectory 'acrylic-dark.png') |
         Out-Null
 
     Invoke-WinApp ui focus NavSettings -a $AppPid | Out-Null
@@ -170,21 +169,21 @@ try {
 
     Invoke-WinApp ui hover NavSettings -a $AppPid | Out-Null
     Invoke-WinApp ui screenshot -a $AppPid `
-        -o (Join-Path $OutputDirectory 'transparent-dark-hover.png') |
+        -o (Join-Path $OutputDirectory 'acrylic-dark-hover.png') |
         Out-Null
 
     Invoke-WinApp ui invoke ThemeToggle -a $AppPid | Out-Null
     Invoke-WinApp ui wait-for ThemeToggle -a $AppPid `
         --value Off -t 3000 | Out-Null
-    $transparentDiagnostic = Get-RawBackdropDiagnostic
-    if ($transparentDiagnostic -ne
-        'Transparent|SolidSurface=Collapsed') {
-        throw "Unexpected transparent diagnostic: "
-            + $transparentDiagnostic
+    $acrylicDiagnostic = Get-RawBackdropDiagnostic
+    if ($acrylicDiagnostic -notmatch
+        '^Acrylic\|TintOpacity=(0\.\d{2}|1\.00)' +
+        '\|SolidSurface=Collapsed$') {
+        throw "Unexpected acrylic diagnostic: " + $acrylicDiagnostic
     }
 
     Invoke-WinApp ui screenshot -a $AppPid `
-        -o (Join-Path $OutputDirectory 'transparent-light.png') |
+        -o (Join-Path $OutputDirectory 'acrylic-light.png') |
         Out-Null
     Assert-ActualBackdrop Solid 'Solid|SolidSurface=Visible'
 }

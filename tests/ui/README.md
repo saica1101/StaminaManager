@@ -58,7 +58,7 @@ settings を保持した `games=[]` fixture と空の通知 ledger を書き、�
   カード bounds
   （UI Automation の物理pxをウィンドウDPIで換算）
 - コンパクト表示、選択ゲームと bounds の再起動永続化、通常 bounds の復帰
-- Light / Dark と Mica / Acrylic / Blur / Transparent / Solid
+- Light / Dark と Mica / Acrylic / Solid
 - 閉じる動作の selector と、WM_CLOSE による tray 格納・redirect 起動復帰
 - 通知 wrapper の `NotificationLeadInput`、内部 `InputBox` の操作、通知 ledger の
   `Suppressed` → `Scheduled`、通知リード変更による再予約
@@ -70,7 +70,7 @@ settings を保持した `games=[]` fixture と空の通知 ledger を書き、�
 ## テーマ・背景切り替えのクラッシュ回帰テスト
 
 `appearance-navigation-stress.ps1` は、Settings で Light / Dark と
-Mica / Acrylic / Blur / Transparent / Solid を切り替えながら、
+Mica / Acrylic / Solid を切り替えながら、
 `Settings → Overview → Settings` を最低3周往復します。各操作の直後だけでなく
 待機中も同じ PID と実行ファイルパスの生存をポーリングするため、背景変更後に遅れて
 発生するクラッシュも検出します。実際に適用された背景は、UI Automation の
@@ -117,8 +117,8 @@ JSON は `PASS`、`FAIL`、`SKIP` の各結果と、データ復元結果を含�
 省略記号やスクロールバー、読みにくい透明面、余白の不整合を目視確認します。
 
 Windows Graphics Capture は、テーマ・背景の切り替え直後に前フレームを返すことが
-あります。スクリプトは各 capture 前に500ms待機し、Light / Dark、Acrylic、
-Transparent は `--capture-screen` を使います。それでも環境によって不安定な場合は、
+あります。スクリプトは各 capture 前に500ms待機し、Light / Dark と Acrylic は
+`--capture-screen` を使います。それでも環境によって不安定な場合は、
 結果 JSON と状態を確認して完全な1パスを再実行し、失敗画像だけを合成しないで
 ください。
 

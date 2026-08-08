@@ -385,7 +385,9 @@ public sealed class AppCoordinator
                 AppSettings settings = _gameManager.CurrentData.Settings;
                 LastThemeResult = _themeService.Apply(settings.Theme);
                 LastBackdropResult = _backdropService.Apply(
-                    settings.Backdrop);
+                    new BackdropRequest(
+                        settings.Backdrop,
+                        settings.AcrylicTintOpacityPercent));
             },
             cancellationToken).ConfigureAwait(false);
 
@@ -488,7 +490,9 @@ public sealed class AppCoordinator
                 AppSettings settings = _gameManager.CurrentData.Settings;
                 LastThemeResult = _themeService.Apply(settings.Theme);
                 LastBackdropResult = _backdropService.Apply(
-                    settings.Backdrop);
+                    new BackdropRequest(
+                        settings.Backdrop,
+                        settings.AcrylicTintOpacityPercent));
             },
             cancellationToken).ConfigureAwait(false);
         await RestoreModeAsync(cancellationToken).ConfigureAwait(false);
@@ -756,11 +760,14 @@ public sealed class AppCoordinator
 
     private sealed class PassThroughBackdropService : IBackdropService
     {
-        public BackdropResult Apply(BackdropKind requestedBackdrop) => new(
-            requestedBackdrop,
-            requestedBackdrop,
+        public BackdropResult Apply(BackdropRequest request) => new(
+            request.Kind,
+            request.Kind,
             BackdropFallbackReason.None,
-            ErrorMessage: null);
+            ErrorMessage: null,
+            request.Kind == BackdropKind.Acrylic
+                ? request.AcrylicTintOpacityPercent
+                : null);
     }
 
     private sealed class PassThroughStartupService(

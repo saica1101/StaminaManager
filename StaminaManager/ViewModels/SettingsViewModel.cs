@@ -338,8 +338,12 @@ public sealed partial class SettingsViewModel : ObservableObject
         {
             BackdropKind previousBackdrop =
                 _gameManager.CurrentData.Settings.Backdrop;
+            int acrylicTintOpacityPercent = _gameManager.CurrentData
+                .Settings.AcrylicTintOpacityPercent;
             BackdropResult result = _backdropService.Apply(
-                requestedBackdrop);
+                new BackdropRequest(
+                    requestedBackdrop,
+                    acrylicTintOpacityPercent));
             ActualBackdrop = result.ActualBackdrop;
             if (!result.IsRequestedBackdropApplied)
             {
@@ -1117,7 +1121,10 @@ public sealed partial class SettingsViewModel : ObservableObject
         try
         {
             BackdropResult rollback = _backdropService.Apply(
-                previousBackdrop);
+                new BackdropRequest(
+                    previousBackdrop,
+                    _gameManager.CurrentData.Settings
+                        .AcrylicTintOpacityPercent));
             ActualBackdrop = rollback.ActualBackdrop;
             if (rollback.IsRequestedBackdropApplied)
             {
@@ -1142,7 +1149,10 @@ public sealed partial class SettingsViewModel : ObservableObject
         try
         {
             BackdropResult fallback = _backdropService.Apply(
-                BackdropKind.Solid);
+                new BackdropRequest(
+                    BackdropKind.Solid,
+                    _gameManager.CurrentData.Settings
+                        .AcrylicTintOpacityPercent));
             ActualBackdrop = fallback.ActualBackdrop;
             return fallback.ActualBackdrop == BackdropKind.Solid
                 ? AppearanceRollbackStatus.SafeFallback

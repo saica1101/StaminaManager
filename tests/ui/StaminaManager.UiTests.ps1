@@ -1723,7 +1723,7 @@ try {
             --value $initialTheme -t 3000 | Out-Null
 
         foreach ($backdrop in @(
-                'Mica', 'Acrylic', 'Blur', 'Transparent', 'Solid')) {
+                'Mica', 'Acrylic', 'Solid')) {
             Select-ComboItem BackdropSelector $backdrop
             Save-Screenshot "07-backdrop-$($backdrop.ToLowerInvariant())"
         }

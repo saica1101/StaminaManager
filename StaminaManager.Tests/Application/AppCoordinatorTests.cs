@@ -432,6 +432,7 @@ public sealed class AppCoordinatorTests
         AppSettings settings = AppSettings.CreateDefault(AppTheme.Dark) with
         {
             Backdrop = BackdropKind.Acrylic,
+            AcrylicTintOpacityPercent = 55,
         };
         CoordinatorDataStore store = new(new DataLoadResult(
             DataLoadStatus.Primary,
@@ -465,6 +466,9 @@ public sealed class AppCoordinatorTests
         CollectionAssert.AreEqual(
             new[] { BackdropKind.Acrylic },
             backdropService.Requests);
+        Assert.AreEqual(
+            new BackdropRequest(BackdropKind.Acrylic, 55),
+            backdropService.RequestModels.Single());
         Assert.AreEqual(
             BackdropKind.Acrylic,
             manager.CurrentData.Settings.Backdrop);
@@ -692,16 +696,22 @@ public sealed class AppCoordinatorTests
     {
         public List<BackdropKind> Requests { get; } = [];
 
+        public List<BackdropRequest> RequestModels { get; } = [];
+
         public BackdropResult? NextResult { get; init; }
 
-        public BackdropResult Apply(BackdropKind requestedBackdrop)
+        public BackdropResult Apply(BackdropRequest request)
         {
-            Requests.Add(requestedBackdrop);
+            Requests.Add(request.Kind);
+            RequestModels.Add(request);
             return NextResult ?? new BackdropResult(
-                requestedBackdrop,
-                requestedBackdrop,
+                request.Kind,
+                request.Kind,
                 BackdropFallbackReason.None,
-                ErrorMessage: null);
+                ErrorMessage: null,
+                request.Kind == BackdropKind.Acrylic
+                    ? request.AcrylicTintOpacityPercent
+                    : null);
         }
     }
 

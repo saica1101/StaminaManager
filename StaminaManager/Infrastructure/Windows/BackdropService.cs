@@ -14,6 +14,8 @@ namespace StaminaManager.Infrastructure.Windows;
 public interface IBackdropTarget
 {
     void SetBackdrop(BackdropDefinition definition);
+
+    bool TryUpdateAcrylicTintOpacity(int tintOpacityPercent);
 }
 
 public sealed record BackdropDefinition(
@@ -44,6 +46,20 @@ public sealed class MainWindowBackdropTarget(
         window.SetBackdrop(
             systemBackdrop,
             definition.IsSolidSurface);
+    }
+
+    public bool TryUpdateAcrylicTintOpacity(int tintOpacityPercent)
+    {
+        MainWindow window = windowAccessor()
+            ?? throw new InvalidOperationException(
+                "バックドロップの適用先がまだ作成されていません。");
+        if (window.SystemBackdrop is not AdjustableAcrylicBackdrop backdrop)
+        {
+            return false;
+        }
+
+        backdrop.SetTintOpacityPercent(tintOpacityPercent);
+        return true;
     }
 }
 
@@ -127,8 +143,10 @@ public sealed class BackdropService : IBackdropService
         _environment = environment;
     }
 
-    public BackdropResult Apply(BackdropKind requestedBackdrop)
+    public BackdropResult Apply(BackdropRequest request)
     {
+        ArgumentNullException.ThrowIfNull(request);
+        BackdropKind requestedBackdrop = request.Kind;
         if (!Enum.IsDefined(requestedBackdrop))
         {
             return ApplySolidFallback(
@@ -154,13 +172,31 @@ public sealed class BackdropService : IBackdropService
 
         try
         {
-            _target.SetBackdrop(CreateDefinition(requestedBackdrop));
+            if (requestedBackdrop == BackdropKind.Acrylic
+                && _lastActualBackdrop == BackdropKind.Acrylic
+                && _target.TryUpdateAcrylicTintOpacity(
+                    request.AcrylicTintOpacityPercent))
+            {
+                return new BackdropResult(
+                    requestedBackdrop,
+                    BackdropKind.Acrylic,
+                    BackdropFallbackReason.None,
+                    ErrorMessage: null,
+                    request.AcrylicTintOpacityPercent);
+            }
+
+            _target.SetBackdrop(CreateDefinition(
+                requestedBackdrop,
+                request.AcrylicTintOpacityPercent));
             _lastActualBackdrop = requestedBackdrop;
             return new BackdropResult(
                 requestedBackdrop,
                 requestedBackdrop,
                 BackdropFallbackReason.None,
-                ErrorMessage: null);
+                ErrorMessage: null,
+                requestedBackdrop == BackdropKind.Acrylic
+                    ? request.AcrylicTintOpacityPercent
+                    : null);
         }
         catch (Exception exception) when (IsApplyException(exception))
         {
@@ -264,16 +300,17 @@ public sealed class BackdropService : IBackdropService
     }
 
     private static BackdropDefinition CreateDefinition(
-        BackdropKind backdrop) => backdrop switch
+        BackdropKind backdrop,
+        int acrylicTintOpacityPercent) => backdrop switch
     {
         BackdropKind.Mica => new BackdropDefinition(
             typeof(Microsoft.UI.Xaml.Media.MicaBackdrop),
             static () => new Microsoft.UI.Xaml.Media.MicaBackdrop(),
             IsSolidSurface: false),
         BackdropKind.Acrylic => new BackdropDefinition(
-            typeof(Microsoft.UI.Xaml.Media.DesktopAcrylicBackdrop),
-            static () =>
-                new Microsoft.UI.Xaml.Media.DesktopAcrylicBackdrop(),
+            typeof(AdjustableAcrylicBackdrop),
+            () =>
+                new AdjustableAcrylicBackdrop(acrylicTintOpacityPercent),
             IsSolidSurface: false),
         _ => throw new ArgumentOutOfRangeException(nameof(backdrop)),
     };

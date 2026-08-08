@@ -17,7 +17,8 @@ public sealed record BackdropResult(
     BackdropKind RequestedBackdrop,
     BackdropKind ActualBackdrop,
     BackdropFallbackReason FallbackReason,
-    string? ErrorMessage)
+    string? ErrorMessage,
+    int? ActualAcrylicTintOpacityPercent = null)
 {
     public bool IsRequestedBackdropApplied =>
         RequestedBackdrop == ActualBackdrop
@@ -26,5 +27,5 @@ public sealed record BackdropResult(
 
 public interface IBackdropService
 {
-    BackdropResult Apply(BackdropKind requestedBackdrop);
+    BackdropResult Apply(BackdropRequest request);
 }

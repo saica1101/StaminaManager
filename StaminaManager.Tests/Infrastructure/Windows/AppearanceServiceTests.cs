@@ -79,12 +79,15 @@ public sealed class AppearanceServiceTests
             service,
             target,
             BackdropKind.Mica);
-        AssertBackdrop<DesktopAcrylicBackdrop>(
-            service,
-            target,
-            BackdropKind.Acrylic);
-        BackdropResult solidResult = service.Apply(BackdropKind.Solid);
+        BackdropResult acrylicResult = service.Apply(
+            Request(BackdropKind.Acrylic));
+        Assert.AreEqual(
+            typeof(AdjustableAcrylicBackdrop),
+            target.BackdropType);
+        Assert.AreEqual(80, acrylicResult.ActualAcrylicTintOpacityPercent);
+        BackdropResult solidResult = service.Apply(Request(BackdropKind.Solid));
         Assert.IsTrue(solidResult.IsRequestedBackdropApplied);
+        Assert.IsNull(solidResult.ActualAcrylicTintOpacityPercent);
         Assert.IsNull(target.BackdropType);
         Assert.IsTrue(target.IsSolidSurface);
     }
@@ -100,11 +103,11 @@ public sealed class AppearanceServiceTests
             target,
             new MutableBackdropEnvironment());
 
-        BackdropResult result = service.Apply(legacyBackdrop);
+        BackdropResult result = service.Apply(Request(legacyBackdrop));
 
         Assert.AreEqual(BackdropKind.Acrylic, result.RequestedBackdrop);
         Assert.AreEqual(BackdropKind.Acrylic, result.ActualBackdrop);
-        Assert.AreEqual(typeof(DesktopAcrylicBackdrop), target.BackdropType);
+        Assert.AreEqual(typeof(AdjustableAcrylicBackdrop), target.BackdropType);
         Assert.IsFalse(target.IsSolidSurface);
     }
 
@@ -118,13 +121,14 @@ public sealed class AppearanceServiceTests
         };
         BackdropService service = new(target, environment);
 
-        BackdropResult result = service.Apply(BackdropKind.Acrylic);
+        BackdropResult result = service.Apply(Request(BackdropKind.Acrylic));
 
         Assert.AreEqual(BackdropKind.Acrylic, result.RequestedBackdrop);
         Assert.AreEqual(BackdropKind.Solid, result.ActualBackdrop);
         Assert.AreEqual(
             BackdropFallbackReason.HighContrast,
             result.FallbackReason);
+        Assert.IsNull(result.ActualAcrylicTintOpacityPercent);
         Assert.IsNull(target.BackdropType);
         Assert.IsTrue(target.IsSolidSurface);
     }
@@ -152,10 +156,11 @@ public sealed class AppearanceServiceTests
         };
         BackdropService service = new(target, environment);
 
-        BackdropResult result = service.Apply(BackdropKind.Acrylic);
+        BackdropResult result = service.Apply(Request(BackdropKind.Acrylic));
 
         Assert.AreEqual(BackdropKind.Solid, result.ActualBackdrop);
         Assert.AreEqual(expectedReason, result.FallbackReason);
+        Assert.IsNull(result.ActualAcrylicTintOpacityPercent);
         Assert.IsNull(target.BackdropType);
         Assert.IsTrue(target.IsSolidSurface);
     }
@@ -171,7 +176,7 @@ public sealed class AppearanceServiceTests
             target,
             new MutableBackdropEnvironment());
 
-        BackdropResult result = service.Apply(BackdropKind.Mica);
+        BackdropResult result = service.Apply(Request(BackdropKind.Mica));
 
         Assert.AreEqual(BackdropKind.Solid, result.ActualBackdrop);
         Assert.AreEqual(
@@ -180,6 +185,7 @@ public sealed class AppearanceServiceTests
         Assert.IsNull(target.BackdropType);
         Assert.IsTrue(target.IsSolidSurface);
         Assert.IsNotNull(result.ErrorMessage);
+        Assert.IsNull(result.ActualAcrylicTintOpacityPercent);
     }
 
     private static void AssertBackdrop<TBackdrop>(
@@ -188,7 +194,7 @@ public sealed class AppearanceServiceTests
         BackdropKind requested)
         where TBackdrop : XamlSystemBackdrop
     {
-        BackdropResult result = service.Apply(requested);
+        BackdropResult result = service.Apply(Request(requested));
 
         Assert.IsTrue(
             result.IsRequestedBackdropApplied,
@@ -196,6 +202,82 @@ public sealed class AppearanceServiceTests
         Assert.AreEqual(typeof(TBackdrop), target.BackdropType);
         Assert.IsFalse(target.IsSolidSurface);
     }
+
+    [STATestMethod]
+    [DataRow(0, 0.0f)]
+    [DataRow(50, 0.5f)]
+    [DataRow(100, 1.0f)]
+    public void BackdropService_AcrylicRequestは色調不透明度を適用する(
+        int percent,
+        float expectedTintOpacity)
+    {
+        RecordingBackdropTarget target = new();
+        BackdropService service = new(
+            target,
+            new MutableBackdropEnvironment());
+
+        BackdropResult result = service.Apply(
+            Request(BackdropKind.Acrylic, percent));
+
+        Assert.AreEqual(percent, result.ActualAcrylicTintOpacityPercent);
+        Assert.AreEqual(expectedTintOpacity, percent / 100f);
+    }
+
+    [STATestMethod]
+    public void BackdropService_同一Acrylicの色調不透明度更新で再生成しない()
+    {
+        RecordingBackdropTarget target = new();
+        BackdropService service = new(
+            target,
+            new MutableBackdropEnvironment());
+
+        service.Apply(Request(BackdropKind.Acrylic, 50));
+        BackdropResult result = service.Apply(
+            Request(BackdropKind.Acrylic, 100));
+
+        Assert.AreEqual(1, target.SetBackdropCallCount);
+        Assert.AreEqual(1, target.UpdateAcrylicTintOpacityCallCount);
+        Assert.AreEqual(100, result.ActualAcrylicTintOpacityPercent);
+    }
+
+    [STATestMethod]
+    public void BackdropService_Acrylic色調更新失敗時はSolidへフォールバックする()
+    {
+        RecordingBackdropTarget target = new();
+        BackdropService service = new(
+            target,
+            new MutableBackdropEnvironment());
+        _ = service.Apply(Request(BackdropKind.Acrylic, 50));
+        target.ShouldThrowWhenUpdatingAcrylic = true;
+
+        BackdropResult result = service.Apply(
+            Request(BackdropKind.Acrylic, 100));
+
+        Assert.AreEqual(BackdropKind.Solid, result.ActualBackdrop);
+        Assert.AreEqual(
+            BackdropFallbackReason.ApplyFailed,
+            result.FallbackReason);
+        Assert.IsNull(result.ActualAcrylicTintOpacityPercent);
+    }
+
+    [TestMethod]
+    public void BackdropService_MicaとSolidの実色調不透明度はNull()
+    {
+        RecordingBackdropTarget target = new();
+        BackdropService service = new(
+            target,
+            new MutableBackdropEnvironment());
+
+        BackdropResult mica = service.Apply(Request(BackdropKind.Mica, 0));
+        BackdropResult solid = service.Apply(Request(BackdropKind.Solid, 100));
+
+        Assert.IsNull(mica.ActualAcrylicTintOpacityPercent);
+        Assert.IsNull(solid.ActualAcrylicTintOpacityPercent);
+    }
+
+    private static BackdropRequest Request(
+        BackdropKind backdrop,
+        int tintOpacityPercent = 80) => new(backdrop, tintOpacityPercent);
 
     private sealed class RecordingThemeTarget : IThemeTarget
     {
@@ -227,6 +309,12 @@ public sealed class AppearanceServiceTests
 
         public bool ShouldThrowOnce { get; set; }
 
+        public bool ShouldThrowWhenUpdatingAcrylic { get; set; }
+
+        public int SetBackdropCallCount { get; private set; }
+
+        public int UpdateAcrylicTintOpacityCallCount { get; private set; }
+
         public void SetBackdrop(BackdropDefinition definition)
         {
             if (ShouldThrowOnce)
@@ -235,8 +323,25 @@ public sealed class AppearanceServiceTests
                 throw new InvalidOperationException("apply failure");
             }
 
+            SetBackdropCallCount++;
             BackdropType = definition.BackdropType;
             IsSolidSurface = definition.IsSolidSurface;
+        }
+
+        public bool TryUpdateAcrylicTintOpacity(int tintOpacityPercent)
+        {
+            if (ShouldThrowWhenUpdatingAcrylic)
+            {
+                throw new InvalidOperationException("apply failure");
+            }
+
+            if (BackdropType != typeof(AdjustableAcrylicBackdrop))
+            {
+                return false;
+            }
+
+            UpdateAcrylicTintOpacityCallCount++;
+            return true;
         }
     }
 

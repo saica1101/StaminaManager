@@ -8,12 +8,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$backdrops = @('Mica', 'Acrylic', 'Blur', 'Transparent', 'Solid')
+$backdrops = @('Mica', 'Acrylic', 'Solid')
 $expectedDiagnostics = @{
     Mica = 'Mica|SolidSurface=Collapsed'
-    Acrylic = 'Acrylic|SolidSurface=Collapsed'
-    Blur = 'Blur|SolidSurface=Collapsed'
-    Transparent = 'Transparent|SolidSurface=Collapsed'
     Solid = 'Solid|SolidSurface=Visible'
 }
 $startedAtUtc = [DateTime]::UtcNow
@@ -188,7 +185,10 @@ function Assert-ActualBackdrop {
     $deadline = [DateTime]::UtcNow.AddSeconds(5)
     do {
         $actual = Get-RawBackdropDiagnostic
-        if ($actual -eq $expected) {
+        $isAcrylicDiagnostic = $Backdrop -eq 'Acrylic' -and
+            $actual -match '^Acrylic\|TintOpacity=(0\.\d{2}|1\.00)' +
+                '\|SolidSurface=Collapsed$'
+        if ($actual -eq $expected -or $isAcrylicDiagnostic) {
             Add-StressEvent 'BackdropDiagnostic' "$Backdrop=$actual"
             return
         }

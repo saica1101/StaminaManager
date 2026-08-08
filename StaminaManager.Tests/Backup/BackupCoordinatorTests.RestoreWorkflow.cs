@@ -203,6 +203,42 @@ public sealed class BackupCoordinatorTests_RestoreWorkflow
         Assert.AreEqual(1, overviewRefreshCount);
     }
 
+    [TestMethod]
+    public async Task Restore_保存済みAcrylic色調不透明度をBackdropRequestへ渡す()
+    {
+        await using RestoreWorkflowTestStore source =
+            await RestoreWorkflowTestStore.CreateAsync(
+                "new",
+                startupEnabled: false,
+                backdrop: BackdropKind.Acrylic,
+                acrylicTintOpacityPercent: 55);
+        string backupPath = await source.ExportAsync();
+        await using RestoreWorkflowTestStore destination =
+            await RestoreWorkflowTestStore.CreateAsync("old", false);
+        GameManager manager = destination.CreateManager();
+        RecordingDerivedServices services = new();
+        AppCoordinator app = CreateApp(
+            destination,
+            manager,
+            destination.CreateBackup(),
+            new RecordingStartupService(StartupState.Disabled),
+            services);
+        await app.InitializeAsync(CancellationToken.None);
+        services.BackdropRequests.Clear();
+
+        PreparedBackupRestore prepared = await app.PreviewRestoreAsync(
+            backupPath,
+            CancellationToken.None);
+        _ = await app.RestoreBackupAsync(
+            prepared.SessionId,
+            isReplacementConfirmed: true,
+            CancellationToken.None);
+
+        Assert.AreEqual(
+            new BackdropRequest(BackdropKind.Acrylic, 55),
+            services.BackdropRequests.Single());
+    }
+
     private static async Task<WorkflowResult> RunRestoreAsync(
         bool desiredStartupEnabled,
         RecordingStartupService startup)
@@ -274,6 +310,8 @@ public sealed class BackupCoordinatorTests_RestoreWorkflow
     {
         public List<string> Calls { get; } = [];
 
+        public List<BackdropRequest> BackdropRequests { get; } = [];
+
         public bool ShouldFailNotifications { get; init; }
 
         public AppDisplayMode CurrentDisplayMode { get; private set; }
@@ -290,14 +328,18 @@ public sealed class BackupCoordinatorTests_RestoreWorkflow
                 ErrorMessage: null);
         }
 
-        public BackdropResult Apply(BackdropKind requestedBackdrop)
+        public BackdropResult Apply(BackdropRequest request)
         {
             Calls.Add("Backdrop");
+            BackdropRequests.Add(request);
             return new BackdropResult(
-                requestedBackdrop,
-                requestedBackdrop,
+                request.Kind,
+                request.Kind,
                 BackdropFallbackReason.None,
-                ErrorMessage: null);
+                ErrorMessage: null,
+                request.Kind == BackdropKind.Acrylic
+                    ? request.AcrylicTintOpacityPercent
+                    : null);
         }
 
         public void ApplyDisplayMode(AppDisplayMode displayMode)
