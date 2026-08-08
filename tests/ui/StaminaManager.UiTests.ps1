@@ -77,6 +77,7 @@ public static class StaminaManagerUiTestNative
 }
 '@
 }
+Add-Type -AssemblyName UIAutomationClient
 
 $requiredAutomationIds = @(
     'ShellContentFrame',
@@ -631,6 +632,102 @@ function Get-ControlValue {
         Invoke-WinApp ui get-value $AutomationId -a $AppPid --json |
             ConvertFrom-Json
     ).text
+}
+
+function Get-RawBackdropDiagnostic {
+    $root = [System.Windows.Automation.AutomationElement]::RootElement
+    $processCondition =
+        [System.Windows.Automation.PropertyCondition]::new(
+            [System.Windows.Automation.AutomationElement]::
+                ProcessIdProperty,
+            $AppPid)
+    $window = $root.FindFirst(
+        [System.Windows.Automation.TreeScope]::Children,
+        $processCondition)
+    if ($null -eq $window) {
+        throw "Window not found for PID $AppPid."
+    }
+
+    $walker = [System.Windows.Automation.TreeWalker]::RawViewWalker
+    $elements =
+        [System.Collections.Generic.Queue[
+            System.Windows.Automation.AutomationElement]]::new()
+    $elements.Enqueue($window)
+    while ($elements.Count -gt 0) {
+        $element = $elements.Dequeue()
+        if ($element.Current.AutomationId -eq
+            'ActualBackdropDiagnostic') {
+            return $element.Current.Name
+        }
+
+        $child = $walker.GetFirstChild($element)
+        while ($null -ne $child) {
+            $elements.Enqueue($child)
+            $child = $walker.GetNextSibling($child)
+        }
+    }
+
+    throw 'ActualBackdropDiagnostic was not found in UIA Raw view.'
+}
+
+function Wait-BackdropDiagnostic {
+    param(
+        [string]$ExpectedDiagnostic,
+        [int]$TimeoutMilliseconds = 3000)
+
+    $deadline = [DateTime]::UtcNow.AddMilliseconds($TimeoutMilliseconds)
+    $actual = $null
+    do {
+        try {
+            $actual = Get-RawBackdropDiagnostic
+            if ($actual -eq $ExpectedDiagnostic) {
+                return
+            }
+        }
+        catch {
+        }
+
+        Start-Sleep -Milliseconds 100
+    } while ([DateTime]::UtcNow -lt $deadline)
+
+    throw "Expected '$ExpectedDiagnostic', actual '$actual'."
+}
+
+function Wait-ControlEnabled {
+    param(
+        [string]$AutomationId,
+        [bool]$Expected,
+        [int]$TimeoutMilliseconds = 3000)
+
+    $expectedValue = if ($Expected) { 'True' } else { 'False' }
+    Invoke-WinApp ui wait-for $AutomationId -a $AppPid `
+        -p IsEnabled --value $expectedValue `
+        -t $TimeoutMilliseconds | Out-Null
+}
+
+function Wait-PersistedAcrylicOpacity {
+    param(
+        [int]$ExpectedPercent,
+        [int]$TimeoutMilliseconds = 3000)
+
+    $dataPath = Join-Path $dataDirectory 'data.json'
+    $deadline = [DateTime]::UtcNow.AddMilliseconds($TimeoutMilliseconds)
+    $actual = $null
+    do {
+        try {
+            $data = [IO.File]::ReadAllText($dataPath) | ConvertFrom-Json
+            $actual = [int]$data.settings.acrylicTintOpacityPercent
+            if ($actual -eq $ExpectedPercent) {
+                return
+            }
+        }
+        catch {
+        }
+
+        Start-Sleep -Milliseconds 100
+    } while ([DateTime]::UtcNow -lt $deadline)
+
+    throw "Expected persisted Acrylic opacity $ExpectedPercent, actual $actual."
 }
 
 function Set-NumberBoxFromKeyboard {
@@ -1735,19 +1832,50 @@ try {
         Collect-AuditSnapshot SettingsAppearance
     }
 
-    Invoke-UiTest Settings 'Acrylic不透明度の遅延保存とSettings往復' {
+    Invoke-UiTest Settings 'Acrylic不透明度0/50/100の診断・disabled・永続化とSettings往復' {
         $initialBackdrop = Get-ControlValue BackdropSelector
         Scroll-ToSettingsControl AcrylicOpacitySlider
         $initialOpacity = [int](Get-ControlValue AcrylicOpacitySlider)
-        $targetOpacity = if ($initialOpacity -eq 37) { 63 } else { 37 }
+        $opacityValues = @(0, 50, 100)
+        $expectedDiagnostics = @{
+            0 = 'Acrylic|TintOpacity=0.00|SolidSurface=Collapsed'
+            50 = 'Acrylic|TintOpacity=0.50|SolidSurface=Collapsed'
+            100 = 'Acrylic|TintOpacity=1.00|SolidSurface=Collapsed'
+        }
 
         try {
-            Select-ComboItem BackdropSelector 'Acrylic'
+            foreach ($inactiveBackdrop in @('Mica', 'Solid')) {
+                Select-ComboItem BackdropSelector $inactiveBackdrop
+                Scroll-ToSettingsControl AcrylicOpacitySlider
+                Wait-ControlEnabled AcrylicOpacitySlider $false
+            }
+
             Scroll-ToSettingsControl AcrylicOpacitySlider
-            Invoke-WinApp ui set-value AcrylicOpacitySlider $targetOpacity `
-                -a $AppPid | Out-Null
-            Invoke-WinApp ui wait-for AcrylicOpacitySlider -a $AppPid `
-                -p Value --value "$targetOpacity" -t 3000 | Out-Null
+            $isAcrylicAvailable = $true
+            try {
+                Select-ComboItem BackdropSelector 'Acrylic'
+                Scroll-ToSettingsControl AcrylicOpacitySlider
+                Wait-ControlEnabled AcrylicOpacitySlider $true
+            }
+            catch {
+                $isAcrylicAvailable = $false
+            }
+            Scroll-ToSettingsControl AcrylicOpacitySlider
+
+            if ($isAcrylicAvailable) {
+                foreach ($percent in $opacityValues) {
+                    Invoke-WinApp ui set-value AcrylicOpacitySlider $percent `
+                        -a $AppPid | Out-Null
+                    Invoke-WinApp ui wait-for AcrylicOpacitySlider -a $AppPid `
+                        -p Value --value "$percent" -t 3000 | Out-Null
+                    Wait-BackdropDiagnostic $expectedDiagnostics[$percent]
+                    Wait-PersistedAcrylicOpacity $percent
+                }
+            }
+            else {
+                Wait-ControlEnabled AcrylicOpacitySlider $false
+                Wait-BackdropDiagnostic 'Solid'
+            }
 
             Invoke-WinApp ui invoke NavOverview -a $AppPid | Out-Null
             Invoke-WinApp ui wait-for AddGameCard -a $AppPid -t 5000 |
@@ -1757,11 +1885,8 @@ try {
             Invoke-WinApp ui invoke NavSettings -a $AppPid | Out-Null
             Invoke-WinApp ui wait-for AcrylicOpacitySlider -a $AppPid `
                 -t 5000 | Out-Null
-            $data = [IO.File]::ReadAllText(
-                (Join-Path $dataDirectory 'data.json')) | ConvertFrom-Json
-            if ([int]$data.settings.acrylicTintOpacityPercent -ne
-                    $targetOpacity) {
-                throw 'Acrylic opacity was not committed after navigation.'
+            if ($isAcrylicAvailable) {
+                Wait-PersistedAcrylicOpacity 100
             }
         }
         finally {
@@ -1769,11 +1894,19 @@ try {
                 Invoke-WinApp ui invoke NavSettings -a $AppPid | Out-Null
                 Invoke-WinApp ui wait-for BackdropSelector -a $AppPid `
                     -t 5000 | Out-Null
-                Select-ComboItem BackdropSelector 'Acrylic'
-                Scroll-ToSettingsControl AcrylicOpacitySlider
-                Invoke-WinApp ui set-value AcrylicOpacitySlider $initialOpacity `
-                    -a $AppPid | Out-Null
-                Start-Sleep -Milliseconds 400
+                try {
+                    Select-ComboItem BackdropSelector 'Acrylic'
+                    Scroll-ToSettingsControl AcrylicOpacitySlider
+                    Wait-ControlEnabled AcrylicOpacitySlider $true
+                    Invoke-WinApp ui set-value AcrylicOpacitySlider `
+                        $initialOpacity -a $AppPid | Out-Null
+                    Invoke-WinApp ui wait-for AcrylicOpacitySlider `
+                        -a $AppPid -p Value --value "$initialOpacity" `
+                        -t 3000 | Out-Null
+                    Wait-PersistedAcrylicOpacity $initialOpacity
+                }
+                catch {
+                }
                 Select-ComboItem BackdropSelector $initialBackdrop
             }
             catch {

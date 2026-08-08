@@ -99,6 +99,7 @@ public sealed partial class SettingsPage : Page
             return;
         }
 
+        await FlushPendingAppearanceChangesAsync();
         await _appearanceChangeRouter.ChangeBackdropAsync(
             requestedBackdrop);
     }
@@ -111,8 +112,7 @@ public sealed partial class SettingsPage : Page
             || _isFlushingAppearanceChanges
             || double.IsNaN(args.NewValue)
             || double.IsInfinity(args.NewValue)
-            || args.NewValue != Math.Truncate(args.NewValue)
-            || args.NewValue == ViewModel.AcrylicTintOpacityPercent)
+            || args.NewValue != Math.Truncate(args.NewValue))
         {
             return;
         }
@@ -477,9 +477,10 @@ public sealed partial class SettingsPage : Page
                 return;
             }
 
-            await _appearanceChangeRouter
+            bool committed = await _appearanceChangeRouter
                 .CommitAcrylicTintOpacityAsync(percent);
-            if (version == _acrylicOpacityChangeVersion)
+            if (version == _acrylicOpacityChangeVersion
+                && committed)
             {
                 _pendingAcrylicOpacityPercent = null;
             }

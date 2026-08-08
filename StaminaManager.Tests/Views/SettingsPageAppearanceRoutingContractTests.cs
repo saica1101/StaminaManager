@@ -171,6 +171,87 @@ public sealed class SettingsPageAppearanceRoutingContractTests
             "_pendingAcrylicOpacityPercent != percent");
     }
 
+    [TestMethod]
+    public void AcrylicOpacityValueChanged_同じ値へ戻す入力を同期更新と混同しない()
+    {
+        string handler = ExtractMethod(
+            LoadSettingsPageSource(),
+            "private void AcrylicOpacitySlider_ValueChanged(",
+            "private async void CloseBehaviorSelector_SelectionChanged(");
+
+        StringAssert.Contains(handler, "_isSynchronizingControls");
+        StringAssert.Contains(
+            handler,
+            "_pendingAcrylicOpacityPercent = percent;");
+        StringAssert.Contains(
+            handler,
+            "_acrylicOpacityChangeVersion++;");
+        Assert.DoesNotContain(
+            "args.NewValue == ViewModel.AcrylicTintOpacityPercent",
+            handler);
+    }
+
+    [TestMethod]
+    public void BackdropHandler_MicaとSolidの変更前に保留AcrylicCommitをflushする()
+    {
+        string handler = ExtractMethod(
+            LoadSettingsPageSource(),
+            "private async void BackdropSelector_SelectionChanged(",
+            "private async void CloseBehaviorSelector_SelectionChanged(");
+        int flushIndex = handler.IndexOf(
+            "await FlushPendingAppearanceChangesAsync();",
+            StringComparison.Ordinal);
+        int backdropIndex = handler.IndexOf(
+            "await _appearanceChangeRouter.ChangeBackdropAsync(",
+            StringComparison.Ordinal);
+
+        Assert.IsGreaterThanOrEqualTo(0, flushIndex);
+        Assert.IsGreaterThanOrEqualTo(0, backdropIndex);
+        Assert.IsGreaterThan(flushIndex, backdropIndex);
+    }
+
+    [TestMethod]
+    public void AcrylicOpacityCommit_拒否時に保留値を消去しない()
+    {
+        string source = LoadSettingsPageSource();
+        string method = ExtractMethod(
+            source,
+            "private void QueueAcrylicOpacityCommit()",
+            "private void QueueAcrylicOpacityOperation(");
+
+        StringAssert.Contains(
+            method,
+            "bool committed = await _appearanceChangeRouter");
+        StringAssert.Contains(method, "&& committed");
+    }
+
+    [TestMethod]
+    public void UiScript_AcrylicOpacityExtremesDiagnosticDisabledAndPersistence()
+    {
+        string script = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "tests",
+            "ui",
+            "StaminaManager.UiTests.ps1"));
+
+        foreach (string fragment in new[]
+        {
+            "@(0, 50, 100)",
+            "Acrylic|TintOpacity=0.00|SolidSurface=Collapsed",
+            "Acrylic|TintOpacity=0.50|SolidSurface=Collapsed",
+            "Acrylic|TintOpacity=1.00|SolidSurface=Collapsed",
+            "Get-RawBackdropDiagnostic",
+            "AcrylicOpacitySlider",
+            "-p IsEnabled --value False",
+            "acrylicTintOpacityPercent",
+            "'Mica'",
+            "'Solid'",
+        })
+        {
+            StringAssert.Contains(script, fragment);
+        }
+    }
+
     private static string ExtractMethod(
         string source,
         string startMarker,
