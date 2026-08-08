@@ -128,8 +128,7 @@
                             Orientation="Horizontal"
                             SmallChange="1"
                             StepFrequency="1"
-                            TickFrequency="10"
-                            ValueChanged="AcrylicOpacitySlider_ValueChanged" />
+                            TickFrequency="10" />
 
                         <TextBlock
                             x:Name="AcrylicOpacityValue"

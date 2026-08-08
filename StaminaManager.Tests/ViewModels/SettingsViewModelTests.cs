@@ -180,23 +180,6 @@ public sealed class SettingsViewModelTests
     }
 
     [TestMethod]
-    public void AcrylicOpacityApi_PropertiesAndMethodsAreExposed()
-    {
-        Type viewModelType = typeof(SettingsViewModel);
-
-        Assert.IsNotNull(viewModelType.GetProperty(
-            "AcrylicTintOpacityPercent"));
-        Assert.IsNotNull(viewModelType.GetProperty(
-            "IsAcrylicOpacityEnabled"));
-        Assert.IsNotNull(viewModelType.GetProperty(
-            "IsAppearanceBusy"));
-        Assert.IsNotNull(viewModelType.GetMethod(
-            "PreviewAcrylicTintOpacityAsync"));
-        Assert.IsNotNull(viewModelType.GetMethod(
-            "CommitAcrylicTintOpacityAsync"));
-    }
-
-    [TestMethod]
     [DataRow(0)]
     [DataRow(50)]
     [DataRow(100)]
@@ -208,10 +191,7 @@ public sealed class SettingsViewModelTests
             80);
         SettingsViewModel viewModel = context.CreateViewModel();
 
-        bool applied = await InvokeOpacityOperationAsync(
-            viewModel,
-            "PreviewAcrylicTintOpacityAsync",
-            percent);
+        bool applied = await viewModel.PreviewAcrylicTintOpacityAsync(percent);
 
         Assert.IsTrue(applied);
         Assert.AreEqual(0, context.Store.SaveCount);
@@ -220,9 +200,7 @@ public sealed class SettingsViewModelTests
             context.BackdropService.RequestModels.Single());
         Assert.AreEqual(
             percent,
-            GetViewModelProperty<int>(
-                viewModel,
-                "AcrylicTintOpacityPercent"));
+            viewModel.AcrylicTintOpacityPercent);
     }
 
     [TestMethod]
@@ -236,17 +214,12 @@ public sealed class SettingsViewModelTests
             80);
         SettingsViewModel viewModel = context.CreateViewModel();
 
-        bool applied = await InvokeOpacityOperationAsync(
-            viewModel,
-            "PreviewAcrylicTintOpacityAsync",
-            percent);
+        bool applied = await viewModel.PreviewAcrylicTintOpacityAsync(percent);
 
         Assert.IsFalse(applied);
         Assert.IsEmpty(context.BackdropService.Requests);
         Assert.AreEqual(0, context.Store.SaveCount);
-        Assert.AreEqual(80, GetViewModelProperty<int>(
-            viewModel,
-            "AcrylicTintOpacityPercent"));
+        Assert.AreEqual(80, viewModel.AcrylicTintOpacityPercent);
     }
 
     [TestMethod]
@@ -255,17 +228,12 @@ public sealed class SettingsViewModelTests
         Context context = await Context.CreateAsync();
         SettingsViewModel viewModel = context.CreateViewModel();
 
-        bool applied = await InvokeOpacityOperationAsync(
-            viewModel,
-            "PreviewAcrylicTintOpacityAsync",
-            50);
+        bool applied = await viewModel.PreviewAcrylicTintOpacityAsync(50);
 
         Assert.IsFalse(applied);
         Assert.IsEmpty(context.BackdropService.Requests);
         Assert.AreEqual(0, context.Store.SaveCount);
-        Assert.IsFalse(GetViewModelProperty<bool>(
-            viewModel,
-            "IsAcrylicOpacityEnabled"));
+        Assert.IsFalse(viewModel.IsAcrylicOpacityEnabled);
     }
 
     [TestMethod]
@@ -281,18 +249,13 @@ public sealed class SettingsViewModelTests
             "preview failure");
         SettingsViewModel viewModel = context.CreateViewModel();
 
-        bool applied = await InvokeOpacityOperationAsync(
-            viewModel,
-            "PreviewAcrylicTintOpacityAsync",
-            50);
+        bool applied = await viewModel.PreviewAcrylicTintOpacityAsync(50);
 
         Assert.IsFalse(applied);
         CollectionAssert.AreEqual(
             new[] { BackdropKind.Acrylic, BackdropKind.Acrylic },
             context.BackdropService.Requests);
-        Assert.AreEqual(80, GetViewModelProperty<int>(
-            viewModel,
-            "AcrylicTintOpacityPercent"));
+        Assert.AreEqual(80, viewModel.AcrylicTintOpacityPercent);
         Assert.AreEqual(0, context.Store.SaveCount);
     }
 
@@ -303,24 +266,16 @@ public sealed class SettingsViewModelTests
             BackdropKind.Acrylic,
             80);
         SettingsViewModel viewModel = context.CreateViewModel();
-        Assert.IsTrue(await InvokeOpacityOperationAsync(
-            viewModel,
-            "PreviewAcrylicTintOpacityAsync",
-            50));
+        Assert.IsTrue(await viewModel.PreviewAcrylicTintOpacityAsync(50));
         context.Store.SaveException = new IOException("save failure");
 
-        bool committed = await InvokeOpacityOperationAsync(
-            viewModel,
-            "CommitAcrylicTintOpacityAsync",
-            50);
+        bool committed = await viewModel.CommitAcrylicTintOpacityAsync(50);
 
         Assert.IsFalse(committed);
         CollectionAssert.AreEqual(
             new[] { BackdropKind.Acrylic, BackdropKind.Acrylic },
             context.BackdropService.Requests);
-        Assert.AreEqual(80, GetViewModelProperty<int>(
-            viewModel,
-            "AcrylicTintOpacityPercent"));
+        Assert.AreEqual(80, viewModel.AcrylicTintOpacityPercent);
         Assert.AreEqual(80, context.Manager.CurrentData.Settings
             .AcrylicTintOpacityPercent);
         Assert.IsTrue(viewModel.IsInfoBarOpen);
@@ -333,23 +288,15 @@ public sealed class SettingsViewModelTests
             BackdropKind.Acrylic,
             80);
         SettingsViewModel viewModel = context.CreateViewModel();
-        Assert.IsTrue(await InvokeOpacityOperationAsync(
-            viewModel,
-            "PreviewAcrylicTintOpacityAsync",
-            50));
+        Assert.IsTrue(await viewModel.PreviewAcrylicTintOpacityAsync(50));
 
-        bool committed = await InvokeOpacityOperationAsync(
-            viewModel,
-            "CommitAcrylicTintOpacityAsync",
-            50);
+        bool committed = await viewModel.CommitAcrylicTintOpacityAsync(50);
 
         Assert.IsTrue(committed);
         Assert.AreEqual(1, context.Store.SaveCount);
         Assert.AreEqual(50, context.Manager.CurrentData.Settings
             .AcrylicTintOpacityPercent);
-        Assert.AreEqual(50, GetViewModelProperty<int>(
-            viewModel,
-            "AcrylicTintOpacityPercent"));
+        Assert.AreEqual(50, viewModel.AcrylicTintOpacityPercent);
     }
 
     [TestMethod]
@@ -362,16 +309,10 @@ public sealed class SettingsViewModelTests
 
         for (int index = 0; index < 20; index++)
         {
-            Assert.IsTrue(await InvokeOpacityOperationAsync(
-                viewModel,
-                "PreviewAcrylicTintOpacityAsync",
-                index * 5));
+            Assert.IsTrue(await viewModel.PreviewAcrylicTintOpacityAsync(index * 5));
         }
 
-        Assert.IsTrue(await InvokeOpacityOperationAsync(
-            viewModel,
-            "CommitAcrylicTintOpacityAsync",
-            95));
+        Assert.IsTrue(await viewModel.CommitAcrylicTintOpacityAsync(95));
 
         Assert.AreEqual(1, context.Store.SaveCount);
         Assert.AreEqual(
@@ -389,25 +330,17 @@ public sealed class SettingsViewModelTests
             BackdropKind.Acrylic,
             80);
         SettingsViewModel viewModel = context.CreateViewModel();
-        Assert.IsTrue(await InvokeOpacityOperationAsync(
-            viewModel,
-            "PreviewAcrylicTintOpacityAsync",
-            50));
+        Assert.IsTrue(await viewModel.PreviewAcrylicTintOpacityAsync(50));
         context.Store.SaveException = new OperationCanceledException(
             "save cancellation");
 
         await Assert.ThrowsExactlyAsync<OperationCanceledException>(
-            () => InvokeOpacityOperationAsync(
-                viewModel,
-                "CommitAcrylicTintOpacityAsync",
-                50));
+            () => viewModel.CommitAcrylicTintOpacityAsync(50));
 
         CollectionAssert.AreEqual(
             new[] { BackdropKind.Acrylic, BackdropKind.Acrylic },
             context.BackdropService.Requests);
-        Assert.AreEqual(80, GetViewModelProperty<int>(
-            viewModel,
-            "AcrylicTintOpacityPercent"));
+        Assert.AreEqual(80, viewModel.AcrylicTintOpacityPercent);
     }
 
     [TestMethod]
@@ -417,18 +350,12 @@ public sealed class SettingsViewModelTests
             BackdropKind.Acrylic,
             80);
         SettingsViewModel viewModel = context.CreateViewModel();
-        Assert.IsTrue(await InvokeOpacityOperationAsync(
-            viewModel,
-            "PreviewAcrylicTintOpacityAsync",
-            50));
+        Assert.IsTrue(await viewModel.PreviewAcrylicTintOpacityAsync(50));
         context.Store.SaveException = new IOException("save failure");
         context.BackdropService.RollbackException =
             new InvalidOperationException("rollback failure");
 
-        bool committed = await InvokeOpacityOperationAsync(
-            viewModel,
-            "CommitAcrylicTintOpacityAsync",
-            50);
+        bool committed = await viewModel.CommitAcrylicTintOpacityAsync(50);
 
         Assert.IsFalse(committed);
         CollectionAssert.AreEqual(
@@ -452,9 +379,7 @@ public sealed class SettingsViewModelTests
             55);
         SettingsViewModel viewModel = context.CreateViewModel();
 
-        Assert.IsTrue(GetViewModelProperty<bool>(
-            viewModel,
-            "IsAcrylicOpacityEnabled"));
+        Assert.IsTrue(viewModel.IsAcrylicOpacityEnabled);
 
         context.BackdropService.NextResult = new BackdropResult(
             BackdropKind.Solid,
@@ -462,12 +387,8 @@ public sealed class SettingsViewModelTests
             BackdropFallbackReason.None,
             null);
         Assert.IsTrue(await viewModel.SetBackdropAsync(BackdropKind.Solid));
-        Assert.IsFalse(GetViewModelProperty<bool>(
-            viewModel,
-            "IsAcrylicOpacityEnabled"));
-        Assert.AreEqual(55, GetViewModelProperty<int>(
-            viewModel,
-            "AcrylicTintOpacityPercent"));
+        Assert.IsFalse(viewModel.IsAcrylicOpacityEnabled);
+        Assert.AreEqual(55, viewModel.AcrylicTintOpacityPercent);
     }
 
     [TestMethod]
@@ -479,15 +400,11 @@ public sealed class SettingsViewModelTests
         SettingsViewModel viewModel = context.CreateViewModel();
 
         SetViewModelProperty(viewModel, "IsBackupBusy", true);
-        Assert.IsFalse(GetViewModelProperty<bool>(
-            viewModel,
-            "IsAcrylicOpacityEnabled"));
+        Assert.IsFalse(viewModel.IsAcrylicOpacityEnabled);
 
         SetViewModelProperty(viewModel, "IsBackupBusy", false);
         SetViewModelProperty(viewModel, "IsAppearanceBusy", true);
-        Assert.IsFalse(GetViewModelProperty<bool>(
-            viewModel,
-            "IsAcrylicOpacityEnabled"));
+        Assert.IsFalse(viewModel.IsAcrylicOpacityEnabled);
     }
 
     [TestMethod]
@@ -516,16 +433,6 @@ public sealed class SettingsViewModelTests
             .AcrylicTintOpacityPercent);
     }
 
-    private static T GetViewModelProperty<T>(
-        SettingsViewModel viewModel,
-        string propertyName)
-    {
-        PropertyInfo? property = typeof(SettingsViewModel).GetProperty(
-            propertyName);
-        Assert.IsNotNull(property);
-        return (T)property!.GetValue(viewModel)!;
-    }
-
     private static void SetViewModelProperty(
         SettingsViewModel viewModel,
         string propertyName,
@@ -535,22 +442,6 @@ public sealed class SettingsViewModelTests
             propertyName);
         Assert.IsNotNull(property);
         property!.SetValue(viewModel, value);
-    }
-
-    private static async Task<bool> InvokeOpacityOperationAsync(
-        SettingsViewModel viewModel,
-        string methodName,
-        int percent,
-        CancellationToken cancellationToken = default)
-    {
-        MethodInfo? method = typeof(SettingsViewModel).GetMethod(methodName);
-        Assert.IsNotNull(method);
-        object?[] arguments = method!.GetParameters().Length == 1
-            ? [percent]
-            : [percent, cancellationToken];
-        object? result = method.Invoke(viewModel, arguments);
-        Assert.IsNotNull(result);
-        return await (Task<bool>)result!;
     }
 
     [TestMethod]
@@ -615,10 +506,7 @@ public sealed class SettingsViewModelTests
             BackdropKind.Acrylic,
             80);
         SettingsViewModel viewModel = context.CreateViewModel();
-        Assert.IsTrue(await InvokeOpacityOperationAsync(
-            viewModel,
-            "PreviewAcrylicTintOpacityAsync",
-            50));
+        Assert.IsTrue(await viewModel.PreviewAcrylicTintOpacityAsync(50));
         context.Store.SaveException = new IOException("save failure");
 
         Assert.IsFalse(await viewModel.SetBackdropAsync(BackdropKind.Mica));
@@ -632,9 +520,7 @@ public sealed class SettingsViewModelTests
             },
             context.BackdropService.Requests);
         Assert.AreEqual(BackdropKind.Acrylic, viewModel.ActualBackdrop);
-        Assert.AreEqual(80, GetViewModelProperty<int>(
-            viewModel,
-            "AcrylicTintOpacityPercent"));
+        Assert.AreEqual(80, viewModel.AcrylicTintOpacityPercent);
     }
 
     [TestMethod]
