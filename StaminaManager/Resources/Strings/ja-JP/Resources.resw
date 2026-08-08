@@ -62,6 +62,11 @@
   <data name="BackdropMicaItem.Content" xml:space="preserve"><value>Mica</value></data>
   <data name="BackdropAcrylicItem.Content" xml:space="preserve"><value>Acrylic</value></data>
   <data name="BackdropSolidItem.Content" xml:space="preserve"><value>Solid</value></data>
+  <data name="AcrylicOpacitySlider.Header" xml:space="preserve"><value>Acrylic の不透明度</value></data>
+  <data name="AcrylicOpacitySlider.Description" xml:space="preserve"><value>Acrylic の色調の濃さを調整します。背景が Acrylic の場合のみ変更できます。</value></data>
+  <data name="AcrylicOpacitySlider.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Acrylic の不透明度</value></data>
+  <data name="AcrylicOpacitySlider.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText" xml:space="preserve"><value>Acrylic の色調の濃さを調整します。背景が Acrylic の場合のみ変更できます。</value></data>
+  <data name="AcrylicOpacityValue.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Acrylic の不透明度の現在値</value></data>
   <data name="SettingsGeneralHeading.Text" xml:space="preserve"><value>動作</value></data>
   <data name="CloseBehaviorSelector.Header" xml:space="preserve"><value>閉じるボタンの動作</value></data>
   <data name="CloseBehaviorSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>閉じるボタンの動作を選択</value></data>

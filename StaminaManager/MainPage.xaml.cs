@@ -67,6 +67,9 @@ public sealed partial class MainPage : Page
 
     public ShellViewModel ViewModel { get; }
 
+    internal Task FlushPendingSettingsChangesAsync() =>
+        _settingsPage.FlushPendingAppearanceChangesAsync();
+
     private void ShellNavigation_SelectionChanged(
         NavigationView sender,
         NavigationViewSelectionChangedEventArgs args)

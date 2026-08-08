@@ -87,6 +87,90 @@ public sealed class SettingsPageAppearanceRoutingContractTests
         Assert.DoesNotContain("BackdropTransparentItem", xaml);
     }
 
+    [TestMethod]
+    public void AcrylicOpacitySlider_UsesStandardRangeAndDeferredCommit()
+    {
+        string xaml = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "StaminaManager",
+            "Views",
+            "SettingsPage.xaml"));
+        string source = LoadSettingsPageSource();
+
+        StringAssert.Contains(xaml, "x:Name=\"AcrylicOpacitySlider\"");
+        StringAssert.Contains(
+            xaml,
+            "AutomationProperties.AutomationId=\"AcrylicOpacitySlider\"");
+        foreach (string property in new[]
+        {
+            "Minimum=\"0\"",
+            "Maximum=\"100\"",
+            "StepFrequency=\"1\"",
+            "SmallChange=\"1\"",
+            "LargeChange=\"10\"",
+            "TickFrequency=\"10\"",
+            "IsThumbToolTipEnabled=\"True\"",
+        })
+        {
+            StringAssert.Contains(xaml, property);
+        }
+
+        StringAssert.Contains(xaml, "AcrylicOpacitySlider_ValueChanged");
+        StringAssert.Contains(source, "DispatcherQueueTimer");
+        StringAssert.Contains(source, "250");
+        StringAssert.Contains(source, "PreviewAcrylicTintOpacityAsync");
+        StringAssert.Contains(source, "CommitAcrylicTintOpacityAsync");
+        StringAssert.Contains(source, "FlushPendingAppearanceChangesAsync");
+    }
+
+    [TestMethod]
+    public void PendingAcrylicOpacity_IsFlushedAfterNavigationAndBeforeShutdown()
+    {
+        string pageSource = LoadSettingsPageSource();
+        StringAssert.Contains(pageSource, "_pendingAcrylicOpacityPercent");
+        StringAssert.Contains(pageSource, "_acrylicOpacityChangeVersion");
+        StringAssert.Contains(pageSource, "QueueAcrylicOpacityCommit();");
+        StringAssert.Contains(pageSource, "await _acrylicOpacityOperation;");
+        Assert.DoesNotContain("Unloaded +=", pageSource);
+
+        string mainPageSource = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "StaminaManager",
+            "MainPage.xaml.cs"));
+        StringAssert.Contains(
+            mainPageSource,
+            "_settingsPage.FlushPendingAppearanceChangesAsync()");
+
+        string appSource = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "StaminaManager",
+            "App.xaml.cs"));
+        StringAssert.Contains(
+            appSource,
+            "await _mainPage.FlushPendingSettingsChangesAsync();");
+    }
+
+    [TestMethod]
+    public void AcrylicOpacityPreview_UsesLatestChangeVersion()
+    {
+        string source = LoadSettingsPageSource();
+        int start = source.IndexOf(
+            "private void QueueAcrylicOpacityPreview",
+            StringComparison.Ordinal);
+        int end = source.IndexOf(
+            "private void QueueAcrylicOpacityCommit",
+            start,
+            StringComparison.Ordinal);
+
+        Assert.IsGreaterThanOrEqualTo(0, start);
+        Assert.IsGreaterThan(start, end);
+        string previewMethod = source[start..end];
+        StringAssert.Contains(previewMethod, "_acrylicOpacityChangeVersion");
+        StringAssert.Contains(
+            previewMethod,
+            "_pendingAcrylicOpacityPercent != percent");
+    }
+
     private static string ExtractMethod(
         string source,
         string startMarker,

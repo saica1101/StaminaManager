@@ -15,6 +15,7 @@ public sealed class AccessibilityPrivacyContractTests
         "ComboBox",
         "NavigationViewItem",
         "NumberBox",
+        "Slider",
         "TextBox",
         "ToggleSwitch",
     ];
@@ -439,6 +440,47 @@ public sealed class AccessibilityPrivacyContractTests
         Assert.DoesNotContain(
             "バックアップから置き換える",
             string.Join('\n', values.Values));
+    }
+
+    [TestMethod]
+    public void AcrylicOpacitySlider_HasLocalizedAccessibilityAndValueText()
+    {
+        string root = FindRepositoryRoot();
+        XDocument page = XDocument.Load(Path.Combine(
+            root,
+            "StaminaManager",
+            "Views",
+            "SettingsPage.xaml"));
+        XElement slider = page.Descendants()
+            .Single(element => element.Name.LocalName == "Slider"
+                && AttributeValue(
+                    element,
+                    "AutomationProperties.AutomationId")
+                    == "AcrylicOpacitySlider");
+
+        Assert.AreEqual(
+            "AcrylicOpacitySlider",
+            AttributeValue(slider, "Uid"));
+        Assert.AreEqual("0", AttributeValue(slider, "Minimum"));
+        Assert.AreEqual("100", AttributeValue(slider, "Maximum"));
+        Assert.AreEqual("1", AttributeValue(slider, "StepFrequency"));
+        Assert.AreEqual("10", AttributeValue(slider, "TickFrequency"));
+        StringAssert.Contains(
+            File.ReadAllText(Path.Combine(
+                root,
+                "StaminaManager",
+                "Resources",
+                "Strings",
+                "ja-JP",
+                "Resources.resw")),
+            "AcrylicOpacitySlider.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText");
+        StringAssert.Contains(
+            File.ReadAllText(Path.Combine(
+                root,
+                "StaminaManager",
+                "Views",
+                "SettingsPage.xaml")),
+            "AcrylicOpacityValueText");
     }
 
     [TestMethod]

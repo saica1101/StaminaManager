@@ -34,6 +34,7 @@ public partial class App : Microsoft.UI.Xaml.Application
     private CompactViewModel? _compactViewModel;
     private SettingsViewModel? _settingsViewModel;
     private OverviewPage? _overviewPage;
+    private MainPage? _mainPage;
     private ShellViewModel? _shellViewModel;
     private TimerCoordinator? _timerCoordinator;
     private TimerVisibilityController? _timerVisibilityController;
@@ -432,6 +433,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             _gameManager,
             clock,
             assetStore);
+        _mainPage = mainPage;
         _startupStage = "MainWindow";
         _window = new MainWindow(mainPage);
         _window.ConfigureLifecycle(
@@ -593,6 +595,11 @@ public partial class App : Microsoft.UI.Xaml.Application
 
         try
         {
+            if (_mainPage is not null)
+            {
+                await _mainPage.FlushPendingSettingsChangesAsync();
+            }
+
             if (_timerVisibilityController is not null)
             {
                 await _timerVisibilityController.DisposeAsync();

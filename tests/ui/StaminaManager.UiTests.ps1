@@ -107,6 +107,8 @@ $requiredAutomationIds = @(
     'CompactEditButton',
     'ThemeToggle',
     'BackdropSelector',
+    'AcrylicOpacitySlider',
+    'AcrylicOpacityValue',
     'CloseBehaviorSelector',
     'StartupToggle',
     'NotificationsToggle',
@@ -887,6 +889,8 @@ function Collect-AuditSnapshot {
                 'SettingsScrollViewer',
                 'ThemeToggle',
                 'BackdropSelector',
+                'AcrylicOpacitySlider',
+                'AcrylicOpacityValue',
                 'CloseBehaviorSelector',
                 'StartupToggle',
                 'NotificationsToggle',
@@ -1729,6 +1733,52 @@ try {
         }
         Select-ComboItem BackdropSelector $initialBackdrop
         Collect-AuditSnapshot SettingsAppearance
+    }
+
+    Invoke-UiTest Settings 'Acrylic不透明度の遅延保存とSettings往復' {
+        $initialBackdrop = Get-ControlValue BackdropSelector
+        Scroll-ToSettingsControl AcrylicOpacitySlider
+        $initialOpacity = [int](Get-ControlValue AcrylicOpacitySlider)
+        $targetOpacity = if ($initialOpacity -eq 37) { 63 } else { 37 }
+
+        try {
+            Select-ComboItem BackdropSelector 'Acrylic'
+            Scroll-ToSettingsControl AcrylicOpacitySlider
+            Invoke-WinApp ui set-value AcrylicOpacitySlider $targetOpacity `
+                -a $AppPid | Out-Null
+            Invoke-WinApp ui wait-for AcrylicOpacitySlider -a $AppPid `
+                -p Value --value "$targetOpacity" -t 3000 | Out-Null
+
+            Invoke-WinApp ui invoke NavOverview -a $AppPid | Out-Null
+            Invoke-WinApp ui wait-for AddGameCard -a $AppPid -t 5000 |
+                Out-Null
+            Start-Sleep -Milliseconds 400
+
+            Invoke-WinApp ui invoke NavSettings -a $AppPid | Out-Null
+            Invoke-WinApp ui wait-for AcrylicOpacitySlider -a $AppPid `
+                -t 5000 | Out-Null
+            $data = [IO.File]::ReadAllText(
+                (Join-Path $dataDirectory 'data.json')) | ConvertFrom-Json
+            if ([int]$data.settings.acrylicTintOpacityPercent -ne
+                    $targetOpacity) {
+                throw 'Acrylic opacity was not committed after navigation.'
+            }
+        }
+        finally {
+            try {
+                Invoke-WinApp ui invoke NavSettings -a $AppPid | Out-Null
+                Invoke-WinApp ui wait-for BackdropSelector -a $AppPid `
+                    -t 5000 | Out-Null
+                Select-ComboItem BackdropSelector 'Acrylic'
+                Scroll-ToSettingsControl AcrylicOpacitySlider
+                Invoke-WinApp ui set-value AcrylicOpacitySlider $initialOpacity `
+                    -a $AppPid | Out-Null
+                Start-Sleep -Milliseconds 400
+                Select-ComboItem BackdropSelector $initialBackdrop
+            }
+            catch {
+            }
+        }
     }
 
     Invoke-UiTest Settings '閉じる動作とtray redirect復帰' {

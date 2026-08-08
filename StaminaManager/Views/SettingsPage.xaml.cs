@@ -1,6 +1,8 @@
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.Windows.Storage.Pickers;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
@@ -13,7 +15,13 @@ namespace StaminaManager.Views;
 
 public sealed partial class SettingsPage : Page
 {
+    private const int AcrylicOpacityCommitDelayMilliseconds = 250;
     private readonly SettingsAppearanceChangeRouter _appearanceChangeRouter;
+    private DispatcherQueueTimer? _acrylicOpacityCommitTimer;
+    private Task _acrylicOpacityOperation = Task.CompletedTask;
+    private int? _pendingAcrylicOpacityPercent;
+    private long _acrylicOpacityChangeVersion;
+    private bool _isFlushingAppearanceChanges;
     private bool _isSynchronizingControls = true;
     private bool _areControlEventsAttached;
 
@@ -29,7 +37,9 @@ public sealed partial class SettingsPage : Page
             theme => ViewModel.SetThemeAsync(theme),
             backdrop => ViewModel.SetBackdropAsync(backdrop),
             ViewModel.ReportUnexpectedFailure,
-            SynchronizeControls);
+            SynchronizeControls,
+            percent => ViewModel.PreviewAcrylicTintOpacityAsync(percent),
+            percent => ViewModel.CommitAcrylicTintOpacityAsync(percent));
         Loaded += SettingsPage_Loaded;
     }
 
@@ -50,6 +60,8 @@ public sealed partial class SettingsPage : Page
         ThemeToggle.Toggled += ThemeToggle_Toggled;
         BackdropSelector.SelectionChanged +=
             BackdropSelector_SelectionChanged;
+        AcrylicOpacitySlider.ValueChanged +=
+            AcrylicOpacitySlider_ValueChanged;
         CloseBehaviorSelector.SelectionChanged +=
             CloseBehaviorSelector_SelectionChanged;
         StartupToggle.Toggled += StartupToggle_Toggled;
@@ -89,6 +101,27 @@ public sealed partial class SettingsPage : Page
 
         await _appearanceChangeRouter.ChangeBackdropAsync(
             requestedBackdrop);
+    }
+
+    private void AcrylicOpacitySlider_ValueChanged(
+        object sender,
+        RangeBaseValueChangedEventArgs args)
+    {
+        if (_isSynchronizingControls
+            || _isFlushingAppearanceChanges
+            || double.IsNaN(args.NewValue)
+            || double.IsInfinity(args.NewValue)
+            || args.NewValue != Math.Truncate(args.NewValue)
+            || args.NewValue == ViewModel.AcrylicTintOpacityPercent)
+        {
+            return;
+        }
+
+        int percent = checked((int)args.NewValue);
+        _pendingAcrylicOpacityPercent = percent;
+        _acrylicOpacityChangeVersion++;
+        ScheduleAcrylicOpacityCommit();
+        QueueAcrylicOpacityPreview(percent);
     }
 
     private async void CloseBehaviorSelector_SelectionChanged(
@@ -352,6 +385,8 @@ public sealed partial class SettingsPage : Page
             ThemeToggle.IsOn = ViewModel.IsDarkTheme;
             BackdropSelector.SelectedIndex =
                 ViewModel.SelectedBackdropIndex;
+            AcrylicOpacitySlider.Value =
+                ViewModel.AcrylicTintOpacityPercent;
             CloseBehaviorSelector.SelectedIndex =
                 ViewModel.CloseBehaviorIndex;
             StartupToggle.IsOn = ViewModel.IsStartupEnabled;
@@ -363,6 +398,126 @@ public sealed partial class SettingsPage : Page
         finally
         {
             _isSynchronizingControls = false;
+        }
+    }
+
+    internal async Task FlushPendingAppearanceChangesAsync()
+    {
+        _isFlushingAppearanceChanges = true;
+        _acrylicOpacityCommitTimer?.Stop();
+        try
+        {
+            if (_pendingAcrylicOpacityPercent is not null)
+            {
+                QueueAcrylicOpacityCommit();
+            }
+
+            await _acrylicOpacityOperation;
+        }
+        finally
+        {
+            _isFlushingAppearanceChanges = false;
+        }
+    }
+
+    private void ScheduleAcrylicOpacityCommit()
+    {
+        _acrylicOpacityCommitTimer ??= CreateAcrylicOpacityCommitTimer();
+        _acrylicOpacityCommitTimer.Stop();
+        _acrylicOpacityCommitTimer.Start();
+    }
+
+    private DispatcherQueueTimer CreateAcrylicOpacityCommitTimer()
+    {
+        DispatcherQueueTimer timer = DispatcherQueue.CreateTimer();
+        timer.Interval = TimeSpan.FromMilliseconds(
+            AcrylicOpacityCommitDelayMilliseconds);
+        timer.IsRepeating = false;
+        timer.Tick += AcrylicOpacityCommitTimer_Tick;
+        return timer;
+    }
+
+    private void AcrylicOpacityCommitTimer_Tick(
+        DispatcherQueueTimer sender,
+        object args)
+    {
+        sender.Stop();
+        QueueAcrylicOpacityCommit();
+    }
+
+    private void QueueAcrylicOpacityPreview(int percent)
+    {
+        long version = _acrylicOpacityChangeVersion;
+        QueueAcrylicOpacityOperation(async () =>
+        {
+            if (version != _acrylicOpacityChangeVersion
+                || _pendingAcrylicOpacityPercent != percent)
+            {
+                return;
+            }
+
+            await _appearanceChangeRouter
+                .PreviewAcrylicTintOpacityAsync(percent);
+        });
+    }
+
+    private void QueueAcrylicOpacityCommit()
+    {
+        if (_pendingAcrylicOpacityPercent is not int percent)
+        {
+            return;
+        }
+
+        long version = _acrylicOpacityChangeVersion;
+        QueueAcrylicOpacityOperation(async () =>
+        {
+            if (version != _acrylicOpacityChangeVersion
+                || _pendingAcrylicOpacityPercent != percent)
+            {
+                return;
+            }
+
+            await _appearanceChangeRouter
+                .CommitAcrylicTintOpacityAsync(percent);
+            if (version == _acrylicOpacityChangeVersion)
+            {
+                _pendingAcrylicOpacityPercent = null;
+            }
+        });
+    }
+
+    private void QueueAcrylicOpacityOperation(Func<Task> operation)
+    {
+        Task previous = _acrylicOpacityOperation;
+        _acrylicOpacityOperation = RunAcrylicOpacityOperationAsync(
+            previous,
+            operation);
+    }
+
+    private static async Task RunAcrylicOpacityOperationAsync(
+        Task previous,
+        Func<Task> operation)
+    {
+        try
+        {
+            await previous;
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                "Queued Acrylic opacity operation failed: "
+                + exception.GetType().Name);
+        }
+
+        try
+        {
+            await operation();
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                "Acrylic opacity operation failed: "
+                + exception.GetType().Name);
         }
     }
 }

@@ -109,6 +109,37 @@
                             <ComboBoxItem x:Uid="BackdropAcrylicItem" />
                             <ComboBoxItem x:Uid="BackdropSolidItem" />
                         </ComboBox>
+
+                        <Rectangle
+                            Height="1"
+                            Fill="{ThemeResource CardStrokeBrush}" />
+
+                        <Slider
+                            x:Name="AcrylicOpacitySlider"
+                            x:Uid="AcrylicOpacitySlider"
+                            AutomationProperties.AutomationId="AcrylicOpacitySlider"
+                            AutomationProperties.HelpText="{x:Bind ViewModel.AcrylicOpacityHelpText, Mode=OneWay}"
+                            HorizontalAlignment="Stretch"
+                            IsEnabled="{x:Bind ViewModel.IsAcrylicOpacityEnabled, Mode=OneWay}"
+                            IsThumbToolTipEnabled="True"
+                            LargeChange="10"
+                            Maximum="100"
+                            Minimum="0"
+                            Orientation="Horizontal"
+                            SmallChange="1"
+                            StepFrequency="1"
+                            TickFrequency="10"
+                            Value="{x:Bind ViewModel.AcrylicTintOpacityPercent, Mode=OneWay}"
+                            ValueChanged="AcrylicOpacitySlider_ValueChanged" />
+
+                        <TextBlock
+                            x:Name="AcrylicOpacityValue"
+                            x:Uid="AcrylicOpacityValue"
+                            AutomationProperties.AutomationId="AcrylicOpacityValue"
+                            AutomationProperties.Name="{x:Bind ViewModel.AcrylicOpacityValueAutomationName, Mode=OneWay}"
+                            HorizontalAlignment="Right"
+                            Text="{x:Bind ViewModel.AcrylicOpacityValueText, Mode=OneWay}"
+                            Style="{StaticResource AppBodyTextStyle}" />
                     </StackPanel>
                 </Border>
             </StackPanel>

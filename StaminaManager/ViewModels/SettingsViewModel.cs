@@ -54,6 +54,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly ISettingsLauncher _settingsLauncher;
     private readonly AppCoordinator? _appCoordinator;
     private readonly SemaphoreSlim _mutationGate = new(1, 1);
+    private int _lastAppliedAcrylicTintOpacityPercent;
 
     public SettingsViewModel(
         GameManager gameManager,
@@ -116,6 +117,9 @@ public sealed partial class SettingsViewModel : ObservableObject
         Theme = settings.Theme;
         SelectedBackdrop = settings.Backdrop;
         ActualBackdrop = settings.Backdrop;
+        AcrylicTintOpacityPercent = settings.AcrylicTintOpacityPercent;
+        _lastAppliedAcrylicTintOpacityPercent =
+            settings.AcrylicTintOpacityPercent;
         CloseBehavior = settings.CloseBehavior;
         IsStartupEnabled = settings.StartupEnabled;
         AreNotificationsEnabled = settings.NotificationsEnabled;
@@ -131,6 +135,8 @@ public sealed partial class SettingsViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(LoadingVisibility))]
     [NotifyPropertyChangedFor(nameof(FailedVisibility))]
     [NotifyPropertyChangedFor(nameof(IsSettingsInteractionEnabled))]
+    [NotifyPropertyChangedFor(nameof(IsAcrylicOpacityEnabled))]
+    [NotifyPropertyChangedFor(nameof(AcrylicOpacityHelpText))]
     public partial SettingsInitializationState InitializationState
     {
         get;
@@ -143,10 +149,20 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SelectedBackdropIndex))]
+    [NotifyPropertyChangedFor(nameof(IsAcrylicOpacityEnabled))]
+    [NotifyPropertyChangedFor(nameof(AcrylicOpacityHelpText))]
     public partial BackdropKind SelectedBackdrop { get; private set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsAcrylicOpacityEnabled))]
+    [NotifyPropertyChangedFor(nameof(AcrylicOpacityHelpText))]
     public partial BackdropKind ActualBackdrop { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AcrylicOpacityValueText))]
+    [NotifyPropertyChangedFor(nameof(AcrylicOpacityValueAutomationName))]
+    [NotifyPropertyChangedFor(nameof(AcrylicOpacityHelpText))]
+    public partial int AcrylicTintOpacityPercent { get; private set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CloseBehaviorIndex))]
@@ -198,7 +214,15 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(BackupStatusVisibility))]
     [NotifyPropertyChangedFor(nameof(IsSettingsInteractionEnabled))]
+    [NotifyPropertyChangedFor(nameof(IsAcrylicOpacityEnabled))]
+    [NotifyPropertyChangedFor(nameof(AcrylicOpacityHelpText))]
     public partial bool IsBackupBusy { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSettingsInteractionEnabled))]
+    [NotifyPropertyChangedFor(nameof(IsAcrylicOpacityEnabled))]
+    [NotifyPropertyChangedFor(nameof(AcrylicOpacityHelpText))]
+    public partial bool IsAppearanceBusy { get; private set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(BackupStatusVisibility))]
@@ -210,7 +234,28 @@ public sealed partial class SettingsViewModel : ObservableObject
     public bool IsReady =>
         InitializationState == SettingsInitializationState.Ready;
 
-    public bool IsSettingsInteractionEnabled => IsReady && !IsBackupBusy;
+    public bool IsSettingsInteractionEnabled =>
+        IsReady && !IsBackupBusy && !IsAppearanceBusy;
+
+    public bool IsAcrylicOpacityEnabled =>
+        IsReady
+        && !IsBackupBusy
+        && !IsAppearanceBusy
+        && SelectedBackdrop == BackdropKind.Acrylic
+        && ActualBackdrop == BackdropKind.Acrylic;
+
+    public string AcrylicOpacityValueText =>
+        $"{AcrylicTintOpacityPercent}%";
+
+    public string AcrylicOpacityValueAutomationName =>
+        $"Acrylic の不透明度、現在値 {AcrylicTintOpacityPercent}%";
+
+    public string AcrylicOpacityHelpText => IsAcrylicOpacityEnabled
+        ? $"Acrylic の色調の濃さを調整します。現在値は"
+            + $"{AcrylicTintOpacityPercent}%です。"
+        : "Acrylic の色調の濃さを調整します。"
+            + "背景が Acrylic の場合のみ変更できます。"
+            + $"現在値は{AcrylicTintOpacityPercent}%です。";
 
     public bool IsLoading =>
         InitializationState == SettingsInitializationState.Loading;
@@ -271,6 +316,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
 
         await _mutationGate.WaitAsync(cancellationToken);
+        IsAppearanceBusy = true;
         try
         {
             AppTheme previousTheme =
@@ -320,6 +366,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
         finally
         {
+            IsAppearanceBusy = false;
             _mutationGate.Release();
         }
     }
@@ -334,6 +381,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
 
         await _mutationGate.WaitAsync(cancellationToken);
+        IsAppearanceBusy = true;
         try
         {
             BackdropKind previousBackdrop =
@@ -384,11 +432,192 @@ public sealed partial class SettingsViewModel : ObservableObject
             }
 
             SelectedBackdrop = requestedBackdrop;
+            AcrylicTintOpacityPercent = acrylicTintOpacityPercent;
+            if (requestedBackdrop == BackdropKind.Acrylic)
+            {
+                _lastAppliedAcrylicTintOpacityPercent =
+                    result.ActualAcrylicTintOpacityPercent
+                    ?? acrylicTintOpacityPercent;
+            }
             CloseInfoBar();
             return true;
         }
         finally
         {
+            IsAppearanceBusy = false;
+            _mutationGate.Release();
+        }
+    }
+
+    public async Task<bool> PreviewAcrylicTintOpacityAsync(
+        int percent,
+        CancellationToken cancellationToken = default)
+    {
+        if (!EnsureReady())
+        {
+            return false;
+        }
+
+        if (!AcrylicOpacityPolicy.IsValid(percent))
+        {
+            ShowMessage(
+                "Acrylic の不透明度は0～100%の整数で入力してください。",
+                InfoBarSeverity.Error);
+            return false;
+        }
+
+        await _mutationGate.WaitAsync(cancellationToken);
+        if (!IsAcrylicOpacityEnabled)
+        {
+            _mutationGate.Release();
+            return false;
+        }
+
+        IsAppearanceBusy = true;
+        try
+        {
+            int lastApplied = _lastAppliedAcrylicTintOpacityPercent;
+            BackdropResult? result = null;
+            try
+            {
+                result = _backdropService.Apply(
+                    new BackdropRequest(BackdropKind.Acrylic, percent));
+                ActualBackdrop = result.ActualBackdrop;
+                if (result.IsRequestedBackdropApplied)
+                {
+                    AcrylicTintOpacityPercent =
+                        result.ActualAcrylicTintOpacityPercent ?? percent;
+                    _lastAppliedAcrylicTintOpacityPercent =
+                        AcrylicTintOpacityPercent;
+                    CloseInfoBar();
+                    return true;
+                }
+            }
+            catch (Exception exception) when (!IsProcessFatal(exception))
+            {
+                Debug.WriteLine(
+                    "Acrylic opacity preview failed: "
+                    + exception.GetType().Name);
+            }
+
+            AcrylicTintOpacityPercent = lastApplied;
+            AppearanceRollbackStatus rollbackStatus =
+                RollbackAcrylicOpacity(lastApplied);
+            ShowAcrylicOpacityFailure(result, rollbackStatus);
+            return false;
+        }
+        finally
+        {
+            IsAppearanceBusy = false;
+            _mutationGate.Release();
+        }
+    }
+
+    public async Task<bool> CommitAcrylicTintOpacityAsync(
+        int percent,
+        CancellationToken cancellationToken = default)
+    {
+        if (!EnsureReady())
+        {
+            return false;
+        }
+
+        if (!AcrylicOpacityPolicy.IsValid(percent))
+        {
+            ShowMessage(
+                "Acrylic の不透明度は0～100%の整数で入力してください。",
+                InfoBarSeverity.Error);
+            return false;
+        }
+
+        await _mutationGate.WaitAsync(cancellationToken);
+        if (!IsAcrylicOpacityEnabled)
+        {
+            _mutationGate.Release();
+            return false;
+        }
+
+        IsAppearanceBusy = true;
+        try
+        {
+            int previousSaved = _gameManager.CurrentData.Settings
+                .AcrylicTintOpacityPercent;
+            if (_lastAppliedAcrylicTintOpacityPercent != percent)
+            {
+                BackdropResult result;
+                try
+                {
+                    result = _backdropService.Apply(
+                        new BackdropRequest(BackdropKind.Acrylic, percent));
+                }
+                catch (Exception exception) when (
+                    !IsProcessFatal(exception))
+                {
+                    Debug.WriteLine(
+                        "Acrylic opacity commit apply failed: "
+                        + exception.GetType().Name);
+                    AcrylicTintOpacityPercent = previousSaved;
+                    AppearanceRollbackStatus rollbackStatus =
+                        RollbackAcrylicOpacity(previousSaved);
+                    ShowAcrylicOpacityFailure(null, rollbackStatus);
+                    return false;
+                }
+
+                ActualBackdrop = result.ActualBackdrop;
+                if (!result.IsRequestedBackdropApplied)
+                {
+                    AcrylicTintOpacityPercent = previousSaved;
+                    AppearanceRollbackStatus rollbackStatus =
+                        RollbackAcrylicOpacity(previousSaved);
+                    ShowAcrylicOpacityFailure(result, rollbackStatus);
+                    return false;
+                }
+
+                _lastAppliedAcrylicTintOpacityPercent =
+                    result.ActualAcrylicTintOpacityPercent ?? percent;
+            }
+
+            try
+            {
+                await _gameManager.UpdateSettingsAsync(
+                    settings => settings with
+                    {
+                        AcrylicTintOpacityPercent = percent,
+                    },
+                    cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                AcrylicTintOpacityPercent = previousSaved;
+                AppearanceRollbackStatus rollbackStatus =
+                    RollbackAcrylicOpacity(previousSaved);
+                ShowAcrylicOpacityRollbackMessage(
+                    rollbackStatus,
+                    wasCanceled: true);
+                throw;
+            }
+            catch (Exception exception) when (!IsProcessFatal(exception))
+            {
+                Debug.WriteLine(
+                    "Acrylic opacity setting save failed: "
+                    + exception.GetType().Name);
+                AcrylicTintOpacityPercent = previousSaved;
+                AppearanceRollbackStatus rollbackStatus =
+                    RollbackAcrylicOpacity(previousSaved);
+                ShowAcrylicOpacityRollbackMessage(
+                    rollbackStatus,
+                    wasCanceled: false);
+                return false;
+            }
+
+            AcrylicTintOpacityPercent = percent;
+            _lastAppliedAcrylicTintOpacityPercent = percent;
+            CloseInfoBar();
+            return true;
+        }
+        finally
+        {
+            IsAppearanceBusy = false;
             _mutationGate.Release();
         }
     }
@@ -783,6 +1012,12 @@ public sealed partial class SettingsViewModel : ObservableObject
         SelectedBackdrop = settings.Backdrop;
         ActualBackdrop = backdropResult?.ActualBackdrop
             ?? settings.Backdrop;
+        AcrylicTintOpacityPercent = settings.AcrylicTintOpacityPercent;
+        _lastAppliedAcrylicTintOpacityPercent =
+            ActualBackdrop == BackdropKind.Acrylic
+                ? backdropResult?.ActualAcrylicTintOpacityPercent
+                    ?? settings.AcrylicTintOpacityPercent
+                : settings.AcrylicTintOpacityPercent;
         CloseBehavior = settings.CloseBehavior;
         IsStartupEnabled = startupStatus?.IsEnabled
             ?? settings.StartupEnabled;
@@ -995,6 +1230,13 @@ public sealed partial class SettingsViewModel : ObservableObject
         SelectedBackdrop = restored.Backdrop;
         ActualBackdrop = coordinator.LastBackdropResult?.ActualBackdrop
             ?? restored.Backdrop;
+        AcrylicTintOpacityPercent = restored.AcrylicTintOpacityPercent;
+        _lastAppliedAcrylicTintOpacityPercent =
+            ActualBackdrop == BackdropKind.Acrylic
+                ? coordinator.LastBackdropResult
+                    ?.ActualAcrylicTintOpacityPercent
+                    ?? restored.AcrylicTintOpacityPercent
+                : restored.AcrylicTintOpacityPercent;
         CloseBehavior = restored.CloseBehavior;
         IsStartupEnabled = restored.StartupEnabled;
         AreNotificationsEnabled = restored.NotificationsEnabled;
@@ -1118,6 +1360,14 @@ public sealed partial class SettingsViewModel : ObservableObject
         BackdropKind previousBackdrop)
     {
         SelectedBackdrop = previousBackdrop;
+        if (previousBackdrop == BackdropKind.Acrylic)
+        {
+            _lastAppliedAcrylicTintOpacityPercent = _gameManager.CurrentData
+                .Settings.AcrylicTintOpacityPercent;
+            AcrylicTintOpacityPercent =
+                _lastAppliedAcrylicTintOpacityPercent;
+        }
+
         try
         {
             BackdropResult rollback = _backdropService.Apply(
@@ -1139,6 +1389,35 @@ public sealed partial class SettingsViewModel : ObservableObject
         {
             Debug.WriteLine(
                 "Backdrop rollback failed: "
+                + exception.GetType().Name);
+            return ApplySafeBackdropFallback();
+        }
+    }
+
+    private AppearanceRollbackStatus RollbackAcrylicOpacity(
+        int previousPercent)
+    {
+        try
+        {
+            BackdropResult rollback = _backdropService.Apply(
+                new BackdropRequest(BackdropKind.Acrylic, previousPercent));
+            ActualBackdrop = rollback.ActualBackdrop;
+            if (rollback.IsRequestedBackdropApplied)
+            {
+                _lastAppliedAcrylicTintOpacityPercent =
+                    rollback.ActualAcrylicTintOpacityPercent
+                    ?? previousPercent;
+                return AppearanceRollbackStatus.Restored;
+            }
+
+            return rollback.ActualBackdrop == BackdropKind.Solid
+                ? AppearanceRollbackStatus.SafeFallback
+                : AppearanceRollbackStatus.Failed;
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Acrylic opacity rollback failed: "
                 + exception.GetType().Name);
             return ApplySafeBackdropFallback();
         }
@@ -1204,6 +1483,55 @@ public sealed partial class SettingsViewModel : ObservableObject
                 + "アプリを再起動してください。",
         };
 
+        ShowMessage(message, InfoBarSeverity.Error);
+    }
+
+    private void ShowAcrylicOpacityFailure(
+        BackdropResult? result,
+        AppearanceRollbackStatus rollbackStatus)
+    {
+        string message = result?.ErrorMessage
+            ?? "Acrylic の不透明度を適用できませんでした。";
+        message += rollbackStatus switch
+        {
+            AppearanceRollbackStatus.Restored =>
+                " 直前に適用できた値へ戻しました。",
+            AppearanceRollbackStatus.SafeFallback =>
+                " 背景は安全な単色表示へ切り替わりました。"
+                + "アプリを再起動してください。",
+            AppearanceRollbackStatus.Unknown =>
+                " 背景の実際の表示状態を確認できません。"
+                + "アプリを再起動してください。",
+            _ =>
+                " 背景表示を以前に戻せないため、"
+                + "アプリを再起動してください。",
+        };
+        ShowMessage(
+            message,
+            rollbackStatus == AppearanceRollbackStatus.Restored
+                ? InfoBarSeverity.Warning
+                : InfoBarSeverity.Error,
+            "Acrylic の不透明度を変更できませんでした");
+    }
+
+    private void ShowAcrylicOpacityRollbackMessage(
+        AppearanceRollbackStatus rollbackStatus,
+        bool wasCanceled)
+    {
+        string message = GetRollbackMessage(wasCanceled);
+        message += rollbackStatus switch
+        {
+            AppearanceRollbackStatus.Restored => string.Empty,
+            AppearanceRollbackStatus.SafeFallback =>
+                " 背景は安全な単色表示へ切り替わりました。"
+                + "アプリを再起動してください。",
+            AppearanceRollbackStatus.Unknown =>
+                " 背景の実際の表示状態を確認できません。"
+                + "アプリを再起動してください。",
+            _ =>
+                " 背景表示を以前に戻せないため、"
+                + "アプリを再起動してください。",
+        };
         ShowMessage(message, InfoBarSeverity.Error);
     }
 

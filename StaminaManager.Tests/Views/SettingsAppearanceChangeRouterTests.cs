@@ -91,17 +91,52 @@ public sealed class SettingsAppearanceChangeRouterTests
         Assert.AreEqual(1, synchronizationCount);
     }
 
+    [TestMethod]
+    public async Task AcrylicOpacityAsync_値と結果をDispatcherQueueへ渡す()
+    {
+        RecordingUiWorkQueue queue = new();
+        List<(string Operation, int Percent)> applied = [];
+        SettingsAppearanceChangeRouter router = CreateRouter(
+            queue,
+            previewAcrylicOpacity: percent =>
+            {
+                applied.Add(("Preview", percent));
+                return Task.FromResult(true);
+            },
+            commitAcrylicOpacity: percent =>
+            {
+                applied.Add(("Commit", percent));
+                return Task.FromResult(false);
+            });
+
+        Task<bool> preview = router.PreviewAcrylicTintOpacityAsync(50);
+        Task<bool> commit = router.CommitAcrylicTintOpacityAsync(75);
+
+        queue.RunNext();
+        queue.RunNext();
+
+        Assert.IsTrue(await preview);
+        Assert.IsFalse(await commit);
+        CollectionAssert.AreEqual(
+            new[] { ("Preview", 50), ("Commit", 75) },
+            applied);
+    }
+
     private static SettingsAppearanceChangeRouter CreateRouter(
         RecordingUiWorkQueue queue,
         Func<AppTheme, Task>? applyTheme = null,
         Func<BackdropKind, Task>? applyBackdrop = null,
         Action? reportFailure = null,
-        Action? synchronizeControls = null) => new(
+        Action? synchronizeControls = null,
+        Func<int, Task<bool>>? previewAcrylicOpacity = null,
+        Func<int, Task<bool>>? commitAcrylicOpacity = null) => new(
             new DeferredSettingsChangeExecutor(queue),
             applyTheme ?? (_ => Task.CompletedTask),
             applyBackdrop ?? (_ => Task.CompletedTask),
             reportFailure ?? (() => { }),
-            synchronizeControls ?? (() => { }));
+            synchronizeControls ?? (() => { }),
+            previewAcrylicOpacity,
+            commitAcrylicOpacity);
 
     private sealed class RecordingUiWorkQueue(
         bool isEnqueueAccepted = true) : IUiWorkQueue
