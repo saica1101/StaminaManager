@@ -144,6 +144,29 @@
 
             <StackPanel Spacing="{StaticResource Spacing12}">
                 <TextBlock
+                    x:Uid="SettingsLanguageHeading"
+                    Style="{StaticResource AppCardTitleTextStyle}" />
+                <Border
+                    Padding="{StaticResource SurfacePadding}"
+                    Background="{ThemeResource CardSurfaceBrush}"
+                    BorderBrush="{ThemeResource CardStrokeBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource CardCornerRadius}">
+                    <ComboBox
+                        x:Name="LanguageSelector"
+                        x:Uid="LanguageSelector"
+                        AutomationProperties.AutomationId="LanguageSelector"
+                        MinWidth="220"
+                        HorizontalAlignment="Left"
+                        SelectedIndex="{x:Bind ViewModel.SelectedLanguageIndex, Mode=OneWay}">
+                        <ComboBoxItem x:Uid="LanguageJapaneseItem" />
+                        <ComboBoxItem x:Uid="LanguageEnglishItem" />
+                    </ComboBox>
+                </Border>
+            </StackPanel>
+
+            <StackPanel Spacing="{StaticResource Spacing12}">
+                <TextBlock
                     x:Uid="SettingsGeneralHeading"
                     Style="{StaticResource AppCardTitleTextStyle}" />
                 <Border

@@ -162,4 +162,29 @@
   <data name="AboutPrivacyDescription.Text" xml:space="preserve"><value>アカウント、広告、テレメトリを使用せず、データは端末内に保存します。外部リンクはユーザー操作時だけ開きます。</value></data>
   <data name="AboutLicenseHeading.Text" xml:space="preserve"><value>ライセンスと第三者コンポーネント</value></data>
   <data name="AboutLicenseDescription.Text" xml:space="preserve"><value>最新情報はGitHubリポジトリ内の文書をご確認ください。内容は配布形態や依存コンポーネントの確認状況により変更される場合があります。</value></data>
+  <data name="SettingsLanguageHeading.Text" xml:space="preserve"><value>言語</value></data>
+  <data name="LanguageSelector.Header" xml:space="preserve"><value>表示言語</value></data>
+  <data name="LanguageSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>表示言語を選択</value></data>
+  <data name="LanguageJapaneseItem.Content" xml:space="preserve"><value>日本語</value></data>
+  <data name="LanguageEnglishItem.Content" xml:space="preserve"><value>英語</value></data>
+  <data name="CompactGameSelector.Header" xml:space="preserve"><value>表示するゲーム</value></data>
+  <data name="CompactEmptyTitle.Text" xml:space="preserve"><value>登録されたゲームはありません</value></data>
+  <data name="CompactEmptyDescription.Text" xml:space="preserve"><value>ゲームを追加すると、ここでスタミナをすばやく確認できます。</value></data>
+  <data name="CompactAddGameButton.Content" xml:space="preserve"><value>ゲームを追加</value></data>
+  <data name="CompactAddGameButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>ゲームを追加</value></data>
+  <data name="GameNameInput.Header" xml:space="preserve"><value>ゲーム名</value></data>
+  <data name="CurrentStaminaInput.Header" xml:space="preserve"><value>現在のスタミナ</value></data>
+  <data name="MaxStaminaInput.Header" xml:space="preserve"><value>スタミナの最大値</value></data>
+  <data name="RecoveryIntervalHeading.Text" xml:space="preserve"><value>スタミナが1回復する時間</value></data>
+  <data name="GameImageHeading.Text" xml:space="preserve"><value>ゲーム画像（任意）</value></data>
+  <data name="ChooseGameImageButtonText.Text" xml:space="preserve"><value>画像を選択</value></data>
+  <data name="SelectedImageText.Text" xml:space="preserve"><value>PNGまたはJPEG、4096×4096以下</value></data>
+  <data name="GameEditorDeleteConfirmationTitle.Text" xml:space="preserve"><value>このゲームを削除しますか？</value></data>
+  <data name="GameEditorDeleteConfirmationDescription.Text" xml:space="preserve"><value>この操作は元に戻せません。戻ると、編集中の入力内容を保持したまま編集画面へ戻ります。</value></data>
+  <data name="GameEditorSaveButtonAutomationName.Value" xml:space="preserve"><value>ゲームを追加または保存</value></data>
+  <data name="DeleteConfirmButtonAutomationName.Value" xml:space="preserve"><value>このゲームを削除する</value></data>
+  <data name="GameEditorCancelButtonAutomationName.Value" xml:space="preserve"><value>編集をキャンセル</value></data>
+  <data name="DeleteBackButtonAutomationName.Value" xml:space="preserve"><value>削除せず編集へ戻る</value></data>
+  <data name="RestoreDialogPrimaryButtonAutomationName.Value" xml:space="preserve"><value>現在のデータをバックアップで置き換える</value></data>
+  <data name="RestoreDialogCancelButtonAutomationName.Value" xml:space="preserve"><value>バックアップの復元をキャンセル</value></data>
 </root>

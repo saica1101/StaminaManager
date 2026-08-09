@@ -21,28 +21,40 @@
             BasedOn="{StaticResource AccentButtonStyle}"
             TargetType="Button">
             <Setter Property="AutomationProperties.AutomationId" Value="GameEditorSaveButton" />
-            <Setter Property="AutomationProperties.Name" Value="ゲームを追加または保存" />
+            <Setter
+                x:Uid="GameEditorSaveButtonAutomationName"
+                Property="AutomationProperties.Name"
+                Value="" />
         </Style>
         <Style
             x:Key="DeleteConfirmButtonStyle"
             BasedOn="{StaticResource AppDestructiveButtonStyle}"
             TargetType="Button">
             <Setter Property="AutomationProperties.AutomationId" Value="DeleteConfirmButton" />
-            <Setter Property="AutomationProperties.Name" Value="このゲームを削除する" />
+            <Setter
+                x:Uid="DeleteConfirmButtonAutomationName"
+                Property="AutomationProperties.Name"
+                Value="" />
         </Style>
         <Style
             x:Key="GameEditorCancelButtonStyle"
             BasedOn="{StaticResource DefaultButtonStyle}"
             TargetType="Button">
             <Setter Property="AutomationProperties.AutomationId" Value="GameEditorCancelButton" />
-            <Setter Property="AutomationProperties.Name" Value="編集をキャンセル" />
+            <Setter
+                x:Uid="GameEditorCancelButtonAutomationName"
+                Property="AutomationProperties.Name"
+                Value="" />
         </Style>
         <Style
             x:Key="DeleteBackButtonStyle"
             BasedOn="{StaticResource DefaultButtonStyle}"
             TargetType="Button">
             <Setter Property="AutomationProperties.AutomationId" Value="DeleteBackButton" />
-            <Setter Property="AutomationProperties.Name" Value="削除せず編集へ戻る" />
+            <Setter
+                x:Uid="DeleteBackButtonAutomationName"
+                Property="AutomationProperties.Name"
+                Value="" />
         </Style>
     </ContentDialog.Resources>
 
@@ -59,7 +71,6 @@
                         x:Uid="GameNameInput"
                         AutomationProperties.AutomationId="GameNameInput"
                         AutomationProperties.HelpText="{x:Bind ViewModel.NameError, Mode=OneWay}"
-                        Header="ゲーム名"
                         MaxLength="200"
                         Text="{x:Bind ViewModel.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <TextBlock
@@ -74,7 +85,6 @@
                         x:Uid="CurrentStaminaInput"
                         AutomationProperties.AutomationId="CurrentStaminaInput"
                         AutomationProperties.HelpText="{x:Bind ViewModel.CurrentStaminaError, Mode=OneWay}"
-                        Header="現在のスタミナ"
                         Maximum="1000000"
                         Minimum="0"
                         SpinButtonPlacementMode="Compact"
@@ -92,7 +102,6 @@
                         x:Uid="MaxStaminaInput"
                         AutomationProperties.AutomationId="MaxStaminaInput"
                         AutomationProperties.HelpText="{x:Bind ViewModel.MaxStaminaError, Mode=OneWay}"
-                        Header="スタミナの最大値"
                         Maximum="1000000"
                         Minimum="1"
                         SpinButtonPlacementMode="Compact"
@@ -116,17 +125,16 @@
                                 <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
                             <TextBlock
+                                x:Uid="RecoveryIntervalHeading"
                                 Grid.Row="0"
                                 Grid.ColumnSpan="2"
-                                Style="{StaticResource AppBodyTextStyle}"
-                                Text="スタミナが1回復する時間" />
+                                Style="{StaticResource AppBodyTextStyle}" />
                             <NumberBox
                                 Grid.Row="1"
                                 x:Name="RecoveryMinutesInput"
                                 x:Uid="RecoveryMinutesInput"
                                 AutomationProperties.AutomationId="RecoveryMinutesInput"
                                 AutomationProperties.HelpText="{x:Bind local:GameEditorDialog.FirstNonEmptyError(ViewModel.RecoveryMinutesError, ViewModel.RecoveryIntervalError), Mode=OneWay}"
-                                Header="分"
                                 Maximum="525600"
                                 Minimum="0"
                                 SpinButtonPlacementMode="Compact"
@@ -139,7 +147,6 @@
                                 Grid.Column="1"
                                 AutomationProperties.AutomationId="RecoverySecondsInput"
                                 AutomationProperties.HelpText="{x:Bind local:GameEditorDialog.FirstNonEmptyError(ViewModel.RecoverySecondsError, ViewModel.RecoveryIntervalError), Mode=OneWay}"
-                                Header="秒"
                                 Maximum="59"
                                 Minimum="0"
                                 SpinButtonPlacementMode="Compact"
@@ -184,21 +191,19 @@
                             x:Name="GameNotificationToggle"
                             x:Uid="GameNotificationToggle"
                             AutomationProperties.AutomationId="GameNotificationToggle"
-                            Header="満タン通知"
                             IsOn="{x:Bind ViewModel.IsNotificationEnabled, Mode=TwoWay}"
-                            OffContent="オフ"
-                            OnContent="オン" />
+                            />
                         <TextBlock
                             x:Uid="GameNotificationDescription"
                             Style="{StaticResource AppSecondaryTextStyle}"
-                            Text="Settingsの通知がONの場合に、このゲームの満タン通知を受け取ります"
                             TextWrapping="Wrap" />
                     </StackPanel>
 
                     <StackPanel Spacing="{StaticResource Spacing8}">
                         <TextBlock
+                            x:Uid="GameImageHeading"
                             Style="{StaticResource AppBodyTextStyle}"
-                            Text="ゲーム画像（任意）" />
+                            />
                         <Button
                             x:Name="ChooseGameImageButton"
                             x:Uid="ChooseGameImageButton"
@@ -208,13 +213,14 @@
                                 <FontIcon
                                     AutomationProperties.AccessibilityView="Raw"
                                     Glyph="&#xE8B9;" />
-                                <TextBlock Text="画像を選択" />
+                                <TextBlock x:Uid="ChooseGameImageButtonText" />
                             </StackPanel>
                         </Button>
                         <TextBlock
                             x:Name="SelectedImageText"
+                            x:Uid="SelectedImageText"
                             Style="{StaticResource AppSecondaryTextStyle}"
-                            Text="PNGまたはJPEG、4096×4096以下" />
+                            />
                     </StackPanel>
 
                     <InfoBar
@@ -255,14 +261,16 @@
                         Foreground="{ThemeResource SystemFillColorCriticalBrush}"
                         Glyph="&#xE74D;" />
                     <TextBlock
+                        x:Uid="GameEditorDeleteConfirmationTitle"
                         Style="{StaticResource AppCardTitleTextStyle}"
-                        Text="このゲームを削除しますか？" />
+                        />
                     <TextBlock
                         Style="{StaticResource AppBodyTextStyle}"
                         Text="{x:Bind ViewModel.Name, Mode=OneWay}" />
                     <TextBlock
+                        x:Uid="GameEditorDeleteConfirmationDescription"
                         Style="{StaticResource AppSecondaryTextStyle}"
-                        Text="この操作は元に戻せません。戻ると、編集中の入力内容を保持したまま編集画面へ戻ります。" />
+                        />
                     <InfoBar
                         x:Uid="GameEditorDeleteErrorInfoBar"
                         AutomationProperties.AutomationId="GameEditorDeleteErrorInfoBar"

@@ -127,13 +127,21 @@ public sealed class AccessibilityPrivacyContractTests
             "StaminaManager",
             "Controls",
             "GameEditorDialog.xaml"));
+        string resources = File.ReadAllText(Path.Combine(
+            root,
+            "StaminaManager",
+            "Resources",
+            "Strings",
+            "ja-JP",
+            "Resources.resw"));
 
         StringAssert.Contains(
             mainPageSource,
             "RequestedTheme = ActualTheme");
         StringAssert.Contains(
             dialogXaml,
-            "Text=\"スタミナが1回復する時間\"");
+            "x:Uid=\"RecoveryIntervalHeading\"");
+        StringAssert.Contains(resources, "RecoveryIntervalHeading.Text");
         StringAssert.Contains(dialogXaml, "<RowDefinition Height=\"Auto\" />");
     }
 
@@ -224,20 +232,28 @@ public sealed class AccessibilityPrivacyContractTests
     public void GameEditorImageGuidance_5MB制限を表示しない()
     {
         string root = FindRepositoryRoot();
-        string combined = File.ReadAllText(Path.Combine(
-                root,
-                "StaminaManager",
-                "Controls",
-                "GameEditorDialog.xaml"))
-            + File.ReadAllText(Path.Combine(
-                root,
-                "StaminaManager",
-                "Controls",
-                "GameEditorDialog.xaml.cs"));
+        string dialog = File.ReadAllText(Path.Combine(
+            root,
+            "StaminaManager",
+            "Controls",
+            "GameEditorDialog.xaml"));
+        string code = File.ReadAllText(Path.Combine(
+            root,
+            "StaminaManager",
+            "Controls",
+            "GameEditorDialog.xaml.cs"));
+        string resources = File.ReadAllText(Path.Combine(
+            root,
+            "StaminaManager",
+            "Resources",
+            "Strings",
+            "ja-JP",
+            "Resources.resw"));
 
-        Assert.DoesNotContain("5MB", combined);
-        Assert.DoesNotContain("5 MiB", combined);
-        StringAssert.Contains(combined, "PNGまたはJPEG、4096×4096以下");
+        Assert.DoesNotContain("5MB", dialog + code);
+        Assert.DoesNotContain("5 MiB", dialog + code);
+        StringAssert.Contains(dialog, "x:Uid=\"SelectedImageText\"");
+        StringAssert.Contains(resources, "SelectedImageText.Text");
     }
 
     [TestMethod]

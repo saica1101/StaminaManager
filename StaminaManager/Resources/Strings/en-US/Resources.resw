@@ -162,4 +162,29 @@
   <data name="AboutPrivacyDescription.Text" xml:space="preserve"><value>No accounts, ads, or telemetry are used; data is stored on this device. External links open only after user action.</value></data>
   <data name="AboutLicenseHeading.Text" xml:space="preserve"><value>Licenses and third-party components</value></data>
   <data name="AboutLicenseDescription.Text" xml:space="preserve"><value>Check the documents in the GitHub repository for the latest information. Details may change depending on the distribution method and the verification status of bundled components.</value></data>
+  <data name="SettingsLanguageHeading.Text" xml:space="preserve"><value>Language</value></data>
+  <data name="LanguageSelector.Header" xml:space="preserve"><value>Display language</value></data>
+  <data name="LanguageSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Select the display language</value></data>
+  <data name="LanguageJapaneseItem.Content" xml:space="preserve"><value>Japanese</value></data>
+  <data name="LanguageEnglishItem.Content" xml:space="preserve"><value>English</value></data>
+  <data name="CompactGameSelector.Header" xml:space="preserve"><value>Game to display</value></data>
+  <data name="CompactEmptyTitle.Text" xml:space="preserve"><value>No games registered</value></data>
+  <data name="CompactEmptyDescription.Text" xml:space="preserve"><value>Add a game to quickly check its stamina here.</value></data>
+  <data name="CompactAddGameButton.Content" xml:space="preserve"><value>Add a game</value></data>
+  <data name="CompactAddGameButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Add a game</value></data>
+  <data name="GameNameInput.Header" xml:space="preserve"><value>Game name</value></data>
+  <data name="CurrentStaminaInput.Header" xml:space="preserve"><value>Current stamina</value></data>
+  <data name="MaxStaminaInput.Header" xml:space="preserve"><value>Maximum stamina</value></data>
+  <data name="RecoveryIntervalHeading.Text" xml:space="preserve"><value>Time to recover one stamina</value></data>
+  <data name="GameImageHeading.Text" xml:space="preserve"><value>Game image (optional)</value></data>
+  <data name="ChooseGameImageButtonText.Text" xml:space="preserve"><value>Choose image</value></data>
+  <data name="SelectedImageText.Text" xml:space="preserve"><value>PNG or JPEG, up to 4096×4096</value></data>
+  <data name="GameEditorDeleteConfirmationTitle.Text" xml:space="preserve"><value>Delete this game?</value></data>
+  <data name="GameEditorDeleteConfirmationDescription.Text" xml:space="preserve"><value>This action cannot be undone. Going back returns to editing with your current input preserved.</value></data>
+  <data name="GameEditorSaveButtonAutomationName.Value" xml:space="preserve"><value>Add or save the game</value></data>
+  <data name="DeleteConfirmButtonAutomationName.Value" xml:space="preserve"><value>Delete this game</value></data>
+  <data name="GameEditorCancelButtonAutomationName.Value" xml:space="preserve"><value>Cancel editing</value></data>
+  <data name="DeleteBackButtonAutomationName.Value" xml:space="preserve"><value>Return to editing without deleting</value></data>
+  <data name="RestoreDialogPrimaryButtonAutomationName.Value" xml:space="preserve"><value>Replace current data with backup</value></data>
+  <data name="RestoreDialogCancelButtonAutomationName.Value" xml:space="preserve"><value>Cancel backup restore</value></data>
 </root>

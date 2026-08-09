@@ -27,7 +27,6 @@
                 x:Uid="CompactGameSelector"
                 AutomationProperties.AutomationId="CompactGameSelector"
                 DisplayMemberPath="Name"
-                Header="表示するゲーム"
                 HorizontalAlignment="Stretch"
                 ItemsSource="{x:Bind ViewModel.Games, Mode=OneWay}"
                 SelectionChanged="CompactGameSelector_SelectionChanged" />
@@ -127,21 +126,20 @@
                             Foreground="{ThemeResource SecondaryTextBrush}"
                             Glyph="&#xE7FC;" />
                         <TextBlock
+                            x:Uid="CompactEmptyTitle"
                             HorizontalAlignment="Center"
                             Style="{StaticResource AppCardTitleTextStyle}"
-                            Text="登録されたゲームはありません"
                             TextAlignment="Center" />
                         <TextBlock
+                            x:Uid="CompactEmptyDescription"
                             MaxWidth="300"
                             HorizontalAlignment="Center"
                             Style="{StaticResource AppSecondaryTextStyle}"
-                            Text="ゲームを追加すると、ここでスタミナをすばやく確認できます。"
                             TextAlignment="Center" />
                         <Button
+                            x:Uid="CompactAddGameButton"
                             AutomationProperties.AutomationId="CompactAddGameButton"
-                            AutomationProperties.Name="ゲームを追加"
                             Command="{x:Bind ViewModel.AddGameCommand, Mode=OneWay}"
-                            Content="ゲームを追加"
                             Style="{StaticResource AccentButtonStyle}"
                             HorizontalAlignment="Center" />
                     </StackPanel>

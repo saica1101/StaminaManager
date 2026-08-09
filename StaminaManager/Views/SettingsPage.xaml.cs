@@ -62,6 +62,8 @@ public sealed partial class SettingsPage : Page
             BackdropSelector_SelectionChanged;
         AcrylicOpacitySlider.ValueChanged +=
             AcrylicOpacitySlider_ValueChanged;
+        LanguageSelector.SelectionChanged +=
+            LanguageSelector_SelectionChanged;
         CloseBehaviorSelector.SelectionChanged +=
             CloseBehaviorSelector_SelectionChanged;
         StartupToggle.Toggled += StartupToggle_Toggled;
@@ -138,6 +140,24 @@ public sealed partial class SettingsPage : Page
         {
             await ViewModel.SetCloseBehaviorAsync(
                 (CloseBehavior)CloseBehaviorSelector.SelectedIndex);
+        });
+    }
+
+    private async void LanguageSelector_SelectionChanged(
+        object sender,
+        SelectionChangedEventArgs args)
+    {
+        if (_isSynchronizingControls
+            || !LanguagePolicy.TryFromSelectionIndex(
+                LanguageSelector.SelectedIndex,
+                out AppLanguage requestedLanguage))
+        {
+            return;
+        }
+
+        await ExecuteSettingChangeAsync(async () =>
+        {
+            await ViewModel.SetLanguageAsync(requestedLanguage);
         });
     }
 
@@ -387,6 +407,8 @@ public sealed partial class SettingsPage : Page
                 ViewModel.SelectedBackdropIndex;
             AcrylicOpacitySlider.Value =
                 ViewModel.AcrylicTintOpacityPercent;
+            LanguageSelector.SelectedIndex =
+                ViewModel.SelectedLanguageIndex;
             CloseBehaviorSelector.SelectedIndex =
                 ViewModel.CloseBehaviorIndex;
             StartupToggle.IsOn = ViewModel.IsStartupEnabled;

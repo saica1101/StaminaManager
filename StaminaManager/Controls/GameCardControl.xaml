@@ -26,7 +26,6 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <!-- リングを左側に、サイズを縮小 -->
             <local:StaminaRing
                 x:Name="StaminaRingControl"
                 Width="112"
@@ -56,7 +55,6 @@
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <!-- アイコン -->
                 <Grid
                     Grid.Row="0"
                     Grid.Column="0"
@@ -80,7 +78,6 @@
                         Visibility="{x:Bind FallbackVisibility, Mode=OneWay}" />
                 </Grid>
 
-                <!-- タイトル -->
                 <TextBlock
                     Grid.Row="0"
                     Grid.Column="1"
@@ -90,7 +87,6 @@
                     Text="{x:Bind ViewModel.Name, Mode=OneWay}"
                     TextTrimming="CharacterEllipsis" />
 
-                <!-- ステータス -->
                 <StackPanel
                     x:Name="StatusPanel"
                     Grid.Row="1"

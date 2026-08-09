@@ -204,7 +204,10 @@
         BasedOn="{StaticResource AccentButtonStyle}"
         TargetType="Button">
         <Setter Property="AutomationProperties.AutomationId" Value="RestoreBackupConfirmButton" />
-        <Setter Property="AutomationProperties.Name" Value="現在のデータをバックアップで置き換える" />
+        <Setter
+            x:Uid="RestoreDialogPrimaryButtonAutomationName"
+            Property="AutomationProperties.Name"
+            Value="" />
     </Style>
 
     <Style
@@ -212,6 +215,9 @@
         BasedOn="{StaticResource DefaultButtonStyle}"
         TargetType="Button">
         <Setter Property="AutomationProperties.AutomationId" Value="RestoreBackupCancelButton" />
-        <Setter Property="AutomationProperties.Name" Value="バックアップの復元をキャンセル" />
+        <Setter
+            x:Uid="RestoreDialogCancelButtonAutomationName"
+            Property="AutomationProperties.Name"
+            Value="" />
     </Style>
 </ResourceDictionary>
