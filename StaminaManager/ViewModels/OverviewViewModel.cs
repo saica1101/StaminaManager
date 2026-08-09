@@ -13,6 +13,7 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
     private readonly GameManager _gameManager;
     private readonly IClock _clock;
     private readonly IUiDispatcher _uiDispatcher;
+    private readonly IAppResourceService _appResourceService;
     private readonly ObservableCollection<GameCardViewModel> _games = [];
     private readonly ObservableCollection<OverviewItemViewModel>
         _overviewItems = [];
@@ -45,14 +46,17 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
     public OverviewViewModel(
         GameManager gameManager,
         IClock clock,
-        IUiDispatcher uiDispatcher)
+        IUiDispatcher uiDispatcher,
+        IAppResourceService appResourceService)
     {
         ArgumentNullException.ThrowIfNull(gameManager);
         ArgumentNullException.ThrowIfNull(clock);
         ArgumentNullException.ThrowIfNull(uiDispatcher);
+        ArgumentNullException.ThrowIfNull(appResourceService);
         _gameManager = gameManager;
         _clock = clock;
         _uiDispatcher = uiDispatcher;
+        _appResourceService = appResourceService;
         Games = new ReadOnlyObservableCollection<GameCardViewModel>(
             _games);
         OverviewItems =
@@ -78,8 +82,8 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
 
     public ReadOnlyObservableCollection<GameCardViewModel> Games { get; }
 
-    public ReadOnlyObservableCollection<OverviewItemViewModel>
-        OverviewItems { get; }
+    public ReadOnlyObservableCollection<OverviewItemViewModel> OverviewItems
+    { get; }
 
     public bool HasGames => !IsLoading && _games.Count > 0;
 
@@ -103,10 +107,10 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
         string safeMessage = exception switch
         {
             IOException or UnauthorizedAccessException =>
-                "データを保存できませんでした。もう一度お試しください。",
+                _appResourceService.GetString("OverviewSaveError"),
             OperationCanceledException =>
-                "操作がキャンセルされました。",
-            _ => "処理中にエラーが発生しました。もう一度お試しください。",
+                _appResourceService.GetString("OverviewCanceledError"),
+            _ => _appResourceService.GetString("OverviewGenericError"),
         };
         return _uiDispatcher.InvokeAsync(
             () => ErrorMessage = safeMessage,
@@ -116,8 +120,8 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
     public Task ShowNotificationTargetMissingAsync(
         CancellationToken cancellationToken = default) =>
         _uiDispatcher.InvokeAsync(
-            () => ErrorMessage =
-                "通知の対象ゲームは削除されているため表示できません。",
+            () => ErrorMessage = _appResourceService.GetString(
+                "OverviewNotificationTargetMissingError"),
             cancellationToken);
 
     public Task ShowStartupRecoveryAsync(
@@ -136,10 +140,10 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
                 }
 
                 RecoveryMessage = status.IsDiagnosticPreserved
-                    ? "前回正常データで回復しました。破損元は診断用に保全しました。"
-                        + "内容を確認した後、バックアップを書き出してください。"
-                    : "前回正常データで回復し、通常保存へ戻しました。"
-                        + "内容を確認した後、バックアップを書き出してください。";
+                    ? _appResourceService.GetString(
+                        "OverviewRecoveryDiagnosticPreserved")
+                    : _appResourceService.GetString(
+                        "OverviewRecoveryPromoted");
                 IsRecoveryInfoBarOpen = true;
             },
             cancellationToken);
@@ -160,9 +164,8 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
                     return;
                 }
 
-                DataLoadWarningMessage =
-                    "データを最新形式へ更新しましたが、再保存できませんでした。"
-                    + "設定を一度変更して保存し直してください。";
+                DataLoadWarningMessage = _appResourceService.GetString(
+                    "OverviewSchemaWritebackWarning");
                 IsDataLoadWarningInfoBarOpen = true;
             },
             cancellationToken);

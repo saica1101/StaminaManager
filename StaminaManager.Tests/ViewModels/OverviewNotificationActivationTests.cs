@@ -2,6 +2,7 @@ using StaminaManager.Application;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
 using StaminaManager.Core.Persistence;
+using StaminaManager.Infrastructure.Resources;
 using StaminaManager.Tests.TestDoubles;
 using StaminaManager.ViewModels;
 using System.Collections.Immutable;
@@ -28,13 +29,14 @@ public sealed class OverviewNotificationActivationTests
         OverviewViewModel viewModel = new(
             manager,
             new FakeClock(DateTimeOffset.UtcNow),
-            new RecordingUiDispatcher());
+            new RecordingUiDispatcher(),
+            new AppResourceService(resourceId => resourceId));
 
         await viewModel.ShowNotificationTargetMissingAsync();
 
         Assert.IsTrue(viewModel.HasError);
         Assert.AreEqual(
-            "通知の対象ゲームは削除されているため表示できません。",
+            "OverviewNotificationTargetMissingError",
             viewModel.ErrorMessage);
     }
 

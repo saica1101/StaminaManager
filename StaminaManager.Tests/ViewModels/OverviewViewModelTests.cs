@@ -3,6 +3,7 @@ using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
 using StaminaManager.Core.Persistence;
 using StaminaManager.Core.Validation;
+using StaminaManager.Infrastructure.Resources;
 using StaminaManager.Tests.TestDoubles;
 using StaminaManager.ViewModels;
 using System.Collections.Specialized;
@@ -12,6 +13,14 @@ namespace StaminaManager.Tests.ViewModels;
 [TestClass]
 public sealed class OverviewViewModelTests
 {
+    private static readonly AppResourceService JapaneseResources = new(
+        resourceId => resourceId switch
+        {
+            "OverviewSaveError" =>
+                "データを保存できませんでした。もう一度お試しください。",
+            _ => resourceId,
+        });
+
     private static readonly DateTimeOffset NowUtc = new(
         2026,
         7,
@@ -33,7 +42,7 @@ public sealed class OverviewViewModelTests
         await manager.InitializeAsync(
             manager.CurrentData,
             CancellationToken.None);
-        using OverviewViewModel viewModel = new(
+        using OverviewViewModel viewModel = CreateViewModel(
             manager,
             clock,
             new RecordingUiDispatcher());
@@ -55,7 +64,7 @@ public sealed class OverviewViewModelTests
         await manager.InitializeAsync(
             manager.CurrentData,
             CancellationToken.None);
-        using OverviewViewModel viewModel = new(
+        using OverviewViewModel viewModel = CreateViewModel(
             manager,
             clock,
             new RecordingUiDispatcher());
@@ -105,7 +114,7 @@ public sealed class OverviewViewModelTests
             manager.CurrentData,
             CancellationToken.None);
         RecordingUiDispatcher dispatcher = new();
-        using OverviewViewModel viewModel = new(
+        using OverviewViewModel viewModel = CreateViewModel(
             manager,
             clock,
             dispatcher);
@@ -139,7 +148,7 @@ public sealed class OverviewViewModelTests
             clock,
             AppSettings.CreateDefault(AppTheme.Light));
         RecordingUiDispatcher dispatcher = new();
-        using OverviewViewModel viewModel = new(
+        using OverviewViewModel viewModel = CreateViewModel(
             manager,
             clock,
             dispatcher);
@@ -174,7 +183,7 @@ public sealed class OverviewViewModelTests
             clock,
             AppSettings.CreateDefault(AppTheme.Light));
         RecordingUiDispatcher dispatcher = new();
-        using OverviewViewModel viewModel = new(
+        using OverviewViewModel viewModel = CreateViewModel(
             manager,
             clock,
             dispatcher);
@@ -186,6 +195,52 @@ public sealed class OverviewViewModelTests
             "データを保存できませんでした。もう一度お試しください。",
             viewModel.ErrorMessage);
         Assert.DoesNotContain("private", viewModel.ErrorMessage!);
+    }
+
+    [TestMethod]
+    public async Task UserMessages_UseSharedResourceService()
+    {
+        FakeClock clock = new(NowUtc);
+        GameManager manager = new(
+            new ViewModelDataStore(),
+            clock,
+            AppSettings.CreateDefault(AppTheme.Light));
+        AppResourceService resources = new(resourceId => $"[{resourceId}]");
+        using OverviewViewModel viewModel = new(
+            manager,
+            clock,
+            new RecordingUiDispatcher(),
+            resources);
+
+        await viewModel.ShowErrorAsync(new IOException("private"));
+        Assert.AreEqual("[OverviewSaveError]", viewModel.ErrorMessage);
+        await viewModel.ShowErrorAsync(new OperationCanceledException());
+        Assert.AreEqual("[OverviewCanceledError]", viewModel.ErrorMessage);
+        await viewModel.ShowErrorAsync(new InvalidOperationException("private"));
+        Assert.AreEqual("[OverviewGenericError]", viewModel.ErrorMessage);
+
+        await viewModel.ShowNotificationTargetMissingAsync();
+        Assert.AreEqual(
+            "[OverviewNotificationTargetMissingError]",
+            viewModel.ErrorMessage);
+        await viewModel.ShowStartupRecoveryAsync(new StartupRecoveryStatus(
+            StartupRecoveryKind.Promoted,
+            IsDiagnosticPreserved: true));
+        Assert.AreEqual(
+            "[OverviewRecoveryDiagnosticPreserved]",
+            viewModel.RecoveryMessage);
+        await viewModel.ShowStartupRecoveryAsync(new StartupRecoveryStatus(
+            StartupRecoveryKind.Promoted,
+            IsDiagnosticPreserved: false));
+        Assert.AreEqual(
+            "[OverviewRecoveryPromoted]",
+            viewModel.RecoveryMessage);
+
+        await viewModel.ShowDataLoadWarningAsync(
+            DataLoadWarning.SchemaMigrationWritebackFailed);
+        Assert.AreEqual(
+            "[OverviewSchemaWritebackWarning]",
+            viewModel.DataLoadWarningMessage);
     }
 
     [TestMethod]
@@ -203,7 +258,10 @@ public sealed class OverviewViewModelTests
         AlwaysQueuedUiDispatcher dispatcher = new();
 
         Task<OverviewViewModel> constructionTask = Task.Run(
-            () => new OverviewViewModel(manager, clock, dispatcher));
+            () => CreateViewModel(
+                manager,
+                clock,
+                dispatcher));
         Task winner = await Task.WhenAny(
             constructionTask,
             dispatcher.InvocationQueued);
@@ -239,7 +297,7 @@ public sealed class OverviewViewModelTests
                 IsNotificationEnabled: true),
             CancellationToken.None);
         RecordingUiDispatcher dispatcher = new();
-        using OverviewViewModel viewModel = new(
+        using OverviewViewModel viewModel = CreateViewModel(
             manager,
             clock,
             dispatcher);
@@ -251,6 +309,15 @@ public sealed class OverviewViewModelTests
             invocationCountBeforeRefresh,
             dispatcher.InvocationCount);
     }
+
+    private static OverviewViewModel CreateViewModel(
+        GameManager manager,
+        IClock clock,
+        IUiDispatcher dispatcher) => new(
+            manager,
+            clock,
+            dispatcher,
+            JapaneseResources);
 
     private sealed class ViewModelDataStore : ILocalDataStore
     {

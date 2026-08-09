@@ -137,6 +137,13 @@
   <data name="CompactErrorInfoBar.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>コンパクト表示の操作エラー</value></data>
   <data name="CompactSelectionSaveError" xml:space="preserve"><value>選択を保存できませんでした。もう一度お試しください。</value></data>
   <data name="ReturnOverviewSaveError" xml:space="preserve"><value>Overviewへ戻る設定を保存できませんでした。もう一度お試しください。</value></data>
+  <data name="OverviewSaveError" xml:space="preserve"><value>データを保存できませんでした。もう一度お試しください。</value></data>
+  <data name="OverviewCanceledError" xml:space="preserve"><value>操作がキャンセルされました。</value></data>
+  <data name="OverviewGenericError" xml:space="preserve"><value>処理中にエラーが発生しました。もう一度お試しください。</value></data>
+  <data name="OverviewNotificationTargetMissingError" xml:space="preserve"><value>通知の対象ゲームは削除されているため表示できません。</value></data>
+  <data name="OverviewRecoveryDiagnosticPreserved" xml:space="preserve"><value>前回正常データで回復しました。破損元は診断用に保全しました。内容を確認した後、バックアップを書き出してください。</value></data>
+  <data name="OverviewRecoveryPromoted" xml:space="preserve"><value>前回正常データで回復し、通常保存へ戻しました。内容を確認した後、バックアップを書き出してください。</value></data>
+  <data name="OverviewSchemaWritebackWarning" xml:space="preserve"><value>データを最新形式へ更新しましたが、再保存できませんでした。設定を一度変更して保存し直してください。</value></data>
   <data name="CompactUpdateButton.Content" xml:space="preserve"><value>現在値を更新</value></data>
   <data name="CompactUpdateButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>選択中のゲームの現在値を更新</value></data>
   <data name="CompactEditButton.Content" xml:space="preserve"><value>ゲームを編集</value></data>

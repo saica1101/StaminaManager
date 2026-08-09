@@ -375,7 +375,8 @@ public partial class App : Microsoft.UI.Xaml.Application
         _overviewViewModel = new OverviewViewModel(
             _gameManager,
             clock,
-            uiDispatcher);
+            uiDispatcher,
+            _appResourceService);
         NotificationCoordinator notificationCoordinator = new(
             _notificationScheduler,
             notificationLedgerStore,

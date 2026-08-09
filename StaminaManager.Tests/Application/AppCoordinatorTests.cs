@@ -3,6 +3,7 @@ using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
 using StaminaManager.Core.Persistence;
 using StaminaManager.Core.Validation;
+using StaminaManager.Infrastructure.Resources;
 using StaminaManager.Tests.TestDoubles;
 using StaminaManager.ViewModels;
 using System.Collections.Immutable;
@@ -12,6 +13,9 @@ namespace StaminaManager.Tests.Application;
 [TestClass]
 public sealed class AppCoordinatorTests
 {
+    private static readonly AppResourceService OverviewResources = new(
+        resourceId => resourceId);
+
     private static readonly DateTimeOffset NowUtc = new(
         2026,
         7,
@@ -33,7 +37,7 @@ public sealed class AppCoordinatorTests
         GameManager manager = CreateManager(store);
         RecordingUiDispatcher dispatcher = new();
         AppCoordinator coordinator = new(store, manager, dispatcher);
-        OverviewViewModel overview = new(manager, new FakeClock(NowUtc), dispatcher);
+        OverviewViewModel overview = CreateOverview(manager, dispatcher);
 
         await global::StaminaManager.App.InitializeForLaunchAsync(
             coordinator,
@@ -41,8 +45,9 @@ public sealed class AppCoordinatorTests
             CancellationToken.None);
 
         Assert.IsTrue(overview.IsDataLoadWarningInfoBarOpen);
-        StringAssert.Contains(overview.DataLoadWarningMessage, "最新形式");
-        StringAssert.Contains(overview.DataLoadWarningMessage, "再保存");
+        Assert.AreEqual(
+            "OverviewSchemaWritebackWarning",
+            overview.DataLoadWarningMessage);
         Assert.DoesNotContain("private-", overview.DataLoadWarningMessage);
     }
 
@@ -65,7 +70,7 @@ public sealed class AppCoordinatorTests
         GameManager manager = CreateManager(store);
         RecordingUiDispatcher dispatcher = new();
         AppCoordinator coordinator = new(store, manager, dispatcher);
-        OverviewViewModel overview = new(manager, new FakeClock(NowUtc), dispatcher);
+        OverviewViewModel overview = CreateOverview(manager, dispatcher);
 
         await global::StaminaManager.App.InitializeForLaunchAsync(
             coordinator,
@@ -79,9 +84,9 @@ public sealed class AppCoordinatorTests
             coordinator.StartupRecovery.Kind);
         Assert.IsTrue(coordinator.StartupRecovery.IsDiagnosticPreserved);
         Assert.IsTrue(overview.IsRecoveryInfoBarOpen);
-        StringAssert.Contains(overview.RecoveryMessage, "前回正常データ");
-        StringAssert.Contains(overview.RecoveryMessage, "破損元");
-        StringAssert.Contains(overview.RecoveryMessage, "バックアップ");
+        Assert.AreEqual(
+            "OverviewRecoveryDiagnosticPreserved",
+            overview.RecoveryMessage);
         Assert.IsFalse(overview.RecoveryMessage.Contains(
             "private-",
             StringComparison.Ordinal));
@@ -114,7 +119,7 @@ public sealed class AppCoordinatorTests
         GameManager manager = CreateManager(store);
         RecordingUiDispatcher dispatcher = new();
         AppCoordinator coordinator = new(store, manager, dispatcher);
-        OverviewViewModel overview = new(manager, new FakeClock(NowUtc), dispatcher);
+        OverviewViewModel overview = CreateOverview(manager, dispatcher);
 
         await Assert.ThrowsExactlyAsync<IOException>(
             () => global::StaminaManager.App.InitializeForLaunchAsync(
@@ -556,6 +561,14 @@ public sealed class AppCoordinatorTests
         store,
         new FakeClock(NowUtc),
         AppSettings.CreateDefault(AppTheme.Light));
+
+    private static OverviewViewModel CreateOverview(
+        GameManager manager,
+        IUiDispatcher dispatcher) => new(
+            manager,
+            new FakeClock(NowUtc),
+            dispatcher,
+            OverviewResources);
 
     private static DataLoadResult CreateLoadResult(string gameName) => new(
         DataLoadStatus.Primary,
