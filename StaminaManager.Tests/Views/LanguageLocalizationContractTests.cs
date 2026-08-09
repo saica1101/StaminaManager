@@ -173,6 +173,7 @@ public sealed class LanguageLocalizationContractTests
                 SecondaryButtonText="Secondary button"
                 CloseButtonText="Close button" />
               <Style TargetType="Button">
+                <Setter Property="Content" Value="Setter attribute literal" />
                 <Setter Property="Content">
                   <Setter.Value>Setter literal</Setter.Value>
                 </Setter>
@@ -195,6 +196,7 @@ public sealed class LanguageLocalizationContractTests
                 "ContentDialog.PrimaryButtonText=Primary button",
                 "ContentDialog.SecondaryButtonText=Secondary button",
                 "ContentDialog.CloseButtonText=Close button",
+                "Setter.Value=Setter attribute literal",
                 "Setter.Value=Setter literal",
             },
             violations);
@@ -308,6 +310,16 @@ public sealed class LanguageLocalizationContractTests
                         $"{element.Name.LocalName}.{attribute.Name.LocalName}="
                         + attribute.Value.Trim());
                 }
+            }
+
+            if (element.Name.LocalName == "Setter"
+                && DisplayProperties.Contains(
+                    (string?)element.Attribute("Property") ?? string.Empty,
+                    StringComparer.Ordinal)
+                && element.Attribute("Value") is { } value
+                && IsFixedDisplayLiteral(value.Value))
+            {
+                violations.Add($"Setter.Value={value.Value.Trim()}");
             }
 
             if (NonDisplayElementNames.Contains(
