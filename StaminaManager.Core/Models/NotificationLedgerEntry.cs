@@ -19,7 +19,8 @@ public sealed record NotificationLedgerEntry(
         GameEntry game,
         DateTimeOffset fullAtUtc,
         int leadMinutes,
-        NotificationState state)
+        NotificationState state,
+        AppLanguage language = AppLanguage.Japanese)
     {
         ArgumentNullException.ThrowIfNull(game);
         if (!NotificationCycle.TryCreate(
@@ -27,6 +28,7 @@ public sealed record NotificationLedgerEntry(
             fullAtUtc,
             leadMinutes,
             state,
+            language,
             out NotificationLedgerEntry? entry))
         {
             throw new ArgumentOutOfRangeException(
@@ -45,6 +47,7 @@ internal static class NotificationCycle
         DateTimeOffset fullAtUtc,
         int leadMinutes,
         NotificationState state,
+        AppLanguage language,
         [NotNullWhen(true)] out NotificationLedgerEntry? entry)
     {
         entry = null;
@@ -82,27 +85,32 @@ internal static class NotificationCycle
             leadMinutes,
             notificationAtUtcTicks,
             state,
-            CreateContentFingerprint(game.Name, game.ImageAssetId));
+            CreateContentFingerprint(game.Name, game.ImageAssetId, language));
         return true;
     }
 
     private static string CreateContentFingerprint(
         string gameName,
-        string? imageAssetId)
+        string? imageAssetId,
+        AppLanguage language)
     {
         byte[] nameBytes = Encoding.UTF8.GetBytes(gameName);
         byte[] imageBytes = imageAssetId is null
             ? []
             : Encoding.UTF8.GetBytes(imageAssetId);
         byte[] fingerprintInput = new byte[
-            sizeof(int) + nameBytes.Length
+            sizeof(int) + sizeof(int) + nameBytes.Length
             + sizeof(int) + imageBytes.Length];
         Span<byte> input = fingerprintInput;
         BinaryPrimitives.WriteInt32LittleEndian(
             input,
+            (int)language);
+        Span<byte> nameLengthInput = input[sizeof(int)..];
+        BinaryPrimitives.WriteInt32LittleEndian(
+            nameLengthInput,
             nameBytes.Length);
-        nameBytes.CopyTo(input[sizeof(int)..]);
-        int imageLengthOffset = sizeof(int) + nameBytes.Length;
+        nameBytes.CopyTo(nameLengthInput[sizeof(int)..]);
+        int imageLengthOffset = sizeof(int) + sizeof(int) + nameBytes.Length;
         BinaryPrimitives.WriteInt32LittleEndian(
             input[imageLengthOffset..],
             imageAssetId is null ? -1 : imageBytes.Length);

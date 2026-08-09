@@ -63,6 +63,23 @@ public sealed class NotificationLedgerStoreTests
     }
 
     [TestMethod]
+    public async Task LoadAsync_LegacyContentFingerprintRemainsValid()
+    {
+        NotificationLedgerEntry legacy = CreateEntry(
+            NotificationState.Scheduled) with
+        {
+            ContentFingerprint =
+                "060C3643CE9EF725D09BEE33B95FCE5C313EE4842B4147328C5988187249FE95",
+        };
+
+        await _store.SaveAsync([legacy], CancellationToken.None);
+        IReadOnlyList<NotificationLedgerEntry> loaded =
+            await _store.LoadAsync(CancellationToken.None);
+
+        CollectionAssert.AreEqual(new[] { legacy }, loaded.ToArray());
+    }
+
+    [TestMethod]
     public async Task LoadAsync_MalformedLedgerIsRejectedWithoutMutation()
     {
         Directory.CreateDirectory(_rootPath);

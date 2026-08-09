@@ -425,13 +425,7 @@ public sealed class AppCoordinator
         await RestoreModeAsync(cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
         await ReconcileStartupAsync(cancellationToken).ConfigureAwait(false);
-        await ReconcileLanguageAsync(cancellationToken).ConfigureAwait(false);
-        if (!IsLanguageSynchronized)
-        {
-            return;
-        }
-
-        await ReconcileNotificationsAsync(cancellationToken)
+        await ReconcileLanguageAndNotificationsAsync(cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -533,13 +527,7 @@ public sealed class AppCoordinator
                 desiredStartupEnabled,
                 cancellationToken)
             .ConfigureAwait(false);
-        await ReconcileLanguageAsync(cancellationToken).ConfigureAwait(false);
-        if (!IsLanguageSynchronized)
-        {
-            return;
-        }
-
-        await ReconcileNotificationsAsync(cancellationToken)
+        await ReconcileLanguageAndNotificationsAsync(cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -773,6 +761,20 @@ public sealed class AppCoordinator
         return Task.CompletedTask;
     }
 
+    private async Task ReconcileLanguageAndNotificationsAsync(
+        CancellationToken cancellationToken)
+    {
+        await ReconcileLanguageAsync(cancellationToken)
+            .ConfigureAwait(false);
+        if (!IsLanguageSynchronized)
+        {
+            return;
+        }
+
+        await ReconcileNotificationsAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     private async Task OnGamesChangedAsync(
         CancellationToken cancellationToken)
     {
@@ -781,7 +783,7 @@ public sealed class AppCoordinator
             return;
         }
 
-        await ReconcileNotificationsAsync(cancellationToken)
+        await ReconcileLanguageAndNotificationsAsync(cancellationToken)
             .ConfigureAwait(false);
     }
 

@@ -113,6 +113,99 @@ public sealed class AppCoordinatorNotificationTests
     }
 
     [TestMethod]
+    public async Task GameMutation_AfterLanguageFailureWaitsForSuccessfulResynchronization()
+    {
+        RecordingNotificationReconciler reconciler = new();
+        RecordingLanguageService language = new(reconciler.Operations)
+        {
+            EffectiveLanguage = AppLanguage.Japanese,
+        };
+        language.Results.Enqueue(new LanguageChangeResult(
+            AppLanguage.English,
+            IsApplied: false,
+            LanguageFailureReason.PlatformError));
+        language.Results.Enqueue(new LanguageChangeResult(
+            AppLanguage.English,
+            IsApplied: false,
+            LanguageFailureReason.PlatformError));
+        language.Results.Enqueue(new LanguageChangeResult(
+            AppLanguage.English,
+            IsApplied: true,
+            LanguageFailureReason.None));
+        (AppCoordinator coordinator, GameManager manager) = CreateCoordinator(
+            reconciler,
+            language,
+            savedLanguage: AppLanguage.English);
+
+        await coordinator.InitializeAsync(CancellationToken.None);
+
+        await manager.AddAsync(
+            new GameDraft(
+                "Blocked",
+                20,
+                100,
+                5,
+                null,
+                RecoverySeconds: 0,
+                IsNotificationEnabled: true),
+            CancellationToken.None);
+
+        Assert.IsFalse(coordinator.IsLanguageSynchronized);
+        Assert.AreEqual(0, reconciler.CallCount);
+
+        await manager.AddAsync(
+            new GameDraft(
+                "Synchronized",
+                20,
+                100,
+                5,
+                null,
+                RecoverySeconds: 0,
+                IsNotificationEnabled: true),
+            CancellationToken.None);
+
+        Assert.IsTrue(coordinator.IsLanguageSynchronized);
+        Assert.AreEqual(1, reconciler.CallCount);
+        Assert.HasCount(3, reconciler.LastGames);
+    }
+
+    [TestMethod]
+    public async Task GameMutation_WhenSavedLanguageIsUnsynchronizedSkipsNotifications()
+    {
+        RecordingNotificationReconciler reconciler = new();
+        RecordingLanguageService language = new(reconciler.Operations)
+        {
+            EffectiveLanguage = AppLanguage.Japanese,
+        };
+        (AppCoordinator coordinator, GameManager manager) = CreateCoordinator(
+            reconciler,
+            language);
+
+        await coordinator.InitializeAsync(CancellationToken.None);
+        await manager.UpdateSettingsAsync(
+            settings => settings with { Language = AppLanguage.English },
+            CancellationToken.None);
+        language.Results.Enqueue(new LanguageChangeResult(
+            AppLanguage.English,
+            IsApplied: false,
+            LanguageFailureReason.PlatformError));
+
+        await manager.AddAsync(
+            new GameDraft(
+                "Unsynchronized",
+                20,
+                100,
+                5,
+                null,
+                RecoverySeconds: 0,
+                IsNotificationEnabled: true),
+            CancellationToken.None);
+
+        Assert.IsFalse(coordinator.IsLanguageSynchronized);
+        Assert.AreEqual(1, reconciler.CallCount);
+    }
+
+    [TestMethod]
     public async Task InitializeAsync_EffectiveLanguageMatchesButStillCallsSetter()
     {
         RecordingNotificationReconciler reconciler = new();

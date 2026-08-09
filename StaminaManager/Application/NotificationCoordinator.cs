@@ -149,7 +149,8 @@ public sealed class NotificationCoordinator : INotificationReconciler
                         _clock.UtcNow,
                         notificationsEnabled: game.IsNotificationEnabled,
                         existing,
-                        scheduled.Contains(game.Id));
+                        scheduled.Contains(game.Id),
+                        settings.Language);
                 if (decision.Error != NotificationDecisionError.None)
                 {
                     issues.Add(new NotificationReconcileIssue(
@@ -268,7 +269,8 @@ public sealed class NotificationCoordinator : INotificationReconciler
                 _clock.UtcNow,
                 notificationsEnabled: false,
                 existing,
-                scheduled.Contains(game.Id));
+                scheduled.Contains(game.Id),
+                settings.Language);
             if (decision.Error != NotificationDecisionError.None)
             {
                 issues.Add(new NotificationReconcileIssue(

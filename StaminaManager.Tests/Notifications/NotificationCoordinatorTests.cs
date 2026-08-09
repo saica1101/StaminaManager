@@ -76,6 +76,50 @@ public sealed class NotificationCoordinatorTests
     }
 
     [TestMethod]
+    public async Task ReconcileAsync_SameCycleLanguageChangeReplacesScheduledNotification()
+    {
+        GameEntry game = CreateGame(Guid.NewGuid(), baseStamina: 90);
+        FakeNotificationScheduler scheduler = new();
+        FakeNotificationLedgerStore ledger = new();
+        NotificationCoordinator coordinator = CreateCoordinator(
+            scheduler,
+            ledger,
+            nowUtc: RecordedAtUtc.AddMinutes(5));
+        AppSettings japaneseSettings = CreateSettings(
+            enabled: true,
+            leadMinutes: 15) with
+        {
+            Language = AppLanguage.Japanese,
+        };
+
+        await coordinator.ReconcileAsync(
+            [game],
+            japaneseSettings,
+            CancellationToken.None);
+        NotificationLedgerEntry japaneseEntry = ledger.SavedEntries.Single();
+
+        NotificationReconcileResult result = await coordinator.ReconcileAsync(
+            [game],
+            japaneseSettings with { Language = AppLanguage.English },
+            CancellationToken.None);
+
+        Assert.IsFalse(result.HasFailures);
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                $"schedule:{game.Id:N}",
+                $"cancel:{game.Id:N}",
+                $"schedule:{game.Id:N}",
+            },
+            scheduler.Operations);
+        NotificationLedgerEntry englishEntry = ledger.SavedEntries.Single();
+        Assert.AreEqual(japaneseEntry.Key, englishEntry.Key);
+        Assert.AreNotEqual(
+            japaneseEntry.ContentFingerprint,
+            englishEntry.ContentFingerprint);
+    }
+
+    [TestMethod]
     public async Task ReconcileAsync_ImmediateSubmissionPersistsConsumedAfterShow()
     {
         GameEntry game = CreateGame(Guid.NewGuid(), baseStamina: 90);

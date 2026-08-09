@@ -10,7 +10,8 @@ public static class NotificationStateMachine
         DateTimeOffset nowUtc,
         bool notificationsEnabled,
         NotificationLedgerEntry? existingEntry,
-        bool isScheduledInWindows)
+        bool isScheduledInWindows,
+        AppLanguage language = AppLanguage.Japanese)
     {
         ArgumentNullException.ThrowIfNull(game);
         nowUtc = nowUtc.ToUniversalTime();
@@ -21,7 +22,8 @@ public static class NotificationStateMachine
                 leadMinutes,
                 nowUtc,
                 existingEntry,
-                isScheduledInWindows);
+                isScheduledInWindows,
+                language);
         }
 
         StaminaSnapshot snapshot = StaminaCalculator.Calculate(game, nowUtc);
@@ -39,6 +41,7 @@ public static class NotificationStateMachine
             snapshot.FullAtUtc.Value,
             leadMinutes,
             NotificationState.Scheduled,
+            language,
             out NotificationLedgerEntry? candidate))
         {
             return new NotificationDecision(
@@ -91,7 +94,8 @@ public static class NotificationStateMachine
         int leadMinutes,
         DateTimeOffset nowUtc,
         NotificationLedgerEntry? existingEntry,
-        bool isScheduledInWindows)
+        bool isScheduledInWindows,
+        AppLanguage language)
     {
         NotificationPlatformAction action = isScheduledInWindows
             ? NotificationPlatformAction.Cancel
@@ -115,6 +119,7 @@ public static class NotificationStateMachine
                     snapshot.FullAtUtc.Value,
                     leadMinutes,
                     NotificationState.Suppressed,
+                    language,
                     out NotificationLedgerEntry? candidate))
             {
                 return new NotificationDecision(action, suppressedEntry);
