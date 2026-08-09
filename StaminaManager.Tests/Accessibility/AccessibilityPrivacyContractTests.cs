@@ -271,8 +271,9 @@ public sealed class AccessibilityPrivacyContractTests
                     language,
                     "Resources.resw"))));
 
+        string[] forbiddenImageSizeText = ["5MB", "5 MB", "5 MiB"];
         string combined = dialog + code + resources;
-        foreach (string forbiddenText in new[] { "5MB", "5 MB", "5 MiB" })
+        foreach (string forbiddenText in forbiddenImageSizeText)
         {
             Assert.DoesNotContain(forbiddenText, combined);
         }
@@ -285,12 +286,7 @@ public sealed class AccessibilityPrivacyContractTests
                 .GetValueOrDefault("SelectedImageText.Text")
                 ?? string.Empty;
             StringAssert.Contains(guidance, "4096×4096");
-            foreach (string forbiddenText in new[]
-            {
-                "5MB",
-                "5 MB",
-                "5 MiB",
-            })
+            foreach (string forbiddenText in forbiddenImageSizeText)
             {
                 Assert.DoesNotContain(forbiddenText, guidance);
             }
