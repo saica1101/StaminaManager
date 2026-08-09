@@ -170,6 +170,7 @@
                 AutomationProperties.AutomationId="OverviewItems"
                 ItemTemplate="{StaticResource OverviewItemTemplateSelector}"
                 ItemsSource="{x:Bind ViewModel.OverviewItems, Mode=OneWay}"
+                ElementPrepared="OverviewItems_ElementPrepared"
                 TabFocusNavigation="Local">
                 <ItemsRepeater.Layout>
                     <UniformGridLayout

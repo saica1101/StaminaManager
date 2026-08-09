@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml;
 using StaminaManager.Core.Calculations;
+using StaminaManager.Core.Abstractions;
 using StaminaManager.ViewModels;
 using StaminaManager.Controls;
 
@@ -8,10 +9,16 @@ namespace StaminaManager.Views;
 
 public sealed partial class OverviewPage : Page
 {
-    public OverviewPage(OverviewViewModel viewModel)
+    private readonly IAppResourceService _appResourceService;
+
+    public OverviewPage(
+        OverviewViewModel viewModel,
+        IAppResourceService appResourceService)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
+        ArgumentNullException.ThrowIfNull(appResourceService);
         ViewModel = viewModel;
+        _appResourceService = appResourceService;
         InitializeComponent();
     }
 
@@ -68,6 +75,16 @@ public sealed partial class OverviewPage : Page
 
     public static Visibility BoolToVisibility(bool value) =>
         value ? Visibility.Visible : Visibility.Collapsed;
+
+    private void OverviewItems_ElementPrepared(
+        ItemsRepeater sender,
+        ItemsRepeaterElementPreparedEventArgs args)
+    {
+        if (args.Element is GameCardControl card)
+        {
+            card.AppResourceService = _appResourceService;
+        }
+    }
 
     private void OverviewRoot_SizeChanged(
         object sender,

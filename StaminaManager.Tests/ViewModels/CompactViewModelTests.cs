@@ -3,6 +3,7 @@ using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
 using StaminaManager.Core.Persistence;
 using StaminaManager.Core.Validation;
+using StaminaManager.Infrastructure.Resources;
 using StaminaManager.Tests.TestDoubles;
 using StaminaManager.ViewModels;
 using System.Collections.Immutable;
@@ -25,6 +26,23 @@ public sealed class CompactViewModelTests
         Assert.IsFalse(viewModel.HasSelectedGame);
         Assert.IsNull(viewModel.SelectedGame);
         Assert.IsTrue(viewModel.AddGameCommand.CanExecute(null));
+    }
+
+    [TestMethod]
+    [DataRow(StaminaStatus.Safe, "localized-safe")]
+    [DataRow(StaminaStatus.Attention, "localized-attention")]
+    [DataRow(StaminaStatus.NearFull, "localized-near-full")]
+    [DataRow(StaminaStatus.Full, "localized-full")]
+    [DataRow(StaminaStatus.OverCap, "localized-over-cap")]
+    public async Task SelectedStatusText_UsesLocalizedResource(
+        StaminaStatus status,
+        string expected)
+    {
+        Context context = await CreateAsync(CreateEntry("Localized", 0));
+        using CompactViewModel viewModel = context.CreateViewModel();
+        viewModel.SelectedGame!.Status = status;
+
+        Assert.AreEqual(expected, viewModel.SelectedStatusText);
     }
 
     [TestMethod]
@@ -127,6 +145,9 @@ public sealed class CompactViewModelTests
         Assert.AreEqual(
             first.Id,
             context.Manager.CurrentData.Settings.SelectedCompactGameId);
+        Assert.AreEqual(
+            "localized-selection-save-error",
+            viewModel.ErrorMessage);
     }
 
     [TestMethod]
@@ -225,16 +246,23 @@ public sealed class CompactViewModelTests
             Clock,
             Coordinator,
             new RecordingUiDispatcher(),
-            ResolveString);
+            new AppResourceService(ResolveString));
 
         private static string ResolveString(string resourceId) =>
             resourceId switch
             {
+                "StaminaStatusSafe" => "localized-safe",
+                "StaminaStatusAttention" => "localized-attention",
+                "StaminaStatusNearFull" => "localized-near-full",
+                "StaminaStatusFull" => "localized-full",
+                "StaminaStatusOverCap" => "localized-over-cap",
                 "RemainingTimeFull" => "満タン",
                 "RemainingTimeDaysFormat" =>
                     "満タンまで {0}日 {1:00}:{2:00}",
                 "RemainingTimeHoursSecondsFormat" =>
                     "満タンまで {0:00}:{1:00}:{2:00}",
+                "CompactSelectionSaveError" =>
+                    "localized-selection-save-error",
                 _ => throw new ArgumentOutOfRangeException(
                     nameof(resourceId)),
             };

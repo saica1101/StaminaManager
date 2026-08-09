@@ -404,7 +404,8 @@ public partial class App : Microsoft.UI.Xaml.Application
             _gameManager,
             clock,
             _coordinator,
-            uiDispatcher);
+            uiDispatcher,
+            _appResourceService);
         _timerCoordinator = new TimerCoordinator(
             clock,
             new SystemTickSource(),
@@ -433,14 +434,18 @@ public partial class App : Microsoft.UI.Xaml.Application
             sessionLanguage);
 
         _startupStage = "OverviewPage";
-        _overviewPage = new OverviewPage(_overviewViewModel);
+        _overviewPage = new OverviewPage(
+            _overviewViewModel,
+            _appResourceService);
         _startupStage = "SettingsPage";
         SettingsPage settingsPage = new(_settingsViewModel);
         _startupStage = "AboutPage";
         AboutPage aboutPage = new(
             new AboutViewModel(versionProvider, externalUriLauncher));
         _startupStage = "CompactPage";
-        CompactPage compactPage = new(_compactViewModel);
+        CompactPage compactPage = new(
+            _compactViewModel,
+            _appResourceService);
         _startupStage = "MainPage";
         MainPage mainPage = new(
             _shellViewModel,

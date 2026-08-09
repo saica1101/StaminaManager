@@ -1,13 +1,11 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.Windows.ApplicationModel.Resources;
 using StaminaManager.Application;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Calculations;
 using StaminaManager.Core.Models;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Globalization;
 
 namespace StaminaManager.ViewModels;
 
@@ -17,7 +15,7 @@ public sealed partial class CompactViewModel : ObservableObject, IDisposable
     private readonly IClock _clock;
     private readonly AppCoordinator _coordinator;
     private readonly IUiDispatcher _uiDispatcher;
-    private readonly Func<string, string> _getRequiredString;
+    private readonly IAppResourceService _appResourceService;
     private readonly ObservableCollection<GameCardViewModel> _games = [];
     private bool _isDisposed;
 
@@ -39,33 +37,19 @@ public sealed partial class CompactViewModel : ObservableObject, IDisposable
         GameManager gameManager,
         IClock clock,
         AppCoordinator coordinator,
-        IUiDispatcher uiDispatcher)
-        : this(
-            gameManager,
-            clock,
-            coordinator,
-            uiDispatcher,
-            CreateRequiredStringResolver())
-    {
-    }
-
-    internal CompactViewModel(
-        GameManager gameManager,
-        IClock clock,
-        AppCoordinator coordinator,
         IUiDispatcher uiDispatcher,
-        Func<string, string> getRequiredString)
+        IAppResourceService appResourceService)
     {
         ArgumentNullException.ThrowIfNull(gameManager);
         ArgumentNullException.ThrowIfNull(clock);
         ArgumentNullException.ThrowIfNull(coordinator);
         ArgumentNullException.ThrowIfNull(uiDispatcher);
-        ArgumentNullException.ThrowIfNull(getRequiredString);
+        ArgumentNullException.ThrowIfNull(appResourceService);
         _gameManager = gameManager;
         _clock = clock;
         _coordinator = coordinator;
         _uiDispatcher = uiDispatcher;
-        _getRequiredString = getRequiredString;
+        _appResourceService = appResourceService;
         Games = new ReadOnlyObservableCollection<GameCardViewModel>(
             _games);
         _gameManager.GamesChanged += OnGamesChanged;
@@ -102,15 +86,16 @@ public sealed partial class CompactViewModel : ObservableObject, IDisposable
     public StaminaStatus SelectedStatus =>
         SelectedGame?.Status ?? StaminaStatus.Safe;
 
-    public string SelectedStatusText => SelectedStatus switch
-    {
-        StaminaStatus.Safe => "余裕",
-        StaminaStatus.Attention => "注意",
-        StaminaStatus.NearFull => "満タン間近",
-        StaminaStatus.Full => "満タン",
-        StaminaStatus.OverCap => "自然回復停止中",
-        _ => throw new ArgumentOutOfRangeException(),
-    };
+    public string SelectedStatusText => _appResourceService.GetString(
+        SelectedStatus switch
+        {
+            StaminaStatus.Safe => "StaminaStatusSafe",
+            StaminaStatus.Attention => "StaminaStatusAttention",
+            StaminaStatus.NearFull => "StaminaStatusNearFull",
+            StaminaStatus.Full => "StaminaStatusFull",
+            StaminaStatus.OverCap => "StaminaStatusOverCap",
+            _ => throw new ArgumentOutOfRangeException(),
+        });
 
     public string SelectedRemainingText
     {
@@ -125,7 +110,7 @@ public sealed partial class CompactViewModel : ObservableObject, IDisposable
                 SelectedGame.Remaining);
             if (parts.IsFull)
             {
-                return _getRequiredString("RemainingTimeFull");
+                return _appResourceService.GetString("RemainingTimeFull");
             }
 
             string resourceId = parts.Days > 0
@@ -134,10 +119,7 @@ public sealed partial class CompactViewModel : ObservableObject, IDisposable
             object[] values = parts.Days > 0
                 ? [parts.Days, parts.Hours, parts.Minutes]
                 : [parts.Hours, parts.Minutes, parts.Seconds];
-            return string.Format(
-                CultureInfo.CurrentCulture,
-                _getRequiredString(resourceId),
-                values);
+            return _appResourceService.Format(resourceId, values);
         }
     }
 
@@ -171,8 +153,8 @@ public sealed partial class CompactViewModel : ObservableObject, IDisposable
             exception is IOException or UnauthorizedAccessException)
         {
             await _uiDispatcher.InvokeAsync(
-                    () => ErrorMessage =
-                        "選択を保存できませんでした。もう一度お試しください。",
+                    () => ErrorMessage = _appResourceService.GetString(
+                        "CompactSelectionSaveError"),
                     CancellationToken.None)
                 .ConfigureAwait(false);
             throw;
@@ -344,13 +326,4 @@ public sealed partial class CompactViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(SelectedRemainingText));
     }
 
-    private static Func<string, string> CreateRequiredStringResolver()
-    {
-        ResourceLoader resources = new();
-        return resourceId =>
-        {
-            string value = resources.GetString(resourceId);
-            return string.IsNullOrWhiteSpace(value) ? resourceId : value;
-        };
-    }
 }

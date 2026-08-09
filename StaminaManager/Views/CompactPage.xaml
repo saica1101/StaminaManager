@@ -64,11 +64,11 @@
                         TextAlignment="Center"
                         TextTrimming="CharacterEllipsis" />
                     <controls:StaminaRing
+                        x:Name="StaminaRingControl"
                         Width="144"
                         Height="144"
                         HorizontalAlignment="Center"
                         AutomationProperties.AutomationId="CompactStaminaRing"
-                        AutomationProperties.Name="{x:Bind RingAutomationName, Mode=OneWay}"
                         Current="{x:Bind ViewModel.SelectedCurrent, Mode=OneWay}"
                         GameName="{x:Bind ViewModel.SelectedName, Mode=OneWay}"
                         Maximum="{x:Bind ViewModel.SelectedMaximum, Mode=OneWay}"

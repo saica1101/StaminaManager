@@ -2,12 +2,11 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
-using Microsoft.Windows.ApplicationModel.Resources;
+using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Calculations;
 using StaminaManager.Core.Models;
 using StaminaManager.ViewModels;
 using System.ComponentModel;
-using System.Globalization;
 
 namespace StaminaManager.Controls;
 
@@ -23,7 +22,7 @@ public sealed partial class GameCardControl : UserControl, INotifyPropertyChange
     private const double RegularRingSize = 112d;
     private const double NarrowRowSpacing = 2d;
     private const double RegularRowSpacing = 4d;
-    private readonly ResourceLoader _resources = new();
+    private IAppResourceService? _appResourceService;
     private Brush? _statusBrush;
     private string? _imageAssetId;
     private int _imageAttempt;
@@ -51,6 +50,24 @@ public sealed partial class GameCardControl : UserControl, INotifyPropertyChange
     {
         get => (GameCardViewModel)GetValue(ViewModelProperty);
         set => SetValue(ViewModelProperty, value);
+    }
+
+    public IAppResourceService? AppResourceService
+    {
+        get => _appResourceService;
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            if (ReferenceEquals(_appResourceService, value))
+            {
+                return;
+            }
+
+            _appResourceService = value;
+            StaminaRingControl.AppResourceService = value;
+            NotifyDerivedProperties();
+            Bindings.Update();
+        }
     }
 
     public string CardAutomationId =>
@@ -111,22 +128,19 @@ public sealed partial class GameCardControl : UserControl, INotifyPropertyChange
             object[] values = parts.Days > 0
                 ? [parts.Days, parts.Hours, parts.Minutes]
                 : [parts.Hours, parts.Minutes, parts.Seconds];
-            return string.Format(
-                CultureInfo.CurrentCulture,
-                GetRequiredString(resourceId),
-                values);
+            return _appResourceService?.Format(resourceId, values)
+                ?? string.Empty;
         }
     }
 
     public string CardAutomationName => CurrentViewModel is { } viewModel
-        ? string.Format(
-            CultureInfo.CurrentCulture,
-            GetRequiredString("GameCardAutomationNameFormat"),
+        ? _appResourceService?.Format(
+            "GameCardAutomationNameFormat",
             viewModel.Name,
             viewModel.CurrentStamina,
             viewModel.MaxStamina,
             StatusText,
-            RemainingText)
+            RemainingText) ?? string.Empty
         : string.Empty;
 
     internal bool FocusCard() => CardButton.Focus(
@@ -349,7 +363,6 @@ public sealed partial class GameCardControl : UserControl, INotifyPropertyChange
 
     private string GetRequiredString(string resourceId)
     {
-        string value = _resources.GetString(resourceId);
-        return string.IsNullOrWhiteSpace(value) ? resourceId : value;
+        return _appResourceService?.GetString(resourceId) ?? string.Empty;
     }
 }

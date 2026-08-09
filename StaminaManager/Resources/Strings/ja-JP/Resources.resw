@@ -20,6 +20,7 @@
   <data name="NavAbout.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Aboutページを表示</value></data>
   <data name="VersionFooterLabel.Text" xml:space="preserve"><value>バージョン</value></data>
   <data name="VersionFooterText.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText" xml:space="preserve"><value>Stamina Managerのバージョン</value></data>
+  <data name="VersionFooterAutomationNameFormat" xml:space="preserve"><value>Stamina Manager、バージョン {0}</value></data>
   <data name="CompactModeButton.Content" xml:space="preserve"><value>コンパクト表示</value></data>
   <data name="CompactModeButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>コンパクト表示へ切り替える</value></data>
   <data name="ShellContentHost.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>メイン コンテンツ</value></data>
@@ -45,6 +46,11 @@
   <data name="StaminaStatusNearFull" xml:space="preserve"><value>満タン間近</value></data>
   <data name="StaminaStatusFull" xml:space="preserve"><value>満タン</value></data>
   <data name="StaminaStatusOverCap" xml:space="preserve"><value>自然回復停止中</value></data>
+  <data name="StaminaRingDefaultSubject" xml:space="preserve"><value>スタミナ</value></data>
+  <data name="StaminaRingUnknownStatus" xml:space="preserve"><value>状態不明</value></data>
+  <data name="StaminaRingAutomationNameFormat" xml:space="preserve"><value>{0}、スタミナ {1} / {2}、{3}</value></data>
+  <data name="StaminaRingHelpTextFormat" xml:space="preserve"><value>現在値 {0}、最大値 {1}、{2}%、{3}</value></data>
+  <data name="StaminaRingReadOnlyError" xml:space="preserve"><value>スタミナ表示は読み取り専用です。</value></data>
   <data name="RemainingTimeFull" xml:space="preserve"><value>満タン</value></data>
   <data name="RemainingTimeHoursFormat" xml:space="preserve"><value>満タンまで {0:00}:{1:00}</value></data>
   <data name="RemainingTimeHoursSecondsFormat" xml:space="preserve"><value>満タンまで {0:00}:{1:00}:{2:00}</value></data>
@@ -129,6 +135,8 @@
   <data name="ReturnOverviewButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Overviewへ戻る</value></data>
   <data name="CompactErrorInfoBar.Title" xml:space="preserve"><value>操作を完了できませんでした</value></data>
   <data name="CompactErrorInfoBar.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>コンパクト表示の操作エラー</value></data>
+  <data name="CompactSelectionSaveError" xml:space="preserve"><value>選択を保存できませんでした。もう一度お試しください。</value></data>
+  <data name="ReturnOverviewSaveError" xml:space="preserve"><value>Overviewへ戻る設定を保存できませんでした。もう一度お試しください。</value></data>
   <data name="CompactUpdateButton.Content" xml:space="preserve"><value>現在値を更新</value></data>
   <data name="CompactUpdateButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>選択中のゲームの現在値を更新</value></data>
   <data name="CompactEditButton.Content" xml:space="preserve"><value>ゲームを編集</value></data>

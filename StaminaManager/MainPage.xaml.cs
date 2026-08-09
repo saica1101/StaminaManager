@@ -81,7 +81,9 @@ public sealed partial class MainPage : Page
     public string VersionText { get; }
 
     public string VersionFooterAutomationName =>
-        $"Stamina Manager、バージョン {VersionText}";
+        _appResourceService.Format(
+            "VersionFooterAutomationNameFormat",
+            VersionText);
 
     internal Task FlushPendingSettingsChangesAsync() =>
         _settingsPage.FlushPendingAppearanceChangesAsync();
@@ -241,7 +243,7 @@ public sealed partial class MainPage : Page
                 or InvalidOperationException)
         {
             _compactPage.ViewModel.ShowError(
-                "Overviewへ戻る設定を保存できませんでした。もう一度お試しください。");
+                _appResourceService.GetString("ReturnOverviewSaveError"));
         }
     }
 

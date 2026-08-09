@@ -20,6 +20,7 @@
   <data name="NavAbout.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Show the About page</value></data>
   <data name="VersionFooterLabel.Text" xml:space="preserve"><value>Version</value></data>
   <data name="VersionFooterText.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText" xml:space="preserve"><value>Stamina Manager version</value></data>
+  <data name="VersionFooterAutomationNameFormat" xml:space="preserve"><value>Stamina Manager, version {0}</value></data>
   <data name="CompactModeButton.Content" xml:space="preserve"><value>Compact view</value></data>
   <data name="CompactModeButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Switch to compact view</value></data>
   <data name="ShellContentHost.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Main content</value></data>
@@ -45,6 +46,11 @@
   <data name="StaminaStatusNearFull" xml:space="preserve"><value>Almost full</value></data>
   <data name="StaminaStatusFull" xml:space="preserve"><value>Full</value></data>
   <data name="StaminaStatusOverCap" xml:space="preserve"><value>Natural recovery stopped</value></data>
+  <data name="StaminaRingDefaultSubject" xml:space="preserve"><value>Stamina</value></data>
+  <data name="StaminaRingUnknownStatus" xml:space="preserve"><value>Unknown status</value></data>
+  <data name="StaminaRingAutomationNameFormat" xml:space="preserve"><value>{0}, stamina {1} / {2}, {3}</value></data>
+  <data name="StaminaRingHelpTextFormat" xml:space="preserve"><value>Current value {0}, maximum {1}, {2}%, {3}</value></data>
+  <data name="StaminaRingReadOnlyError" xml:space="preserve"><value>The stamina display is read-only.</value></data>
   <data name="RemainingTimeFull" xml:space="preserve"><value>Full</value></data>
   <data name="RemainingTimeHoursFormat" xml:space="preserve"><value>Full in {0:00}:{1:00}</value></data>
   <data name="RemainingTimeHoursSecondsFormat" xml:space="preserve"><value>Full in {0:00}:{1:00}:{2:00}</value></data>
@@ -129,6 +135,8 @@
   <data name="ReturnOverviewButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Return to Overview</value></data>
   <data name="CompactErrorInfoBar.Title" xml:space="preserve"><value>The operation could not be completed</value></data>
   <data name="CompactErrorInfoBar.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Compact view operation error</value></data>
+  <data name="CompactSelectionSaveError" xml:space="preserve"><value>Could not save the selection. Try again.</value></data>
+  <data name="ReturnOverviewSaveError" xml:space="preserve"><value>Could not save the setting to return to Overview. Try again.</value></data>
   <data name="CompactUpdateButton.Content" xml:space="preserve"><value>Update current value</value></data>
   <data name="CompactUpdateButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Update the current value of the selected game</value></data>
   <data name="CompactEditButton.Content" xml:space="preserve"><value>Edit game</value></data>

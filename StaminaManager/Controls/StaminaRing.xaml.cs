@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Calculations;
 using Windows.Foundation;
 
@@ -13,6 +14,7 @@ public sealed partial class StaminaRing : UserControl
 {
     private const double StrokeThickness = 8d;
     private const double StartDegrees = -90d;
+    private IAppResourceService? _appResourceService;
     private bool _isInitialized;
 
     public static readonly DependencyProperty CurrentProperty =
@@ -62,6 +64,17 @@ public sealed partial class StaminaRing : UserControl
         InitializeComponent();
         _isInitialized = true;
         UpdateVisual();
+    }
+
+    public IAppResourceService? AppResourceService
+    {
+        get => _appResourceService;
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            _appResourceService = value;
+            UpdateVisual();
+        }
     }
 
     public int Current
@@ -179,13 +192,19 @@ public sealed partial class StaminaRing : UserControl
 
     private void UpdateAutomationName()
     {
-        string name = string.Join(
-            ", ",
+        StaminaAutomationInfo info = StaminaRingAutomationPeer.CreateInfo(
+            _appResourceService,
             GameName,
-            $"{Current} / {Maximum}",
+            Current,
+            Maximum,
+            Ratio,
             StatusText);
-        AutomationProperties.SetName(this, name);
+        AutomationProperties.SetName(this, info.Name);
+        AutomationProperties.SetHelpText(this, info.HelpText);
     }
+
+    internal string GetResourceString(string resourceId) =>
+        _appResourceService?.GetString(resourceId) ?? string.Empty;
 }
 
 internal readonly record struct StaminaAutomationInfo(
@@ -219,6 +238,7 @@ internal sealed class StaminaRingAutomationPeer
     public double Value => Info.Value;
 
     private StaminaAutomationInfo Info => CreateInfo(
+        _owner.AppResourceService,
         _owner.GameName,
         _owner.Current,
         _owner.Maximum,
@@ -226,7 +246,7 @@ internal sealed class StaminaRingAutomationPeer
         _owner.StatusText);
 
     public void SetValue(double value) => throw new InvalidOperationException(
-        "スタミナ表示は読み取り専用です。");
+        _owner.GetResourceString("StaminaRingReadOnlyError"));
 
     protected override string GetClassNameCore() => nameof(StaminaRing);
 
@@ -244,6 +264,7 @@ internal sealed class StaminaRingAutomationPeer
             : base.GetPatternCore(patternInterface);
 
     internal static StaminaAutomationInfo CreateInfo(
+        IAppResourceService? resources,
         string gameName,
         int current,
         int maximum,
@@ -255,17 +276,38 @@ internal sealed class StaminaRingAutomationPeer
             Math.Clamp(ratio, 0d, 1d) * 100d,
             MidpointRounding.AwayFromZero);
         string subject = string.IsNullOrWhiteSpace(gameName)
-            ? "スタミナ"
+            ? GetString(resources, "StaminaRingDefaultSubject")
             : gameName;
         string status = string.IsNullOrWhiteSpace(statusText)
-            ? "状態不明"
+            ? GetString(resources, "StaminaRingUnknownStatus")
             : statusText;
         return new StaminaAutomationInfo(
             Minimum: 0d,
             Maximum: safeMaximum,
             Value: Math.Clamp(current, 0, safeMaximum),
-            Name: $"{subject}、スタミナ {current} / {safeMaximum}、{status}",
-            HelpText: $"現在値 {current}、最大値 {safeMaximum}、"
-                + $"{percentage}%、{status}");
+            Name: Format(
+                resources,
+                "StaminaRingAutomationNameFormat",
+                subject,
+                current,
+                safeMaximum,
+                status),
+            HelpText: Format(
+                resources,
+                "StaminaRingHelpTextFormat",
+                current,
+                safeMaximum,
+                percentage,
+                status));
     }
+
+    private static string GetString(
+        IAppResourceService? resources,
+        string resourceId) => resources?.GetString(resourceId) ?? string.Empty;
+
+    private static string Format(
+        IAppResourceService? resources,
+        string resourceId,
+        params object?[] args) => resources?.Format(resourceId, args)
+        ?? string.Empty;
 }

@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml.Automation.Provider;
 using StaminaManager.Controls;
+using StaminaManager.Core.Abstractions;
 using System.Reflection;
 using System.Xml;
 using System.Xml.Linq;
@@ -385,12 +386,32 @@ public sealed class AccessibilityPrivacyContractTests
 
         MethodInfo createInfo = peerType.GetMethod(
             "CreateInfo",
-            BindingFlags.Static | BindingFlags.NonPublic)
+            BindingFlags.Static | BindingFlags.NonPublic,
+            binder: null,
+            types:
+            [
+                typeof(IAppResourceService),
+                typeof(string),
+                typeof(int),
+                typeof(int),
+                typeof(double),
+                typeof(string),
+            ],
+            modifiers: null)
             ?? throw new AssertFailedException(
                 "読み上げ情報の生成メソッドがありません。");
+        FakeAppResourceService resources = new(new Dictionary<string, string>
+        {
+            ["StaminaRingDefaultSubject"] = "スタミナ",
+            ["StaminaRingUnknownStatus"] = "状態不明",
+            ["StaminaRingAutomationNameFormat"] =
+                "{0}、スタミナ {1} / {2}、{3}",
+            ["StaminaRingHelpTextFormat"] =
+                "現在値 {0}、最大値 {1}、{2}%、{3}",
+        });
         object info = createInfo.Invoke(
             null,
-            ["テストゲーム", 75, 200, 0.375, "余裕"])
+            [resources, "テストゲーム", 75, 200, 0.375, "余裕"])
             ?? throw new AssertFailedException(
                 "読み上げ情報を生成できませんでした。");
 
@@ -399,6 +420,51 @@ public sealed class AccessibilityPrivacyContractTests
         Assert.AreEqual(75d, Property<double>(info, "Value"));
         StringAssert.Contains(Property<string>(info, "Name"), "75 / 200");
         StringAssert.Contains(Property<string>(info, "HelpText"), "38%");
+        object fallbackInfo = createInfo.Invoke(
+            null,
+            [resources, "", 75, 200, 0.375, ""])
+            ?? throw new AssertFailedException(
+                "読み上げ情報を生成できませんでした。");
+        Assert.AreEqual(
+            "スタミナ、スタミナ 75 / 200、状態不明",
+            Property<string>(fallbackInfo, "Name"));
+        Assert.AreEqual(
+            "現在値 75、最大値 200、38%、状態不明",
+            Property<string>(fallbackInfo, "HelpText"));
+
+        string root = FindRepositoryRoot();
+        string source = File.ReadAllText(Path.Combine(
+            root,
+            "StaminaManager",
+            "Controls",
+            "StaminaRing.xaml.cs"));
+        StringAssert.Contains(source, "StaminaRingReadOnlyError");
+        Assert.DoesNotContain("スタミナ表示は読み取り専用です。", source);
+
+        string compactXaml = File.ReadAllText(Path.Combine(
+            root,
+            "StaminaManager",
+            "Views",
+            "CompactPage.xaml"));
+        Assert.DoesNotContain("AutomationProperties.Name=", compactXaml);
+
+        object pendingInfo = createInfo.Invoke(
+            null,
+            [null, "", 75, 200, 0.375, ""])
+            ?? throw new AssertFailedException(
+                "注入前の読み上げ情報を生成できませんでした。");
+        Assert.AreEqual(string.Empty, Property<string>(pendingInfo, "Name"));
+        Assert.AreEqual(
+            string.Empty,
+            Property<string>(pendingInfo, "HelpText"));
+
+        string gameCardSource = File.ReadAllText(Path.Combine(
+            root,
+            "StaminaManager",
+            "Controls",
+            "GameCardControl.xaml.cs"));
+        Assert.DoesNotContain("string.Format(", gameCardSource);
+        Assert.DoesNotContain("?? resourceId", gameCardSource);
     }
 
     [TestMethod]
@@ -670,6 +736,18 @@ public sealed class AccessibilityPrivacyContractTests
         (T)(instance.GetType().GetProperty(name)?.GetValue(instance)
             ?? throw new AssertFailedException(
                 $"{name} を取得できませんでした。"));
+
+    private sealed class FakeAppResourceService(
+        IReadOnlyDictionary<string, string> values) : IAppResourceService
+    {
+        public string GetString(string resourceId) =>
+            values.TryGetValue(resourceId, out string? value)
+                ? value
+                : resourceId;
+
+        public string Format(string resourceId, params object?[] args) =>
+            string.Format(GetString(resourceId), args);
+    }
 
     private static Dictionary<string, string> LoadResourceValues(
         string appRoot,
