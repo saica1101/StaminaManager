@@ -5,7 +5,7 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
   <data name="AppTitle" xml:space="preserve"><value>Stamina Manager</value></data>
-  <data name="ManifestAppDescription" xml:space="preserve"><value>An app for checking stamina recovery across multiple games and managing it with notifications.</value></data>
+  <data name="ManifestAppDescription" xml:space="preserve"><value>Track stamina recovery across multiple games and get notified when it is complete.</value></data>
   <data name="ManifestNotificationActivatorDisplayName" xml:space="preserve"><value>Stamina Manager notification activator</value></data>
   <data name="StartupFailureWindowTitle" xml:space="preserve"><value>Stamina Manager</value></data>
   <data name="StartupFailureHeading" xml:space="preserve"><value>Could not start Stamina Manager</value></data>
@@ -161,5 +161,5 @@
   <data name="AboutPrivacyHeading.Text" xml:space="preserve"><value>Privacy</value></data>
   <data name="AboutPrivacyDescription.Text" xml:space="preserve"><value>No accounts, ads, or telemetry are used; data is stored on this device. External links open only after user action.</value></data>
   <data name="AboutLicenseHeading.Text" xml:space="preserve"><value>Licenses and third-party components</value></data>
-  <data name="AboutLicenseDescription.Text" xml:space="preserve"><value>Check the documents in the GitHub repository for the latest information. This information may change depending on the distribution form and dependency component verification.</value></data>
+  <data name="AboutLicenseDescription.Text" xml:space="preserve"><value>Check the documents in the GitHub repository for the latest information. Details may change depending on the distribution method and the verification status of bundled components.</value></data>
 </root>

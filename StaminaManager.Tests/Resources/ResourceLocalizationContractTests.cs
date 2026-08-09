@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+using System.Text;
 using System.Xml.Linq;
 using StaminaManager.Infrastructure.Resources;
 
@@ -7,25 +7,91 @@ namespace StaminaManager.Tests.Resources;
 [TestClass]
 public sealed class ResourceLocalizationContractTests
 {
-    private static readonly Regex FormatTokenPattern = new(
-        @"\{[^{}]+\}",
-        RegexOptions.CultureInvariant | RegexOptions.Compiled);
-
     [TestMethod]
     public void ResourceFiles_HaveUniqueNonEmptyParityAndMatchingPlaceholders()
     {
         Dictionary<string, string> japanese = LoadResources("ja-JP");
         Dictionary<string, string> english = LoadResources("en-US");
 
-        CollectionAssert.AreEquivalent(
-            japanese.Keys.ToArray(),
-            english.Keys.ToArray());
+        AssertResourceParity(japanese, english);
+    }
+
+    [TestMethod]
+    public void ResourceFiles_RejectResourceIdsThatDifferOnlyByCase()
+    {
+        Assert.ThrowsExactly<AssertFailedException>(() =>
+            LoadResourcesFromXml(
+                "fixture",
+                """
+                <root>
+                  <data name="Status"><value>one</value></data>
+                  <data name="status"><value>two</value></data>
+                </root>
+                """));
+    }
+
+    [TestMethod]
+    public void ResourceFormats_RejectInvalidCompositeFormat()
+    {
+        Dictionary<string, string> japanese = CreateFixture(
+            ("Format", "正常な {0}"));
+        Dictionary<string, string> english = CreateFixture(
+            ("Format", "Broken {0"));
+
+        Assert.ThrowsExactly<AssertFailedException>(() =>
+            AssertResourceParity(japanese, english));
+    }
+
+    [TestMethod]
+    public void ResourceFormats_IgnoreEscapedBracesWhenComparingPlaceholders()
+    {
+        Dictionary<string, string> japanese = CreateFixture(
+            ("Format", "文字 {{0}}"));
+        Dictionary<string, string> english = CreateFixture(
+            ("Format", "Text {{1}}"));
+
+        AssertResourceParity(japanese, english);
+    }
+
+    [TestMethod]
+    public void ResourceFormats_RejectDifferentFormatItemOrder()
+    {
+        Dictionary<string, string> japanese = CreateFixture(
+            ("Format", "{0} {1}"));
+        Dictionary<string, string> english = CreateFixture(
+            ("Format", "{1} {0}"));
+
+        Assert.ThrowsExactly<AssertFailedException>(() =>
+            AssertResourceParity(japanese, english));
+    }
+
+    [TestMethod]
+    public void ResourceFormats_RejectDifferentFormatSpecifier()
+    {
+        Dictionary<string, string> japanese = CreateFixture(
+            ("Format", "{0:00}"));
+        Dictionary<string, string> english = CreateFixture(
+            ("Format", "{0}"));
+
+        Assert.ThrowsExactly<AssertFailedException>(() =>
+            AssertResourceParity(japanese, english));
+    }
+
+    private static void AssertResourceParity(
+        Dictionary<string, string> japanese,
+        Dictionary<string, string> english)
+    {
+        Assert.IsTrue(
+            japanese.Keys
+                .ToHashSet(StringComparer.OrdinalIgnoreCase)
+                .SetEquals(english.Keys),
+            "リソースIDの集合がlocale間で一致しません。");
 
         foreach (string key in japanese.Keys)
         {
             CollectionAssert.AreEqual(
-                FormatTokens(japanese[key]),
-                FormatTokens(english[key]),
+                GetFormatItems("ja-JP", key, japanese[key]),
+                GetFormatItems("en-US", key, english[key]),
                 key);
         }
     }
@@ -141,10 +207,29 @@ public sealed class ResourceLocalizationContractTests
             ?? throw new AssertFailedException(
                 $"{language}のResources.reswが不正です。");
 
+        return LoadResourceEntries(language, entries);
+    }
+
+    private static Dictionary<string, string> LoadResourcesFromXml(
+        string language,
+        string xml)
+    {
+        XElement[] entries = XDocument.Parse(xml).Root?.Elements("data")
+            .ToArray()
+            ?? throw new AssertFailedException(
+                $"{language}のfixtureが不正です。");
+
+        return LoadResourceEntries(language, entries);
+    }
+
+    private static Dictionary<string, string> LoadResourceEntries(
+        string language,
+        XElement[] entries)
+    {
         string[] duplicateKeys = entries
             .GroupBy(
                 entry => (string?)entry.Attribute("name") ?? string.Empty,
-                StringComparer.Ordinal)
+                StringComparer.OrdinalIgnoreCase)
             .Where(group => group.Count() > 1)
             .Select(group => group.Key)
             .ToArray();
@@ -158,7 +243,7 @@ public sealed class ResourceLocalizationContractTests
                 ?? throw new AssertFailedException(
                     $"{language}に名前のないdataがあります。"),
             entry => entry.Element("value")?.Value ?? string.Empty,
-            StringComparer.Ordinal);
+            StringComparer.OrdinalIgnoreCase);
 
         string[] emptyKeys = values
             .Where(pair => string.IsNullOrWhiteSpace(pair.Value))
@@ -171,11 +256,65 @@ public sealed class ResourceLocalizationContractTests
         return values;
     }
 
-    private static string[] FormatTokens(string value) => FormatTokenPattern
-        .Matches(value)
-        .Select(match => match.Value)
-        .OrderBy(token => token, StringComparer.Ordinal)
-        .ToArray();
+    private static Dictionary<string, string> CreateFixture(
+        params (string Key, string Value)[] entries) => entries
+        .ToDictionary(entry => entry.Key, entry => entry.Value,
+            StringComparer.OrdinalIgnoreCase);
+
+    private static FormatItem[] GetFormatItems(
+        string language,
+        string key,
+        string value)
+    {
+        CompositeFormat format;
+        try
+        {
+            format = CompositeFormat.Parse(value);
+        }
+        catch (FormatException exception)
+        {
+            Assert.Fail(
+                $"{language}の{key}に不正なcomposite formatがあります: "
+                + exception.Message);
+            return [];
+        }
+
+        FormatItemCollector collector = new();
+        object[] arguments = Enumerable.Range(0, format.MinimumArgumentCount)
+            .Select(index => (object)new FormatArgument(index))
+            .ToArray();
+        _ = string.Format(collector, format, arguments);
+        return collector.Items.ToArray();
+    }
+
+    private readonly record struct FormatItem(
+        int ArgumentIndex,
+        string? Format);
+
+    private sealed record FormatArgument(int Index);
+
+    private sealed class FormatItemCollector : IFormatProvider, ICustomFormatter
+    {
+        public List<FormatItem> Items { get; } = [];
+
+        public object? GetFormat(Type? formatType) =>
+            formatType == typeof(ICustomFormatter) ? this : null;
+
+        public string Format(
+            string? format,
+            object? arg,
+            IFormatProvider? formatProvider)
+        {
+            if (arg is not FormatArgument argument)
+            {
+                throw new AssertFailedException(
+                    "composite formatの引数を検査できません。");
+            }
+
+            Items.Add(new FormatItem(argument.Index, format));
+            return string.Empty;
+        }
+    }
 
     private static bool IsJapaneseCharacter(char value) =>
         value is >= '\u3040' and <= '\u30ff'
