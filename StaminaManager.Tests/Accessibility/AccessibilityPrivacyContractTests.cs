@@ -127,13 +127,6 @@ public sealed class AccessibilityPrivacyContractTests
             "StaminaManager",
             "Controls",
             "GameEditorDialog.xaml"));
-        string resources = File.ReadAllText(Path.Combine(
-            root,
-            "StaminaManager",
-            "Resources",
-            "Strings",
-            "ja-JP",
-            "Resources.resw"));
 
         StringAssert.Contains(
             mainPageSource,
@@ -141,8 +134,33 @@ public sealed class AccessibilityPrivacyContractTests
         StringAssert.Contains(
             dialogXaml,
             "x:Uid=\"RecoveryIntervalHeading\"");
-        StringAssert.Contains(resources, "RecoveryIntervalHeading.Text");
         StringAssert.Contains(dialogXaml, "<RowDefinition Height=\"Auto\" />");
+    }
+
+    [TestMethod]
+    public void GameEditorRecoveryLabels_UseMeaningfulLocalizedValues()
+    {
+        string root = FindRepositoryRoot();
+        foreach ((string language, string heading, string minutes, string seconds) in new[]
+        {
+            ("ja-JP", "スタミナが1回復する時間", "分", "秒"),
+            ("en-US", "Time to recover one stamina", "Minutes", "Seconds"),
+        })
+        {
+            Dictionary<string, string> values = LoadResourceValues(
+                Path.Combine(root, "StaminaManager"),
+                language);
+
+            Assert.AreEqual(
+                heading,
+                values.GetValueOrDefault("RecoveryIntervalHeading.Text"));
+            Assert.AreEqual(
+                minutes,
+                values.GetValueOrDefault("RecoveryMinutesInput.Header"));
+            Assert.AreEqual(
+                seconds,
+                values.GetValueOrDefault("RecoverySecondsInput.Header"));
+        }
     }
 
     [TestMethod]
@@ -242,18 +260,43 @@ public sealed class AccessibilityPrivacyContractTests
             "StaminaManager",
             "Controls",
             "GameEditorDialog.xaml.cs"));
-        string resources = File.ReadAllText(Path.Combine(
-            root,
-            "StaminaManager",
-            "Resources",
-            "Strings",
-            "ja-JP",
-            "Resources.resw"));
+        string resources = string.Join(
+            Environment.NewLine,
+            new[] { "ja-JP", "en-US" }
+                .Select(language => File.ReadAllText(Path.Combine(
+                    root,
+                    "StaminaManager",
+                    "Resources",
+                    "Strings",
+                    language,
+                    "Resources.resw"))));
 
-        Assert.DoesNotContain("5MB", dialog + code);
-        Assert.DoesNotContain("5 MiB", dialog + code);
+        string combined = dialog + code + resources;
+        foreach (string forbiddenText in new[] { "5MB", "5 MB", "5 MiB" })
+        {
+            Assert.DoesNotContain(forbiddenText, combined);
+        }
+
+        foreach (string language in new[] { "ja-JP", "en-US" })
+        {
+            string guidance = LoadResourceValues(
+                Path.Combine(root, "StaminaManager"),
+                language)
+                .GetValueOrDefault("SelectedImageText.Text")
+                ?? string.Empty;
+            StringAssert.Contains(guidance, "4096×4096");
+            foreach (string forbiddenText in new[]
+            {
+                "5MB",
+                "5 MB",
+                "5 MiB",
+            })
+            {
+                Assert.DoesNotContain(forbiddenText, guidance);
+            }
+        }
+
         StringAssert.Contains(dialog, "x:Uid=\"SelectedImageText\"");
-        StringAssert.Contains(resources, "SelectedImageText.Text");
     }
 
     [TestMethod]
@@ -613,24 +656,35 @@ public sealed class AccessibilityPrivacyContractTests
             ?? throw new AssertFailedException(
                 $"{name} を取得できませんでした。"));
 
-    private static HashSet<string> LoadLocalizedAutomationNames(
-        string appRoot)
+    private static Dictionary<string, string> LoadResourceValues(
+        string appRoot,
+        string language)
     {
         XDocument resources = XDocument.Load(Path.Combine(
             appRoot,
             "Resources",
             "Strings",
-            "ja-JP",
+            language,
             "Resources.resw"));
-        const string suffix =
-            ".[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name";
         return resources.Root!
             .Elements("data")
-            .Select(element => (string?)element.Attribute("name"))
-            .Where(name => name?.EndsWith(
+            .ToDictionary(
+                element => (string)element.Attribute("name")!,
+                element => (string?)element.Element("value") ?? string.Empty,
+                StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static HashSet<string> LoadLocalizedAutomationNames(
+        string appRoot)
+    {
+        const string suffix =
+            ".[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name";
+        return LoadResourceValues(appRoot, "ja-JP")
+            .Keys
+            .Where(name => name.EndsWith(
                 suffix,
                 StringComparison.Ordinal) == true)
-            .Select(name => name![..^suffix.Length])
+            .Select(name => name[..^suffix.Length])
             .ToHashSet(StringComparer.Ordinal);
     }
 

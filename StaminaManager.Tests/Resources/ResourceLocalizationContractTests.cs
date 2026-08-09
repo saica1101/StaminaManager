@@ -110,9 +110,11 @@ public sealed class ResourceLocalizationContractTests
     public void EnglishResources_DoNotContainJapaneseUserFacingCharacters()
     {
         Dictionary<string, string> english = LoadResources("en-US");
+        const string japaneseSelfNameKey = "LanguageJapaneseItem.Content";
 
         string[] failures = english
-            .Where(pair => pair.Value.Any(IsJapaneseCharacter))
+            .Where(pair => pair.Key != japaneseSelfNameKey
+                && pair.Value.Any(IsJapaneseCharacter))
             .Select(pair => pair.Key)
             .ToArray();
 

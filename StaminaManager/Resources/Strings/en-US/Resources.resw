@@ -165,7 +165,9 @@
   <data name="SettingsLanguageHeading.Text" xml:space="preserve"><value>Language</value></data>
   <data name="LanguageSelector.Header" xml:space="preserve"><value>Display language</value></data>
   <data name="LanguageSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Select the display language</value></data>
-  <data name="LanguageJapaneseItem.Content" xml:space="preserve"><value>Japanese</value></data>
+  <data name="LanguageSelector.Description" xml:space="preserve"><value>Changes take effect the next time you start the app.</value></data>
+  <data name="LanguageSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText" xml:space="preserve"><value>Changes take effect the next time you start the app.</value></data>
+  <data name="LanguageJapaneseItem.Content" xml:space="preserve"><value>日本語</value></data>
   <data name="LanguageEnglishItem.Content" xml:space="preserve"><value>English</value></data>
   <data name="CompactGameSelector.Header" xml:space="preserve"><value>Game to display</value></data>
   <data name="CompactEmptyTitle.Text" xml:space="preserve"><value>No games registered</value></data>

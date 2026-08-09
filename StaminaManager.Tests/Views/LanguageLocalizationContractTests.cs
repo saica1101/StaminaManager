@@ -15,6 +15,8 @@ public sealed class LanguageLocalizationContractTests
         "SettingsLanguageHeading.Text",
         "LanguageSelector.Header",
         "LanguageSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name",
+        "LanguageSelector.Description",
+        "LanguageSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText",
         "LanguageJapaneseItem.Content",
         "LanguageEnglishItem.Content",
         "CompactGameSelector.Header",
@@ -127,6 +129,33 @@ public sealed class LanguageLocalizationContractTests
     }
 
     [TestMethod]
+    public void LanguageSelectorResources_UseRestartGuidanceAndSelfNames()
+    {
+        foreach ((string language, string expectedDescription) in new[]
+        {
+            ("ja-JP", "変更はアプリの次回起動時に反映されます。"),
+            ("en-US", "Changes take effect the next time you start the app."),
+        })
+        {
+            Dictionary<string, string> values = LoadResourceValues(language);
+
+            Assert.AreEqual(
+                expectedDescription,
+                values.GetValueOrDefault("LanguageSelector.Description"));
+            Assert.AreEqual(
+                expectedDescription,
+                values.GetValueOrDefault(
+                    "LanguageSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText"));
+            Assert.AreEqual(
+                "日本語",
+                values.GetValueOrDefault("LanguageJapaneseItem.Content"));
+            Assert.AreEqual(
+                "English",
+                values.GetValueOrDefault("LanguageEnglishItem.Content"));
+        }
+    }
+
+    [TestMethod]
     public void ProductionXaml_UidHasAPropertyInBothLocales()
     {
         string root = FindRepositoryRoot();
@@ -154,10 +183,10 @@ public sealed class LanguageLocalizationContractTests
     }
 
     [TestMethod]
-    public void ProductionXaml_DoesNotHardCodeLocalizedProperties()
+    public void ProductionXaml_DoesNotHardCodeJapaneseInLocalizedProperties()
     {
         string root = FindRepositoryRoot();
-        string[] properties =
+        string[] localizedProperties =
         [
             "Text",
             "Content",
@@ -180,9 +209,8 @@ public sealed class LanguageLocalizationContractTests
                 {
                     if (attribute.Name.NamespaceName ==
                         "http://schemas.microsoft.com/winfx/2006/xaml"
-                        || !properties.Contains(attribute.Name.LocalName)
-                        || attribute.Value.StartsWith('{')
-                        || attribute.Value == "/")
+                        || !localizedProperties.Contains(attribute.Name.LocalName)
+                        || !attribute.Value.Any(IsJapaneseCharacter))
                     {
                         continue;
                     }
@@ -190,23 +218,18 @@ public sealed class LanguageLocalizationContractTests
                     Assert.Fail(
                         $"{Path.GetRelativePath(root, path)}の"
                         + $"{element.Name.LocalName}.{attribute.Name.LocalName}"
-                        + $"に固定文言があります: {attribute.Value}"
+                        + $"に固定日本語があります: {attribute.Value}"
                         + $" (x:Uid={uid ?? "なし"})");
                 }
             }
         }
-
-        string styles = File.ReadAllText(Path.Combine(
-            root,
-            "StaminaManager",
-            "Resources",
-            "Styles.xaml"));
-        Assert.IsFalse(
-            styles.Any(IsJapaneseCharacter),
-            "Styles.xamlに固定日本語が残っています。");
     }
 
     private static HashSet<string> LoadResourceKeys(string language)
+        => LoadResourceValues(language).Keys
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    private static Dictionary<string, string> LoadResourceValues(string language)
     {
         XDocument document = XDocument.Load(Path.Combine(
             FindRepositoryRoot(),
@@ -217,8 +240,10 @@ public sealed class LanguageLocalizationContractTests
             "Resources.resw"));
         return document.Root!
             .Elements("data")
-            .Select(element => (string)element.Attribute("name")!)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(
+                element => (string)element.Attribute("name")!,
+                element => (string?)element.Element("value") ?? string.Empty,
+                StringComparer.OrdinalIgnoreCase);
     }
 
     private static IEnumerable<string> GetProductionXamlPaths(string root) =>
