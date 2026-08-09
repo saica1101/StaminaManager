@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+  <data name="AppTitle" xml:space="preserve"><value>Stamina Manager</value></data>
+  <data name="ManifestAppDescription" xml:space="preserve"><value>An app for checking stamina recovery across multiple games and managing it with notifications.</value></data>
+  <data name="ManifestNotificationActivatorDisplayName" xml:space="preserve"><value>Stamina Manager notification activator</value></data>
+  <data name="StartupFailureWindowTitle" xml:space="preserve"><value>Stamina Manager</value></data>
+  <data name="StartupFailureHeading" xml:space="preserve"><value>Could not start Stamina Manager</value></data>
+  <data name="StartupFailureMessage" xml:space="preserve"><value>A problem occurred during startup. Close the app and try again.</value></data>
+  <data name="StartupFailureCloseButton" xml:space="preserve"><value>Close</value></data>
+  <data name="ShellNavigation.PaneTitle" xml:space="preserve"><value>Stamina Manager</value></data>
+  <data name="NavOverview.Content" xml:space="preserve"><value>Overview</value></data>
+  <data name="NavOverview.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Open Overview</value></data>
+  <data name="NavSettings.Content" xml:space="preserve"><value>Settings</value></data>
+  <data name="NavSettings.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Open Settings</value></data>
+  <data name="NavAbout.Content" xml:space="preserve"><value>About</value></data>
+  <data name="NavAbout.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Show the About page</value></data>
+  <data name="VersionFooterLabel.Text" xml:space="preserve"><value>Version</value></data>
+  <data name="VersionFooterText.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText" xml:space="preserve"><value>Stamina Manager version</value></data>
+  <data name="CompactModeButton.Content" xml:space="preserve"><value>Compact view</value></data>
+  <data name="CompactModeButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Switch to compact view</value></data>
+  <data name="ShellContentHost.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Main content</value></data>
+  <data name="OverviewPageTitle.Text" xml:space="preserve"><value>Overview</value></data>
+  <data name="OverviewPageDescription.Text" xml:space="preserve"><value>See the stamina recovery status of your registered games at a glance.</value></data>
+  <data name="OverviewStartupErrorInfoBar.Title" xml:space="preserve"><value>Could not load data</value></data>
+  <data name="OverviewStartupErrorInfoBar.Message" xml:space="preserve"><value>To keep your data safe, adding, editing, and settings changes are disabled. Your original data has not been changed. Close and restart the app. If the problem persists, contact support without deleting the original data.</value></data>
+  <data name="OverviewStartupErrorInfoBar.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Could not load data. Check the recovery instructions.</value></data>
+  <data name="OverviewInfoBar.Title" xml:space="preserve"><value>The operation could not be completed</value></data>
+  <data name="OverviewInfoBar.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Overview operation error</value></data>
+  <data name="OverviewRecoveryInfoBar.Title" xml:space="preserve"><value>Data recovered</value></data>
+  <data name="OverviewRecoveryInfoBar.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Recovery notice for the last valid data</value></data>
+  <data name="OverviewDataLoadWarningInfoBar.Title" xml:space="preserve"><value>Could not save the updated data</value></data>
+  <data name="OverviewDataLoadWarningInfoBar.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Notice about resaving updated data</value></data>
+  <data name="OverviewLoadingProgressRing.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Loading game information</value></data>
+  <data name="OverviewLoadingText.Text" xml:space="preserve"><value>Loading game information</value></data>
+  <data name="OverviewItems.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Registered games and add action</value></data>
+  <data name="AddGameCardButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Add a game</value></data>
+  <data name="AddGameCardTitle.Text" xml:space="preserve"><value>Add a game</value></data>
+  <data name="AddGameCardDescription.Text" xml:space="preserve"><value>Register a game name and stamina recovery rules.</value></data>
+  <data name="StaminaStatusSafe" xml:space="preserve"><value>Safe</value></data>
+  <data name="StaminaStatusAttention" xml:space="preserve"><value>Attention</value></data>
+  <data name="StaminaStatusNearFull" xml:space="preserve"><value>Almost full</value></data>
+  <data name="StaminaStatusFull" xml:space="preserve"><value>Full</value></data>
+  <data name="StaminaStatusOverCap" xml:space="preserve"><value>Natural recovery stopped</value></data>
+  <data name="RemainingTimeFull" xml:space="preserve"><value>Full</value></data>
+  <data name="RemainingTimeHoursFormat" xml:space="preserve"><value>Full in {0:00}:{1:00}</value></data>
+  <data name="RemainingTimeHoursSecondsFormat" xml:space="preserve"><value>Full in {0:00}:{1:00}:{2:00}</value></data>
+  <data name="RemainingTimeDaysFormat" xml:space="preserve"><value>Full in {0}d {1:00}:{2:00}</value></data>
+  <data name="GameCardAutomationNameFormat" xml:space="preserve"><value>{0}, stamina {1} / {2}, {3}, {4}</value></data>
+  <data name="SettingsPageTitle.Text" xml:space="preserve"><value>Settings</value></data>
+  <data name="SettingsPageDescription.Text" xml:space="preserve"><value>Adjust app display, notifications, startup behavior, and data management.</value></data>
+  <data name="SettingsLoadingProgressRing.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Loading settings</value></data>
+  <data name="SettingsLoadingStatus.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Loading settings</value></data>
+  <data name="SettingsLoadingStatusText.Text" xml:space="preserve"><value>Settings are loading. You cannot interact until loading is complete.</value></data>
+  <data name="SettingsFailedStatus.Title" xml:space="preserve"><value>Could not load settings</value></data>
+  <data name="SettingsFailedStatus.Message" xml:space="preserve"><value>Settings actions are disabled. Check the recovery notice in Overview and restart the app.</value></data>
+  <data name="SettingsFailedStatus.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Settings failed to load. Check the recovery notice in Overview.</value></data>
+  <data name="SettingsAppearanceHeading.Text" xml:space="preserve"><value>Appearance</value></data>
+  <data name="ThemeToggle.Header" xml:space="preserve"><value>Theme</value></data>
+  <data name="ThemeToggle.OffContent" xml:space="preserve"><value>Light</value></data>
+  <data name="ThemeToggle.OnContent" xml:space="preserve"><value>Dark</value></data>
+  <data name="ThemeToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Switch between Light and Dark themes</value></data>
+  <data name="BackdropSelector.Header" xml:space="preserve"><value>Window background</value></data>
+  <data name="BackdropSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Select the window background</value></data>
+  <data name="BackdropMicaItem.Content" xml:space="preserve"><value>Mica</value></data>
+  <data name="BackdropAcrylicItem.Content" xml:space="preserve"><value>Acrylic</value></data>
+  <data name="BackdropSolidItem.Content" xml:space="preserve"><value>Solid</value></data>
+  <data name="AcrylicOpacitySlider.Header" xml:space="preserve"><value>Acrylic tint opacity</value></data>
+  <data name="AcrylicOpacitySlider.Description" xml:space="preserve"><value>Adjusts the strength of the Acrylic tint. It can be changed only when the background is Acrylic.</value></data>
+  <data name="AcrylicOpacitySlider.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Acrylic tint opacity</value></data>
+  <data name="AcrylicOpacitySlider.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText" xml:space="preserve"><value>Adjusts the strength of the Acrylic tint. It can be changed only when the background is Acrylic.</value></data>
+  <data name="AcrylicOpacityValue.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Current Acrylic tint opacity</value></data>
+  <data name="SettingsGeneralHeading.Text" xml:space="preserve"><value>Behavior</value></data>
+  <data name="CloseBehaviorSelector.Header" xml:space="preserve"><value>Close button behavior</value></data>
+  <data name="CloseBehaviorSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Select what the close button does</value></data>
+  <data name="CloseBehaviorTrayItem.Content" xml:space="preserve"><value>Minimize to the system tray</value></data>
+  <data name="CloseBehaviorExitItem.Content" xml:space="preserve"><value>Exit the app</value></data>
+  <data name="StartupToggle.Header" xml:space="preserve"><value>Start with Windows</value></data>
+  <data name="StartupToggle.OffContent" xml:space="preserve"><value>Off</value></data>
+  <data name="StartupToggle.OnContent" xml:space="preserve"><value>On</value></data>
+  <data name="StartupToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Toggle starting with Windows</value></data>
+  <data name="SettingsNotificationsHeading.Text" xml:space="preserve"><value>Notifications</value></data>
+  <data name="NotificationsToggle.Header" xml:space="preserve"><value>Notifications before full recovery</value></data>
+  <data name="NotificationsToggle.OffContent" xml:space="preserve"><value>Off</value></data>
+  <data name="NotificationsToggle.OnContent" xml:space="preserve"><value>On</value></data>
+  <data name="NotificationsToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Toggle notifications before full recovery</value></data>
+  <data name="NotificationLeadInput.Header" xml:space="preserve"><value>Minutes before full recovery to notify</value></data>
+  <data name="NotificationLeadInput.Description" xml:space="preserve"><value>0 means the full recovery time. Enter an integer from 0 to 525,600.</value></data>
+  <data name="NotificationLeadInput.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Notification lead time before full recovery (minutes)</value></data>
+  <data name="OpenWindowsNotificationSettingsButton.Content" xml:space="preserve"><value>Open Windows notification settings</value></data>
+  <data name="OpenWindowsNotificationSettingsButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Open Windows notification settings</value></data>
+  <data name="SettingsDataHeading.Text" xml:space="preserve"><value>Backup</value></data>
+  <data name="SettingsDataDescription.Text" xml:space="preserve"><value>Export or import games, images, and settings. Uninstalling the app deletes data on this device, so backing up first is recommended.</value></data>
+  <data name="ExportBackupButton.Content" xml:space="preserve"><value>Export</value></data>
+  <data name="ExportBackupButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Export the backup</value></data>
+  <data name="ImportBackupButton.Content" xml:space="preserve"><value>Import</value></data>
+  <data name="ImportBackupButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Import a backup and replace the current data</value></data>
+  <data name="GameNameInput.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Game name</value></data>
+  <data name="CurrentStaminaInput.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Current stamina</value></data>
+  <data name="MaxStaminaInput.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Maximum stamina</value></data>
+  <data name="RecoveryMinutesInput.Header" xml:space="preserve"><value>Minutes</value></data>
+  <data name="RecoveryMinutesInput.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Time to recover one stamina (minutes)</value></data>
+  <data name="RecoverySecondsInput.Header" xml:space="preserve"><value>Seconds</value></data>
+  <data name="RecoverySecondsInput.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Time to recover one stamina (seconds)</value></data>
+  <data name="GameNotificationToggle.Header" xml:space="preserve"><value>Full recovery notification</value></data>
+  <data name="GameNotificationToggle.OffContent" xml:space="preserve"><value>Off</value></data>
+  <data name="GameNotificationToggle.OnContent" xml:space="preserve"><value>On</value></data>
+  <data name="GameNotificationToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Toggle this game's full recovery notification</value></data>
+  <data name="GameNotificationToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText" xml:space="preserve"><value>Receive this game's full recovery notification when Settings notifications are on</value></data>
+  <data name="GameNotificationDescription.Text" xml:space="preserve"><value>Receive this game's full recovery notification when Settings notifications are on</value></data>
+  <data name="ChooseGameImageButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Choose a game image</value></data>
+  <data name="GameEditorElapsedInfoBar.Title" xml:space="preserve"><value>Natural recovery is in progress</value></data>
+  <data name="GameEditorElapsedInfoBar.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Review the current value after natural recovery</value></data>
+  <data name="GameEditorErrorInfoBar.Title" xml:space="preserve"><value>The operation could not be completed</value></data>
+  <data name="GameEditorErrorInfoBar.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Game editing operation error</value></data>
+  <data name="GameEditorDeleteErrorInfoBar.Title" xml:space="preserve"><value>Could not complete deletion</value></data>
+  <data name="GameEditorDeleteErrorInfoBar.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Game deletion operation error</value></data>
+  <data name="GameEditorDeleteButton.Content" xml:space="preserve"><value>Delete</value></data>
+  <data name="GameEditorDeleteButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Continue to confirm deletion of this game</value></data>
+  <data name="DeleteConfirmButton.Content" xml:space="preserve"><value>Delete</value></data>
+  <data name="DeleteConfirmButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Delete this game</value></data>
+  <data name="DeleteBackButton.Content" xml:space="preserve"><value>Back</value></data>
+  <data name="DeleteBackButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Return to editing without deleting</value></data>
+  <data name="CompactGameSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Game to display</value></data>
+  <data name="ReturnOverviewButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Return to Overview</value></data>
+  <data name="ReturnOverviewButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Return to Overview</value></data>
+  <data name="CompactErrorInfoBar.Title" xml:space="preserve"><value>The operation could not be completed</value></data>
+  <data name="CompactErrorInfoBar.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Compact view operation error</value></data>
+  <data name="CompactUpdateButton.Content" xml:space="preserve"><value>Update current value</value></data>
+  <data name="CompactUpdateButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Update the current value of the selected game</value></data>
+  <data name="CompactEditButton.Content" xml:space="preserve"><value>Edit game</value></data>
+  <data name="CompactEditButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Edit the selected game</value></data>
+  <data name="TrayOpenText" xml:space="preserve"><value>Open</value></data>
+  <data name="TrayExitText" xml:space="preserve"><value>Exit</value></data>
+  <data name="StaminaNotificationDetailFormat" xml:space="preserve"><value>Full recovery scheduled for: {0:g}</value></data>
+  <data name="AboutAppIcon.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Stamina Manager app icon</value></data>
+  <data name="AboutAppName.Text" xml:space="preserve"><value>Stamina Manager</value></data>
+  <data name="AboutVersionLabel.Text" xml:space="preserve"><value>Version</value></data>
+  <data name="AboutDescription.Text" xml:space="preserve"><value>A Windows app for managing the stamina recovery status of multiple games.</value></data>
+  <data name="AboutInfoBar.Title" xml:space="preserve"><value>Could not open the link</value></data>
+  <data name="AboutInfoBar.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>External link error</value></data>
+  <data name="AboutLinksHeading.Text" xml:space="preserve"><value>Links</value></data>
+  <data name="OpenGitHubButtonText.Text" xml:space="preserve"><value>Open GitHub repository</value></data>
+  <data name="OpenGitHubButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Open the GitHub repository in the default browser</value></data>
+  <data name="OpenGitHubButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText" xml:space="preserve"><value>Opens the GitHub repository in the default browser.</value></data>
+  <data name="OpenReadmeButtonText.Text" xml:space="preserve"><value>Open README</value></data>
+  <data name="OpenReadmeButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Open README in the default browser</value></data>
+  <data name="OpenReadmeButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText" xml:space="preserve"><value>Opens README in the default browser.</value></data>
+  <data name="AboutReadmeHeading.Text" xml:space="preserve"><value>README</value></data>
+  <data name="AboutReadmeDescription.Text" xml:space="preserve"><value>Check the GitHub README for features, usage, build instructions, and notes.</value></data>
+  <data name="AboutTechnologyHeading.Text" xml:space="preserve"><value>Technology stack</value></data>
+  <data name="AboutTechCSharp.Text" xml:space="preserve"><value>C#</value></data>
+  <data name="AboutTechDotNet.Text" xml:space="preserve"><value>.NET 10</value></data>
+  <data name="AboutTechWinUI.Text" xml:space="preserve"><value>WinUI 3</value></data>
+  <data name="AboutTechWindowsAppSdk.Text" xml:space="preserve"><value>Windows App SDK</value></data>
+  <data name="AboutTechToolkit.Text" xml:space="preserve"><value>CommunityToolkit.Mvvm</value></data>
+  <data name="AboutTechWinUIEx.Text" xml:space="preserve"><value>WinUIEx</value></data>
+  <data name="AboutPrivacyHeading.Text" xml:space="preserve"><value>Privacy</value></data>
+  <data name="AboutPrivacyDescription.Text" xml:space="preserve"><value>No accounts, ads, or telemetry are used; data is stored on this device. External links open only after user action.</value></data>
+  <data name="AboutLicenseHeading.Text" xml:space="preserve"><value>Licenses and third-party components</value></data>
+  <data name="AboutLicenseDescription.Text" xml:space="preserve"><value>Check the documents in the GitHub repository for the latest information. This information may change depending on the distribution form and dependency component verification.</value></data>
+</root>

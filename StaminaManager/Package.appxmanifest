@@ -14,7 +14,7 @@
     Version="1.0.0.0" />
 
   <Properties>
-    <DisplayName>StaminaManager</DisplayName>
+    <DisplayName>ms-resource:AppTitle</DisplayName>
     <PublisherDisplayName>saica1101</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
@@ -32,8 +32,8 @@
       Executable="$targetnametoken$.exe"
       EntryPoint="$targetentrypoint$">
       <uap:VisualElements
-        DisplayName="StaminaManager"
-        Description="複数のゲームのスタミナ回復状況をまとめて確認し、通知で管理できるアプリです。"
+        DisplayName="ms-resource:AppTitle"
+        Description="ms-resource:ManifestAppDescription"
         BackgroundColor="#0B1F33"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png">
@@ -52,10 +52,10 @@
             <com:ExeServer
               Executable="StaminaManager.exe"
               Arguments="----AppNotificationActivated:"
-              DisplayName="Stamina Manager notification activator">
+              DisplayName="ms-resource:ManifestNotificationActivatorDisplayName">
               <com:Class
                 Id="D5F7A0E1-7A64-4C85-9E72-1A148D65B63B"
-                DisplayName="Stamina Manager notification activator" />
+                DisplayName="ms-resource:ManifestNotificationActivatorDisplayName" />
             </com:ExeServer>
           </com:ComServer>
         </com:Extension>
@@ -66,7 +66,7 @@
           <desktop:StartupTask
             TaskId="StaminaManagerStartup"
             Enabled="false"
-            DisplayName="Stamina Manager" />
+            DisplayName="ms-resource:AppTitle" />
         </desktop:Extension>
       </Extensions>
     </Application>

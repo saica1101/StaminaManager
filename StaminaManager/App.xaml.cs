@@ -3,7 +3,6 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.Windows.ApplicationModel.Resources;
 using Microsoft.Windows.AppLifecycle;
 using Microsoft.Windows.AppNotifications;
 using StaminaManager.Application;
@@ -13,6 +12,7 @@ using StaminaManager.Core.Persistence;
 using StaminaManager.Infrastructure.Persistence;
 using StaminaManager.Infrastructure.Backup;
 using StaminaManager.Infrastructure.Notifications;
+using StaminaManager.Infrastructure.Resources;
 using StaminaManager.Infrastructure.Storage;
 using StaminaManager.Infrastructure.Windows;
 using StaminaManager.ViewModels;
@@ -42,6 +42,7 @@ public partial class App : Microsoft.UI.Xaml.Application
     private IWindowStateService? _windowStateService;
     private ITrayService? _trayService;
     private readonly INotificationScheduler _notificationScheduler;
+    private readonly IAppResourceService _appResourceService;
     private DispatcherQueue? _dispatcherQueue;
     private Window? _fallbackWindow;
     private readonly NotificationActivationQueue
@@ -49,14 +50,25 @@ public partial class App : Microsoft.UI.Xaml.Application
     private string _startupStage = "NotStarted";
     private bool _isShutdownRequested;
     public App()
-        : this(new WindowsNotificationScheduler())
+        : this(
+            new WindowsNotificationScheduler(),
+            new AppResourceService())
     {
     }
 
     internal App(INotificationScheduler notificationScheduler)
+        : this(notificationScheduler, new AppResourceService())
+    {
+    }
+
+    internal App(
+        INotificationScheduler notificationScheduler,
+        IAppResourceService appResourceService)
     {
         ArgumentNullException.ThrowIfNull(notificationScheduler);
+        ArgumentNullException.ThrowIfNull(appResourceService);
         _notificationScheduler = notificationScheduler;
+        _appResourceService = appResourceService;
         _notificationScheduler.ActivationRequested +=
             OnNotificationActivationRequested;
         InitializeComponent();
@@ -229,7 +241,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             return true;
         }
 
-        LaunchFailureText text = LoadLaunchFailureText();
+        LaunchFailureText text = LoadLaunchFailureText(_appResourceService);
         Window fallbackWindow = new()
         {
             Title = text.WindowTitle,
@@ -279,7 +291,8 @@ public partial class App : Microsoft.UI.Xaml.Application
         return true;
     }
 
-    private static LaunchFailureText LoadLaunchFailureText()
+    private static LaunchFailureText LoadLaunchFailureText(
+        IAppResourceService resources)
     {
         LaunchFailureText fallback = new(
             "Stamina Manager",
@@ -287,43 +300,35 @@ public partial class App : Microsoft.UI.Xaml.Application
             "起動中に問題が発生しました。アプリを閉じて、もう一度お試しください。",
             "閉じる");
 
-        try
-        {
-            ResourceLoader loader = new();
-            return new LaunchFailureText(
-                GetResourceOrFallback(
-                    loader,
-                    "StartupFailureWindowTitle",
-                    fallback.WindowTitle),
-                GetResourceOrFallback(
-                    loader,
-                    "StartupFailureHeading",
-                    fallback.Heading),
-                GetResourceOrFallback(
-                    loader,
-                    "StartupFailureMessage",
-                    fallback.Message),
-                GetResourceOrFallback(
-                    loader,
-                    "StartupFailureCloseButton",
-                    fallback.CloseButton));
-        }
-        catch (Exception resourceException)
-        {
-            Debug.WriteLine(
-                "StaminaManager fallback resources failed: "
-                + resourceException.GetType().Name);
-            return fallback;
-        }
+        return new LaunchFailureText(
+            GetResourceOrFallback(
+                resources,
+                "StartupFailureWindowTitle",
+                fallback.WindowTitle),
+            GetResourceOrFallback(
+                resources,
+                "StartupFailureHeading",
+                fallback.Heading),
+            GetResourceOrFallback(
+                resources,
+                "StartupFailureMessage",
+                fallback.Message),
+            GetResourceOrFallback(
+                resources,
+                "StartupFailureCloseButton",
+                fallback.CloseButton));
     }
 
     private static string GetResourceOrFallback(
-        ResourceLoader loader,
+        IAppResourceService resources,
         string resourceId,
         string fallback)
     {
-        string value = loader.GetString(resourceId);
-        return string.IsNullOrWhiteSpace(value) ? fallback : value;
+        string value = resources.GetString(resourceId);
+        return string.IsNullOrWhiteSpace(value)
+            || string.Equals(value, resourceId, StringComparison.Ordinal)
+            ? fallback
+            : value;
     }
 
     private void CreateCompositionRoot()
