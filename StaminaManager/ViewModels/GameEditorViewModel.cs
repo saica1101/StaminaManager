@@ -16,10 +16,9 @@ public enum GameEditorState
 
 public sealed partial class GameEditorViewModel : ObservableObject
 {
-    private const string IntegerInputMessage =
-        "整数で入力してください。";
     private readonly GameManager _gameManager;
     private readonly IClock _clock;
+    private readonly IAppResourceService _appResourceService;
     private readonly GameEntry? _originalEntry;
     private readonly GameDraft _initialDraft;
     private bool _isElapsedWarningAcknowledged;
@@ -91,12 +90,15 @@ public sealed partial class GameEditorViewModel : ObservableObject
     public GameEditorViewModel(
         GameManager gameManager,
         IClock clock,
+        IAppResourceService appResourceService,
         GameEntry? entry = null)
     {
         ArgumentNullException.ThrowIfNull(gameManager);
         ArgumentNullException.ThrowIfNull(clock);
+        ArgumentNullException.ThrowIfNull(appResourceService);
         _gameManager = gameManager;
         _clock = clock;
+        _appResourceService = appResourceService;
         _originalEntry = entry;
 
         if (entry is null)
@@ -142,21 +144,25 @@ public sealed partial class GameEditorViewModel : ObservableObject
     public bool HasElapsedWarning =>
         !string.IsNullOrWhiteSpace(ElapsedWarning);
 
-    public string DialogTitle => IsNew
-        ? "ゲームを追加"
-        : "ゲームを編集";
+    public string DialogTitle => _appResourceService.GetString(
+        IsNew
+            ? "GameEditorAddTitle"
+            : "GameEditorEditTitle");
 
-    public string ActionText => IsNew ? "追加" : "保存";
+    public string ActionText => _appResourceService.GetString(
+        IsNew
+            ? "GameEditorAddAction"
+            : "GameEditorSaveAction");
 
     public string DialogPrimaryActionText =>
         State == GameEditorState.DeleteConfirmation
-            ? "削除"
+            ? _appResourceService.GetString("DeleteConfirmButton.Content")
             : ActionText;
 
     public string DialogCloseButtonText =>
         State == GameEditorState.DeleteConfirmation
-            ? "戻る"
-            : "キャンセル";
+            ? _appResourceService.GetString("DeleteBackButton.Content")
+            : _appResourceService.GetString("GameEditorCancelAction");
 
     public GameEntry? OriginalEntry => _originalEntry;
 
@@ -179,7 +185,9 @@ public sealed partial class GameEditorViewModel : ObservableObject
             _clock.UtcNow).Current;
         ElapsedWarning = calculatedCurrent == _initialDraft.CurrentStamina
             ? null
-            : $"この画面を開いている間に自然回復が進みました。現在の計算値は {calculatedCurrent} です。入力値を確認してから保存してください。";
+            : _appResourceService.Format(
+                "GameEditorElapsedWarningFormat",
+                calculatedCurrent);
     }
 
     public async Task<GameEntry?> SaveAsync(
@@ -223,8 +231,9 @@ public sealed partial class GameEditorViewModel : ObservableObject
         {
             GeneralError = exception is IOException
                     or UnauthorizedAccessException
-                ? "データを保存できませんでした。もう一度お試しください。"
-                : "入力内容を保存できません。各項目を確認してください。";
+                ? _appResourceService.GetString("GameEditorSaveError")
+                : _appResourceService.GetString(
+                    "GameEditorSaveValidationError");
             throw;
         }
         finally
@@ -254,8 +263,8 @@ public sealed partial class GameEditorViewModel : ObservableObject
         catch (Exception exception) when (
             exception is IOException or UnauthorizedAccessException)
         {
-            GeneralError =
-                "ゲームを削除できませんでした。もう一度お試しください。";
+            GeneralError = _appResourceService.GetString(
+                "GameEditorDeleteError");
             throw;
         }
         finally
@@ -372,19 +381,20 @@ public sealed partial class GameEditorViewModel : ObservableObject
         ToIntOrThrow(RecoverySeconds, nameof(RecoverySeconds)),
         IsNotificationEnabled);
 
-    private static string? GetIntegerError(double value) =>
+    private string? GetIntegerError(double value) =>
         double.IsFinite(value)
             && value == Math.Truncate(value)
             && value is >= int.MinValue and <= int.MaxValue
                 ? null
-                : IntegerInputMessage;
+                : _appResourceService.GetString(
+                    "GameEditorIntegerInputError");
 
-    private static int ToValidationInt(double value) =>
+    private int ToValidationInt(double value) =>
         GetIntegerError(value) is null
             ? checked((int)value)
             : int.MinValue;
 
-    private static int ToIntOrThrow(double value, string fieldName)
+    private int ToIntOrThrow(double value, string fieldName)
     {
         if (GetIntegerError(value) is not null)
         {
@@ -395,12 +405,34 @@ public sealed partial class GameEditorViewModel : ObservableObject
         return checked((int)value);
     }
 
-    private static string? FirstError(
+    private string? FirstError(
         ValidationResult result,
         string fieldName) =>
         result.Errors.TryGetValue(fieldName, out var errors)
-            ? errors.FirstOrDefault()
+            ? errors.FirstOrDefault() is ValidationErrorCode code
+                ? GetValidationError(code)
+                : null
             : null;
+
+    private string GetValidationError(ValidationErrorCode code) =>
+        _appResourceService.GetString(code switch
+        {
+            ValidationErrorCode.NameRequired =>
+                "GameEditorNameRequiredError",
+            ValidationErrorCode.CurrentStaminaOutOfRange =>
+                "GameEditorCurrentStaminaOutOfRangeError",
+            ValidationErrorCode.MaxStaminaOutOfRange =>
+                "GameEditorMaxStaminaOutOfRangeError",
+            ValidationErrorCode.RecoveryMinutesOutOfRange =>
+                "GameEditorRecoveryMinutesOutOfRangeError",
+            ValidationErrorCode.RecoverySecondsOutOfRange =>
+                "GameEditorRecoverySecondsOutOfRangeError",
+            ValidationErrorCode.RecoveryIntervalOutOfRange =>
+                "GameEditorRecoveryIntervalOutOfRangeError",
+            ValidationErrorCode.FullTimeOutOfRange =>
+                "GameEditorFullTimeOutOfRangeError",
+            _ => throw new ArgumentOutOfRangeException(nameof(code), code, null),
+        });
 
     private void EnsureEditing()
     {

@@ -452,6 +452,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             _gameManager,
             clock,
             assetStore,
+            _appResourceService,
             versionProvider);
         _mainPage = mainPage;
         _startupStage = "MainWindow";

@@ -11,22 +11,6 @@ public static class GameEntryValidator
     public const int MaxRecoveryMinutes = 525_600;
     public const int MaxGameCount = 100;
 
-    private const string NameRequiredMessage =
-        "ゲーム名を入力してください。";
-    private const string CurrentStaminaRangeMessage =
-        "現在のスタミナは0～1,000,000の整数で入力してください。";
-    private const string MaxStaminaRangeMessage =
-        "最大スタミナは1～1,000,000の整数で入力してください。";
-    private const string RecoveryMinutesRangeMessage =
-        "回復時間の分部分は0～525,600分の整数で入力してください。";
-    private const string RecoverySecondsRangeMessage =
-        "回復時間の秒部分は0～59秒の整数で入力してください。";
-    private const string RecoveryIntervalRangeMessage =
-        "回復時間は合計1秒～525,600分で入力してください。";
-    private const string FullTimeOutOfRangeMessage =
-        "この最大値と回復時間では満タン時刻を計算できません。" +
-        "値を小さくしてください。";
-
     public static ValidationResult Validate(
         GameDraft draft,
         DateTimeOffset proposedRecordedAtUtc)
@@ -36,49 +20,53 @@ public static class GameEntryValidator
         long recoveryIntervalSeconds = checked(
             (long)draft.RecoveryMinutes * 60 + draft.RecoverySeconds);
 
-        ImmutableDictionary<string, ImmutableArray<string>>.Builder errors =
+        ImmutableDictionary<
+            string,
+            ImmutableArray<ValidationErrorCode>>.Builder errors =
             ImmutableDictionary.CreateBuilder<
                 string,
-                ImmutableArray<string>>(StringComparer.Ordinal);
+                ImmutableArray<ValidationErrorCode>>(StringComparer.Ordinal);
 
         if (string.IsNullOrWhiteSpace(draft.Name))
         {
-            AddError(nameof(GameDraft.Name), NameRequiredMessage);
+            AddError(
+                nameof(GameDraft.Name),
+                ValidationErrorCode.NameRequired);
         }
 
         if (draft.CurrentStamina is < 0 or > MaxStaminaValue)
         {
             AddError(
                 nameof(GameDraft.CurrentStamina),
-                CurrentStaminaRangeMessage);
+                ValidationErrorCode.CurrentStaminaOutOfRange);
         }
 
         if (draft.MaxStamina is < 1 or > MaxStaminaValue)
         {
             AddError(
                 nameof(GameDraft.MaxStamina),
-                MaxStaminaRangeMessage);
+                ValidationErrorCode.MaxStaminaOutOfRange);
         }
 
         if (draft.RecoveryMinutes is < 0 or > MaxRecoveryMinutes)
         {
             AddError(
                 nameof(GameDraft.RecoveryMinutes),
-                RecoveryMinutesRangeMessage);
+                ValidationErrorCode.RecoveryMinutesOutOfRange);
         }
 
         if (draft.RecoverySeconds is < 0 or > 59)
         {
             AddError(
                 nameof(GameDraft.RecoverySeconds),
-                RecoverySecondsRangeMessage);
+                ValidationErrorCode.RecoverySecondsOutOfRange);
         }
 
         if (recoveryIntervalSeconds is < 1 or > MaxRecoveryMinutes * 60L)
         {
             AddError(
                 RecoveryIntervalField,
-                RecoveryIntervalRangeMessage);
+                ValidationErrorCode.RecoveryIntervalOutOfRange);
         }
 
         if (errors.Count == 0 &&
@@ -89,16 +77,16 @@ public static class GameEntryValidator
 
         return new ValidationResult(errors.ToImmutable());
 
-        void AddError(string fieldKey, string message)
+        void AddError(string fieldKey, ValidationErrorCode code)
         {
-            errors[fieldKey] = ImmutableArray.Create(message);
+            errors[fieldKey] = ImmutableArray.Create(code);
         }
     }
 
     private static void ValidateFullTime(
         GameDraft draft,
         DateTimeOffset proposedRecordedAtUtc,
-        Action<string, string> addError)
+        Action<string, ValidationErrorCode> addError)
     {
         GameEntry proposedEntry = new(
             Id: Guid.Empty,
@@ -122,7 +110,7 @@ public static class GameEntryValidator
         {
             addError(
                 nameof(GameDraft.MaxStamina),
-                FullTimeOutOfRangeMessage);
+                ValidationErrorCode.FullTimeOutOfRange);
         }
     }
 }

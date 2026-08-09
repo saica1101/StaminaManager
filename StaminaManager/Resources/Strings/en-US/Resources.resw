@@ -189,4 +189,21 @@
   <data name="DeleteBackButtonAutomationName.Value" xml:space="preserve"><value>Return to editing without deleting</value></data>
   <data name="RestoreDialogPrimaryButtonAutomationName.Value" xml:space="preserve"><value>Replace current data with backup</value></data>
   <data name="RestoreDialogCancelButtonAutomationName.Value" xml:space="preserve"><value>Cancel backup restore</value></data>
+  <data name="GameEditorAddTitle" xml:space="preserve"><value>Add a game</value></data>
+  <data name="GameEditorEditTitle" xml:space="preserve"><value>Edit game</value></data>
+  <data name="GameEditorAddAction" xml:space="preserve"><value>Add</value></data>
+  <data name="GameEditorSaveAction" xml:space="preserve"><value>Save</value></data>
+  <data name="GameEditorCancelAction" xml:space="preserve"><value>Cancel</value></data>
+  <data name="GameEditorIntegerInputError" xml:space="preserve"><value>Enter a whole number.</value></data>
+  <data name="GameEditorNameRequiredError" xml:space="preserve"><value>Enter a game name.</value></data>
+  <data name="GameEditorCurrentStaminaOutOfRangeError" xml:space="preserve"><value>Enter current stamina as an integer from 0 to 1,000,000.</value></data>
+  <data name="GameEditorMaxStaminaOutOfRangeError" xml:space="preserve"><value>Enter maximum stamina as an integer from 1 to 1,000,000.</value></data>
+  <data name="GameEditorRecoveryMinutesOutOfRangeError" xml:space="preserve"><value>Enter recovery minutes as an integer from 0 to 525,600.</value></data>
+  <data name="GameEditorRecoverySecondsOutOfRangeError" xml:space="preserve"><value>Enter recovery seconds as an integer from 0 to 59.</value></data>
+  <data name="GameEditorRecoveryIntervalOutOfRangeError" xml:space="preserve"><value>Enter a recovery interval from 1 second to 525,600 minutes.</value></data>
+  <data name="GameEditorFullTimeOutOfRangeError" xml:space="preserve"><value>This maximum and recovery time cannot produce a full recovery time. Use smaller values.</value></data>
+  <data name="GameEditorElapsedWarningFormat" xml:space="preserve"><value>Natural recovery progressed while this screen was open. The calculated current value is {0}. Review the input before saving.</value></data>
+  <data name="GameEditorSaveError" xml:space="preserve"><value>Could not save the data. Try again.</value></data>
+  <data name="GameEditorSaveValidationError" xml:space="preserve"><value>Could not save the input. Check each field.</value></data>
+  <data name="GameEditorDeleteError" xml:space="preserve"><value>Could not delete the game. Try again.</value></data>
 </root>

@@ -51,9 +51,10 @@ public sealed class GameEntryValidatorTests
         CollectionAssert.Contains(
             result.Errors.Keys.ToArray(),
             nameof(GameDraft.Name));
-        StringAssert.Contains(
-            result.Errors[nameof(GameDraft.Name)].Single(),
-            "入力してください");
+        AssertFieldError(
+            result,
+            nameof(GameDraft.Name),
+            ValidationErrorCode.NameRequired);
     }
 
     [TestMethod]
@@ -73,7 +74,7 @@ public sealed class GameEntryValidatorTests
         AssertFieldError(
             result,
             nameof(GameDraft.CurrentStamina),
-            "0～1,000,000");
+            ValidationErrorCode.CurrentStaminaOutOfRange);
     }
 
     [TestMethod]
@@ -93,7 +94,7 @@ public sealed class GameEntryValidatorTests
         AssertFieldError(
             result,
             nameof(GameDraft.MaxStamina),
-            "1～1,000,000");
+            ValidationErrorCode.MaxStaminaOutOfRange);
     }
 
     [TestMethod]
@@ -113,7 +114,7 @@ public sealed class GameEntryValidatorTests
         AssertFieldError(
             result,
             nameof(GameDraft.RecoveryMinutes),
-            "0～525,600分");
+            ValidationErrorCode.RecoveryMinutesOutOfRange);
     }
 
     [TestMethod]
@@ -135,7 +136,7 @@ public sealed class GameEntryValidatorTests
         AssertFieldError(
             result,
             GameEntryValidator.RecoveryIntervalField,
-            "1秒～525,600分");
+            ValidationErrorCode.RecoveryIntervalOutOfRange);
     }
 
     [TestMethod]
@@ -155,7 +156,7 @@ public sealed class GameEntryValidatorTests
         AssertFieldError(
             result,
             nameof(GameDraft.RecoverySeconds),
-            "0～59秒");
+            ValidationErrorCode.RecoverySecondsOutOfRange);
     }
 
     [TestMethod]
@@ -237,9 +238,10 @@ public sealed class GameEntryValidatorTests
         CollectionAssert.Contains(
             result.Errors.Keys.ToArray(),
             nameof(GameDraft.MaxStamina));
-        StringAssert.Contains(
-            result.Errors[nameof(GameDraft.MaxStamina)].Single(),
-            "満タン時刻を計算できません");
+        AssertFieldError(
+            result,
+            nameof(GameDraft.MaxStamina),
+            ValidationErrorCode.FullTimeOutOfRange);
     }
 
     [TestMethod]
@@ -278,7 +280,9 @@ public sealed class GameEntryValidatorTests
             GameEntryValidator.Validate(draft, RecordedAtUtc);
 
         Assert.IsInstanceOfType<
-            ImmutableDictionary<string, ImmutableArray<string>>>(
+            ImmutableDictionary<
+                string,
+                ImmutableArray<ValidationErrorCode>>>(
                 result.Errors);
     }
 
@@ -305,12 +309,12 @@ public sealed class GameEntryValidatorTests
     private static void AssertFieldError(
         ValidationResult result,
         string fieldKey,
-        string expectedMessagePart)
+        ValidationErrorCode expectedCode)
     {
         Assert.IsFalse(result.IsValid);
         CollectionAssert.Contains(result.Errors.Keys.ToArray(), fieldKey);
-        StringAssert.Contains(
-            result.Errors[fieldKey].Single(),
-            expectedMessagePart);
+        Assert.AreEqual(
+            expectedCode,
+            result.Errors[fieldKey].Single());
     }
 }

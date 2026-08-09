@@ -189,4 +189,21 @@
   <data name="DeleteBackButtonAutomationName.Value" xml:space="preserve"><value>削除せず編集へ戻る</value></data>
   <data name="RestoreDialogPrimaryButtonAutomationName.Value" xml:space="preserve"><value>現在のデータをバックアップで置き換える</value></data>
   <data name="RestoreDialogCancelButtonAutomationName.Value" xml:space="preserve"><value>バックアップの復元をキャンセル</value></data>
+  <data name="GameEditorAddTitle" xml:space="preserve"><value>ゲームを追加</value></data>
+  <data name="GameEditorEditTitle" xml:space="preserve"><value>ゲームを編集</value></data>
+  <data name="GameEditorAddAction" xml:space="preserve"><value>追加</value></data>
+  <data name="GameEditorSaveAction" xml:space="preserve"><value>保存</value></data>
+  <data name="GameEditorCancelAction" xml:space="preserve"><value>キャンセル</value></data>
+  <data name="GameEditorIntegerInputError" xml:space="preserve"><value>整数で入力してください。</value></data>
+  <data name="GameEditorNameRequiredError" xml:space="preserve"><value>ゲーム名を入力してください。</value></data>
+  <data name="GameEditorCurrentStaminaOutOfRangeError" xml:space="preserve"><value>現在のスタミナは0～1,000,000の整数で入力してください。</value></data>
+  <data name="GameEditorMaxStaminaOutOfRangeError" xml:space="preserve"><value>最大スタミナは1～1,000,000の整数で入力してください。</value></data>
+  <data name="GameEditorRecoveryMinutesOutOfRangeError" xml:space="preserve"><value>回復時間の分部分は0～525,600分の整数で入力してください。</value></data>
+  <data name="GameEditorRecoverySecondsOutOfRangeError" xml:space="preserve"><value>回復時間の秒部分は0～59秒の整数で入力してください。</value></data>
+  <data name="GameEditorRecoveryIntervalOutOfRangeError" xml:space="preserve"><value>回復時間は合計1秒～525,600分で入力してください。</value></data>
+  <data name="GameEditorFullTimeOutOfRangeError" xml:space="preserve"><value>この最大値と回復時間では満タン時刻を計算できません。値を小さくしてください。</value></data>
+  <data name="GameEditorElapsedWarningFormat" xml:space="preserve"><value>この画面を開いている間に自然回復が進みました。現在の計算値は {0} です。入力値を確認してから保存してください。</value></data>
+  <data name="GameEditorSaveError" xml:space="preserve"><value>データを保存できませんでした。もう一度お試しください。</value></data>
+  <data name="GameEditorSaveValidationError" xml:space="preserve"><value>入力内容を保存できません。各項目を確認してください。</value></data>
+  <data name="GameEditorDeleteError" xml:space="preserve"><value>ゲームを削除できませんでした。もう一度お試しください。</value></data>
 </root>

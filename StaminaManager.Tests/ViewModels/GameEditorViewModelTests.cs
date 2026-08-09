@@ -57,6 +57,119 @@ public sealed class GameEditorViewModelTests
     }
 
     [TestMethod]
+    public async Task DisplayText_ResolvesFromInjectedResourcesInJapaneseAndEnglish()
+    {
+        foreach (string language in new[] { "ja-JP", "en-US" })
+        {
+            FakeAppResourceService resources = CreateResources(language);
+            (GameEditorViewModel addViewModel, _, _) =
+                await CreateForAddAsync(resources);
+            (GameEditorViewModel editViewModel, _, _) =
+                await CreateForEditAsync(CreateEntry(), resources);
+
+            Assert.AreEqual(
+                $"{language}.add-title",
+                addViewModel.DialogTitle);
+            Assert.AreEqual(
+                $"{language}.add-action",
+                addViewModel.ActionText);
+            Assert.AreEqual(
+                $"{language}.edit-title",
+                editViewModel.DialogTitle);
+            Assert.AreEqual(
+                $"{language}.save-action",
+                editViewModel.ActionText);
+            Assert.AreEqual(
+                $"{language}.cancel-action",
+                addViewModel.DialogCloseButtonText);
+
+            editViewModel.RequestDeleteCommand.Execute(null);
+
+            Assert.AreEqual(
+                $"{language}.delete-action",
+                editViewModel.DialogPrimaryActionText);
+            Assert.AreEqual(
+                $"{language}.back-action",
+                editViewModel.DialogCloseButtonText);
+        }
+    }
+
+    [TestMethod]
+    public async Task ValidationAndIntegerErrors_ResolveFromInjectedResources()
+    {
+        foreach (string language in new[] { "ja-JP", "en-US" })
+        {
+            FakeAppResourceService resources = CreateResources(language);
+            (GameEditorViewModel viewModel, _, _) =
+                await CreateForAddAsync(resources);
+
+            viewModel.Name = " ";
+            Assert.AreEqual(
+                $"{language}.name-required",
+                viewModel.NameError);
+
+            viewModel.Name = "Game";
+            viewModel.CurrentStamina = -1;
+            Assert.AreEqual(
+                $"{language}.current-stamina-range",
+                viewModel.CurrentStaminaError);
+
+            viewModel.CurrentStamina = 40;
+            viewModel.MaxStamina = 0;
+            Assert.AreEqual(
+                $"{language}.max-stamina-range",
+                viewModel.MaxStaminaError);
+
+            viewModel.MaxStamina = 100;
+            viewModel.RecoveryMinutes = 1.5;
+            Assert.AreEqual(
+                $"{language}.integer",
+                viewModel.RecoveryMinutesError);
+        }
+    }
+
+    [TestMethod]
+    public async Task SaveAndDeleteErrors_ResolveFromInjectedResources()
+    {
+        foreach (string language in new[] { "ja-JP", "en-US" })
+        {
+            FakeAppResourceService resources = CreateResources(language);
+            MemoryDataStore saveStore = new()
+            {
+                SaveException = new IOException(),
+            };
+            (GameEditorViewModel saveViewModel, _, _) =
+                await CreateForAddAsync(resources, saveStore);
+            saveViewModel.Name = "Game";
+
+            await Assert.ThrowsExactlyAsync<IOException>(
+                () => saveViewModel.SaveAsync(CancellationToken.None));
+
+            Assert.AreEqual(
+                $"{language}.save-error",
+                saveViewModel.GeneralError);
+
+            MemoryDataStore deleteStore = new()
+            {
+                SaveException = new IOException(),
+            };
+            (GameEditorViewModel deleteViewModel, _, _) =
+                await CreateForEditAsync(
+                    CreateEntry(),
+                    resources,
+                    deleteStore);
+            deleteViewModel.RequestDeleteCommand.Execute(null);
+
+            await Assert.ThrowsExactlyAsync<IOException>(
+                () => deleteViewModel.DeleteAsync(CancellationToken.None));
+
+            Assert.AreEqual(
+                $"{language}.delete-error",
+                deleteViewModel.GeneralError);
+        }
+    }
+
+    [TestMethod]
     public async Task NewEditor_UsesDefaultRecoveryAndNotificationValues()
     {
         (GameEditorViewModel viewModel, _, _) =
@@ -203,6 +316,30 @@ public sealed class GameEditorViewModelTests
     }
 
     [TestMethod]
+    public async Task ElapsedWarning_ResolvesFromInjectedResourcesInJapaneseAndEnglish()
+    {
+        GameEntry original = CreateEntry() with
+        {
+            BaseStamina = 40,
+            RecordedAtUtc = NowUtc,
+        };
+
+        foreach (string language in new[] { "ja-JP", "en-US" })
+        {
+            FakeAppResourceService resources = CreateResources(language);
+            (GameEditorViewModel viewModel, _, FakeClock clock) =
+                await CreateForEditAsync(original, resources);
+            clock.UtcNow = NowUtc.AddMinutes(10);
+
+            viewModel.RefreshElapsedWarning();
+
+            Assert.AreEqual(
+                $"{language}.elapsed-42",
+                viewModel.ElapsedWarning);
+        }
+    }
+
+    [TestMethod]
     public async Task SaveAsync_WhenNaturalRecoveryAdvanced_RequiresConfirmation()
     {
         GameEntry original = CreateEntry() with
@@ -252,27 +389,38 @@ public sealed class GameEditorViewModelTests
     private static async Task<(
         GameEditorViewModel ViewModel,
         GameManager Manager,
-        FakeClock Clock)> CreateForAddAsync()
+        FakeClock Clock)> CreateForAddAsync(
+        IAppResourceService? resources = null,
+        MemoryDataStore? dataStore = null)
     {
         FakeClock clock = new(NowUtc);
         GameManager manager = new(
-            new MemoryDataStore(),
+            dataStore ?? new MemoryDataStore(),
             clock,
             AppSettings.CreateDefault(AppTheme.Light));
         await manager.InitializeAsync(
             manager.CurrentData,
             CancellationToken.None);
-        return (new GameEditorViewModel(manager, clock), manager, clock);
+        return (
+            CreateViewModel(
+                manager,
+                clock,
+                resources ?? CreateDefaultJapaneseResources()),
+            manager,
+            clock);
     }
 
     private static async Task<(
         GameEditorViewModel ViewModel,
         GameManager Manager,
-        FakeClock Clock)> CreateForEditAsync(GameEntry entry)
+        FakeClock Clock)> CreateForEditAsync(
+        GameEntry entry,
+        IAppResourceService? resources = null,
+        MemoryDataStore? dataStore = null)
     {
         FakeClock clock = new(NowUtc);
         GameManager manager = new(
-            new MemoryDataStore(),
+            dataStore ?? new MemoryDataStore(),
             clock,
             AppSettings.CreateDefault(AppTheme.Light));
         await manager.InitializeAsync(
@@ -282,10 +430,55 @@ public sealed class GameEditorViewModelTests
             },
             CancellationToken.None);
         return (
-            new GameEditorViewModel(manager, clock, entry),
+            CreateViewModel(
+                manager,
+                clock,
+                resources ?? CreateDefaultJapaneseResources(),
+                entry),
             manager,
             clock);
     }
+
+    private static GameEditorViewModel CreateViewModel(
+        GameManager manager,
+        IClock clock,
+        IAppResourceService resources,
+        GameEntry? entry = null) =>
+        new(manager, clock, resources, entry);
+
+    private static FakeAppResourceService CreateResources(string language) =>
+        new(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["GameEditorAddTitle"] = $"{language}.add-title",
+            ["GameEditorEditTitle"] = $"{language}.edit-title",
+            ["GameEditorAddAction"] = $"{language}.add-action",
+            ["GameEditorSaveAction"] = $"{language}.save-action",
+            ["DeleteConfirmButton.Content"] = $"{language}.delete-action",
+            ["DeleteBackButton.Content"] = $"{language}.back-action",
+            ["GameEditorCancelAction"] = $"{language}.cancel-action",
+            ["GameEditorIntegerInputError"] = $"{language}.integer",
+            ["GameEditorNameRequiredError"] = $"{language}.name-required",
+            ["GameEditorCurrentStaminaOutOfRangeError"] =
+                $"{language}.current-stamina-range",
+            ["GameEditorMaxStaminaOutOfRangeError"] =
+                $"{language}.max-stamina-range",
+            ["GameEditorElapsedWarningFormat"] =
+                $"{language}.elapsed-{{0}}",
+            ["GameEditorSaveError"] = $"{language}.save-error",
+            ["GameEditorSaveValidationError"] =
+                $"{language}.save-validation-error",
+            ["GameEditorDeleteError"] = $"{language}.delete-error",
+        });
+
+    private static FakeAppResourceService CreateDefaultJapaneseResources() =>
+        new(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["GameEditorAddAction"] = "追加",
+            ["GameEditorSaveAction"] = "保存",
+            ["GameEditorElapsedWarningFormat"] =
+                "この画面を開いている間に自然回復が進みました。"
+                + "現在の計算値は {0} です。入力値を確認してから保存してください。",
+        });
 
     private static GameEntry CreateEntry() => new(
         Guid.NewGuid(),
@@ -299,8 +492,22 @@ public sealed class GameEditorViewModelTests
         RecoverySeconds: 0,
         IsNotificationEnabled: true);
 
+    private sealed class FakeAppResourceService(
+        IReadOnlyDictionary<string, string> values) : IAppResourceService
+    {
+        public string GetString(string resourceId) =>
+            values.TryGetValue(resourceId, out string? value)
+                ? value
+                : resourceId;
+
+        public string Format(string resourceId, params object?[] args) =>
+            string.Format(GetString(resourceId), args);
+    }
+
     private sealed class MemoryDataStore : ILocalDataStore
     {
+        public Exception? SaveException { get; init; }
+
         public Task<DataLoadResult> LoadAsync(
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
@@ -310,7 +517,9 @@ public sealed class GameEditorViewModelTests
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return Task.CompletedTask;
+            return SaveException is null
+                ? Task.CompletedTask
+                : Task.FromException(SaveException);
         }
 
         public Task<RecoveryPromotionResult> PromoteRecoveryAsync(

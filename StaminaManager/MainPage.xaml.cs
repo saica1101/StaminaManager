@@ -21,6 +21,7 @@ public sealed partial class MainPage : Page
     private readonly GameManager _gameManager;
     private readonly IClock _clock;
     private readonly AssetStore _assetStore;
+    private readonly IAppResourceService _appResourceService;
     private bool _isSynchronizingSelection;
     private bool _isDialogOpen;
 
@@ -34,6 +35,7 @@ public sealed partial class MainPage : Page
         GameManager gameManager,
         IClock clock,
         AssetStore assetStore,
+        IAppResourceService appResourceService,
         IAppVersionProvider versionProvider)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
@@ -45,6 +47,7 @@ public sealed partial class MainPage : Page
         ArgumentNullException.ThrowIfNull(gameManager);
         ArgumentNullException.ThrowIfNull(clock);
         ArgumentNullException.ThrowIfNull(assetStore);
+        ArgumentNullException.ThrowIfNull(appResourceService);
         ArgumentNullException.ThrowIfNull(versionProvider);
 
         ViewModel = viewModel;
@@ -56,6 +59,7 @@ public sealed partial class MainPage : Page
         _gameManager = gameManager;
         _clock = clock;
         _assetStore = assetStore;
+        _appResourceService = appResourceService;
         VersionText = versionProvider.GetVersion().DisplayVersion;
         InitializeComponent();
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
@@ -266,6 +270,7 @@ public sealed partial class MainPage : Page
             GameEditorViewModel editor = new(
                 _gameManager,
                 _clock,
+                _appResourceService,
                 entry);
             GameEditorDialog dialog = new(
                 editor,
