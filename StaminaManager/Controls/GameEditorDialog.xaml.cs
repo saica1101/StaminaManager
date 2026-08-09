@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using StaminaManager.Application;
+using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
 using StaminaManager.Infrastructure.Storage;
 using StaminaManager.ViewModels;
@@ -23,6 +24,7 @@ public sealed partial class GameEditorDialog : ContentDialog
 {
     private readonly AssetStore _assetStore;
     private readonly GameManager _gameManager;
+    private readonly IAppResourceService _appResourceService;
     private readonly nint _ownerWindowHandle;
     private GameEditorDialogResult _result;
     private bool _focusCurrentStamina;
@@ -31,14 +33,17 @@ public sealed partial class GameEditorDialog : ContentDialog
         GameEditorViewModel viewModel,
         AssetStore assetStore,
         GameManager gameManager,
+        IAppResourceService appResourceService,
         nint ownerWindowHandle)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
         ArgumentNullException.ThrowIfNull(assetStore);
         ArgumentNullException.ThrowIfNull(gameManager);
+        ArgumentNullException.ThrowIfNull(appResourceService);
         ViewModel = viewModel;
         _assetStore = assetStore;
         _gameManager = gameManager;
+        _appResourceService = appResourceService;
         _ownerWindowHandle = ownerWindowHandle;
         InitializeComponent();
         Opened += OnOpened;
@@ -142,8 +147,7 @@ public sealed partial class GameEditorDialog : ContentDialog
         catch (OutOfMemoryException)
         {
             ViewModel.ShowGeneralError(
-                "画像を処理するためのメモリが不足しています。"
-                + "ほかのアプリを閉じるか、別の画像を選んでください。");
+                _appResourceService.GetString("GameEditorImageMemoryError"));
         }
         catch (Exception exception) when (
             exception is AssetValidationException
@@ -151,9 +155,10 @@ public sealed partial class GameEditorDialog : ContentDialog
                 or UnauthorizedAccessException)
         {
             ViewModel.ShowGeneralError(
-                exception is AssetValidationException
-                    ? "画像を使用できません。PNG/JPEG、4096×4096以下のファイルを選んでください。"
-                    : "画像を読み込めませんでした。別のファイルを選んでください。");
+                _appResourceService.GetString(
+                    exception is AssetValidationException
+                        ? "GameEditorImageValidationError"
+                        : "GameEditorImageLoadError"));
         }
     }
 
@@ -170,8 +175,8 @@ public sealed partial class GameEditorDialog : ContentDialog
                 if (!await ViewModel.DeleteAsync(CancellationToken.None))
                 {
                     ViewModel.ShowGeneralError(
-                        "ゲームは既に削除されています。"
-                        + "画面を閉じて一覧を確認してください。");
+                        _appResourceService.GetString(
+                            "GameEditorAlreadyDeletedError"));
                     return;
                 }
 
@@ -247,13 +252,6 @@ public sealed partial class GameEditorDialog : ContentDialog
                 isDeleteConfirmation
                     ? "DeleteConfirmButton"
                     : "GameEditorSaveButton");
-            AutomationProperties.SetName(
-                primaryButton,
-                isDeleteConfirmation
-                    ? "このゲームを削除する"
-                    : ViewModel.IsNew
-                        ? "ゲームを追加する"
-                        : "ゲームの変更を保存する");
         }
 
         if (GetTemplateChild("CloseButton") is Button closeButton)
@@ -263,11 +261,6 @@ public sealed partial class GameEditorDialog : ContentDialog
                 isDeleteConfirmation
                     ? "DeleteBackButton"
                     : "GameEditorCancelButton");
-            AutomationProperties.SetName(
-                closeButton,
-                isDeleteConfirmation
-                    ? "削除せず編集へ戻る"
-                    : "編集をキャンセル");
         }
     }
 

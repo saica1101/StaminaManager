@@ -206,4 +206,8 @@
   <data name="GameEditorSaveError" xml:space="preserve"><value>データを保存できませんでした。もう一度お試しください。</value></data>
   <data name="GameEditorSaveValidationError" xml:space="preserve"><value>入力内容を保存できません。各項目を確認してください。</value></data>
   <data name="GameEditorDeleteError" xml:space="preserve"><value>ゲームを削除できませんでした。もう一度お試しください。</value></data>
+  <data name="GameEditorImageMemoryError" xml:space="preserve"><value>画像を処理するためのメモリが不足しています。ほかのアプリを閉じるか、別の画像を選んでください。</value></data>
+  <data name="GameEditorImageValidationError" xml:space="preserve"><value>画像を使用できません。PNG/JPEG、4096×4096以下のファイルを選んでください。</value></data>
+  <data name="GameEditorImageLoadError" xml:space="preserve"><value>画像を読み込めませんでした。別のファイルを選んでください。</value></data>
+  <data name="GameEditorAlreadyDeletedError" xml:space="preserve"><value>ゲームは既に削除されています。画面を閉じて一覧を確認してください。</value></data>
 </root>

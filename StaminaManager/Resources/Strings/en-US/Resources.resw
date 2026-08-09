@@ -206,4 +206,8 @@
   <data name="GameEditorSaveError" xml:space="preserve"><value>Could not save the data. Try again.</value></data>
   <data name="GameEditorSaveValidationError" xml:space="preserve"><value>Could not save the input. Check each field.</value></data>
   <data name="GameEditorDeleteError" xml:space="preserve"><value>Could not delete the game. Try again.</value></data>
+  <data name="GameEditorImageMemoryError" xml:space="preserve"><value>There is not enough memory to process the image. Close other apps or choose a different image.</value></data>
+  <data name="GameEditorImageValidationError" xml:space="preserve"><value>This image cannot be used. Choose a PNG or JPEG file no larger than 4096×4096.</value></data>
+  <data name="GameEditorImageLoadError" xml:space="preserve"><value>The image could not be loaded. Choose a different file.</value></data>
+  <data name="GameEditorAlreadyDeletedError" xml:space="preserve"><value>The game has already been deleted. Close this dialog and check the game list.</value></data>
 </root>

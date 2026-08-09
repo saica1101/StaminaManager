@@ -156,12 +156,12 @@ public sealed partial class GameEditorViewModel : ObservableObject
 
     public string DialogPrimaryActionText =>
         State == GameEditorState.DeleteConfirmation
-            ? _appResourceService.GetString("DeleteConfirmButton.Content")
+            ? _appResourceService.GetString("DeleteConfirmButton/Content")
             : ActionText;
 
     public string DialogCloseButtonText =>
         State == GameEditorState.DeleteConfirmation
-            ? _appResourceService.GetString("DeleteBackButton.Content")
+            ? _appResourceService.GetString("DeleteBackButton/Content")
             : _appResourceService.GetString("GameEditorCancelAction");
 
     public GameEntry? OriginalEntry => _originalEntry;

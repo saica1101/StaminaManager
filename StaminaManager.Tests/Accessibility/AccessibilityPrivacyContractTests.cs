@@ -112,6 +112,29 @@ public sealed class AccessibilityPrivacyContractTests
         StringAssert.Contains(source, "? ContentDialogButton.Close");
         StringAssert.Contains(source, "BackToEditingCommand.Execute(null)");
         StringAssert.Contains(source, "await ViewModel.DeleteAsync");
+
+        foreach (string resourceId in new[]
+        {
+            "GameEditorImageMemoryError",
+            "GameEditorImageValidationError",
+            "GameEditorImageLoadError",
+            "GameEditorAlreadyDeletedError",
+        })
+        {
+            StringAssert.Contains(source, resourceId);
+        }
+
+        foreach (string fixedText in new[]
+        {
+            "画像を処理するためのメモリが不足しています。",
+            "画像を使用できません。PNG/JPEG、4096×4096以下のファイルを選んでください。",
+            "画像を読み込めませんでした。別のファイルを選んでください。",
+            "ゲームは既に削除されています。",
+            "AutomationProperties.SetName",
+        })
+        {
+            Assert.DoesNotContain(fixedText, source);
+        }
     }
 
     [TestMethod]

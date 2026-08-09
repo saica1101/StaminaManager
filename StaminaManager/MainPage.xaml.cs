@@ -276,6 +276,7 @@ public sealed partial class MainPage : Page
                 editor,
                 _assetStore,
                 _gameManager,
+                _appResourceService,
                 ((App)Microsoft.UI.Xaml.Application.Current)
                     .MainWindowHandle)
             {

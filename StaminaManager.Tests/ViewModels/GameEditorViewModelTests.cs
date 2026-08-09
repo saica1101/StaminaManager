@@ -125,6 +125,30 @@ public sealed class GameEditorViewModelTests
             Assert.AreEqual(
                 $"{language}.integer",
                 viewModel.RecoveryMinutesError);
+
+            viewModel.RecoveryMinutes = 525_601;
+            Assert.AreEqual(
+                $"{language}.recovery-minutes-range",
+                viewModel.RecoveryMinutesError);
+
+            viewModel.RecoveryMinutes = 5;
+            viewModel.RecoverySeconds = 60;
+            Assert.AreEqual(
+                $"{language}.recovery-seconds-range",
+                viewModel.RecoverySecondsError);
+
+            viewModel.RecoverySeconds = 0;
+            viewModel.RecoveryMinutes = 0;
+            Assert.AreEqual(
+                $"{language}.recovery-interval-range",
+                viewModel.RecoveryIntervalError);
+
+            viewModel.RecoveryMinutes = 525_600;
+            viewModel.CurrentStamina = 0;
+            viewModel.MaxStamina = 1_000_000;
+            Assert.AreEqual(
+                $"{language}.full-time-range",
+                viewModel.MaxStaminaError);
         }
     }
 
@@ -453,8 +477,8 @@ public sealed class GameEditorViewModelTests
             ["GameEditorEditTitle"] = $"{language}.edit-title",
             ["GameEditorAddAction"] = $"{language}.add-action",
             ["GameEditorSaveAction"] = $"{language}.save-action",
-            ["DeleteConfirmButton.Content"] = $"{language}.delete-action",
-            ["DeleteBackButton.Content"] = $"{language}.back-action",
+            ["DeleteConfirmButton/Content"] = $"{language}.delete-action",
+            ["DeleteBackButton/Content"] = $"{language}.back-action",
             ["GameEditorCancelAction"] = $"{language}.cancel-action",
             ["GameEditorIntegerInputError"] = $"{language}.integer",
             ["GameEditorNameRequiredError"] = $"{language}.name-required",
@@ -462,6 +486,14 @@ public sealed class GameEditorViewModelTests
                 $"{language}.current-stamina-range",
             ["GameEditorMaxStaminaOutOfRangeError"] =
                 $"{language}.max-stamina-range",
+            ["GameEditorRecoveryMinutesOutOfRangeError"] =
+                $"{language}.recovery-minutes-range",
+            ["GameEditorRecoverySecondsOutOfRangeError"] =
+                $"{language}.recovery-seconds-range",
+            ["GameEditorRecoveryIntervalOutOfRangeError"] =
+                $"{language}.recovery-interval-range",
+            ["GameEditorFullTimeOutOfRangeError"] =
+                $"{language}.full-time-range",
             ["GameEditorElapsedWarningFormat"] =
                 $"{language}.elapsed-{{0}}",
             ["GameEditorSaveError"] = $"{language}.save-error",
