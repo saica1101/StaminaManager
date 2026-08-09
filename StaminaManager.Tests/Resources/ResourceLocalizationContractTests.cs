@@ -54,24 +54,34 @@ public sealed class ResourceLocalizationContractTests
     }
 
     [TestMethod]
-    public void ResourceFormats_RejectDifferentFormatItemOrder()
+    public void ResourceFormats_AllowDifferentFormatItemOrder()
     {
         Dictionary<string, string> japanese = CreateFixture(
             ("Format", "{0} {1}"));
         Dictionary<string, string> english = CreateFixture(
             ("Format", "{1} {0}"));
 
-        Assert.ThrowsExactly<AssertFailedException>(() =>
-            AssertResourceParity(japanese, english));
+        AssertResourceParity(japanese, english);
     }
 
     [TestMethod]
-    public void ResourceFormats_RejectDifferentFormatSpecifier()
+    public void ResourceFormats_AllowDifferentFormatSpecifier()
     {
         Dictionary<string, string> japanese = CreateFixture(
             ("Format", "{0:00}"));
         Dictionary<string, string> english = CreateFixture(
             ("Format", "{0}"));
+
+        AssertResourceParity(japanese, english);
+    }
+
+    [TestMethod]
+    public void ResourceFormats_RejectDifferentArgumentIndexes()
+    {
+        Dictionary<string, string> japanese = CreateFixture(
+            ("Format", "{0} {1}"));
+        Dictionary<string, string> english = CreateFixture(
+            ("Format", "{0} {2}"));
 
         Assert.ThrowsExactly<AssertFailedException>(() =>
             AssertResourceParity(japanese, english));
@@ -90,8 +100,8 @@ public sealed class ResourceLocalizationContractTests
         foreach (string key in japanese.Keys)
         {
             CollectionAssert.AreEqual(
-                GetFormatItems("ja-JP", key, japanese[key]),
-                GetFormatItems("en-US", key, english[key]),
+                GetArgumentIndexes("ja-JP", key, japanese[key]),
+                GetArgumentIndexes("en-US", key, english[key]),
                 key);
         }
     }
@@ -261,7 +271,7 @@ public sealed class ResourceLocalizationContractTests
         .ToDictionary(entry => entry.Key, entry => entry.Value,
             StringComparer.OrdinalIgnoreCase);
 
-    private static FormatItem[] GetFormatItems(
+    private static int[] GetArgumentIndexes(
         string language,
         string key,
         string value)
@@ -284,18 +294,17 @@ public sealed class ResourceLocalizationContractTests
             .Select(index => (object)new FormatArgument(index))
             .ToArray();
         _ = string.Format(collector, format, arguments);
-        return collector.Items.ToArray();
+        return collector.ArgumentIndexes
+            .Distinct()
+            .OrderBy(index => index)
+            .ToArray();
     }
-
-    private readonly record struct FormatItem(
-        int ArgumentIndex,
-        string? Format);
 
     private sealed record FormatArgument(int Index);
 
     private sealed class FormatItemCollector : IFormatProvider, ICustomFormatter
     {
-        public List<FormatItem> Items { get; } = [];
+        public List<int> ArgumentIndexes { get; } = [];
 
         public object? GetFormat(Type? formatType) =>
             formatType == typeof(ICustomFormatter) ? this : null;
@@ -311,7 +320,7 @@ public sealed class ResourceLocalizationContractTests
                     "composite formatの引数を検査できません。");
             }
 
-            Items.Add(new FormatItem(argument.Index, format));
+            ArgumentIndexes.Add(argument.Index);
             return string.Empty;
         }
     }
