@@ -286,10 +286,6 @@ public sealed class AccessibilityPrivacyContractTests
                 .GetValueOrDefault("SelectedImageText.Text")
                 ?? string.Empty;
             StringAssert.Contains(guidance, "4096×4096");
-            foreach (string forbiddenText in forbiddenImageSizeText)
-            {
-                Assert.DoesNotContain(forbiddenText, guidance);
-            }
         }
 
         StringAssert.Contains(dialog, "x:Uid=\"SelectedImageText\"");

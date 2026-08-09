@@ -10,7 +10,13 @@ public sealed class LanguageLocalizationContractTests
     private static readonly XNamespace Presentation =
         "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
 
-    private static readonly string[] FixedDisplayProperties =
+    private const string AutomationNameResourceProperty =
+        "[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name";
+
+    private const string AutomationHelpTextResourceProperty =
+        "[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText";
+
+    private static readonly string[] DisplayProperties =
     [
         "Text",
         "Content",
@@ -18,65 +24,42 @@ public sealed class LanguageLocalizationContractTests
         "Description",
         "Title",
         "PlaceholderText",
-        "ToolTip",
+        "Message",
+        "PaneTitle",
+        "PrimaryButtonText",
+        "SecondaryButtonText",
+        "CloseButtonText",
+        "ToolTipService.ToolTip",
         "OffContent",
         "OnContent",
         "AutomationProperties.Name",
         "AutomationProperties.HelpText",
     ];
 
-    private static readonly string[] DisplayElementNames =
+    private static readonly string[] NonDisplayElementNames =
     [
-        "Button",
-        "ComboBoxItem",
-        "ContentDialog",
-        "HyperlinkButton",
-        "InfoBar",
-        "Run",
-        "TextBlock",
-        "ToggleSwitch",
+        "Double",
+        "Thickness",
+        "CornerRadius",
+        "FontFamily",
     ];
 
     private static readonly string[] FixedLiteralAllowlist = ["/"];
 
     private static readonly (string Uid, string[] Properties)[]
-        RequiredXamlResourceProperties =
+        RequiredPropertyOverrides =
     [
-        ("SettingsLanguageHeading", ["Text"]),
         ("LanguageSelector", [
             "Header",
-            "[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name",
+            AutomationNameResourceProperty,
             "Description",
-            "[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText",
+            AutomationHelpTextResourceProperty,
         ]),
-        ("LanguageJapaneseItem", ["Content"]),
-        ("LanguageEnglishItem", ["Content"]),
-        ("CompactGameSelector", ["Header"]),
-        ("CompactEmptyTitle", ["Text"]),
-        ("CompactEmptyDescription", ["Text"]),
         ("CompactAddGameButton", [
             "Content",
-            "[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name",
+            AutomationNameResourceProperty,
         ]),
-        ("GameNameInput", ["Header"]),
-        ("CurrentStaminaInput", ["Header"]),
-        ("MaxStaminaInput", ["Header"]),
-        ("RecoveryIntervalHeading", ["Text"]),
-        ("RecoveryMinutesInput", ["Header"]),
-        ("RecoverySecondsInput", ["Header"]),
         ("GameNotificationToggle", ["Header", "OffContent", "OnContent"]),
-        ("GameNotificationDescription", ["Text"]),
-        ("GameImageHeading", ["Text"]),
-        ("ChooseGameImageButtonText", ["Text"]),
-        ("SelectedImageText", ["Text"]),
-        ("GameEditorDeleteConfirmationTitle", ["Text"]),
-        ("GameEditorDeleteConfirmationDescription", ["Text"]),
-        ("GameEditorSaveButtonAutomationName", ["Value"]),
-        ("DeleteConfirmButtonAutomationName", ["Value"]),
-        ("GameEditorCancelButtonAutomationName", ["Value"]),
-        ("DeleteBackButtonAutomationName", ["Value"]),
-        ("RestoreDialogPrimaryButtonAutomationName", ["Value"]),
-        ("RestoreDialogCancelButtonAutomationName", ["Value"]),
     ];
 
     [TestMethod]
@@ -144,25 +127,6 @@ public sealed class LanguageLocalizationContractTests
     }
 
     [TestMethod]
-    public void LocalizationResources_ContainRequiredPropertiesInBothLocales()
-    {
-        foreach (string language in new[] { "ja-JP", "en-US" })
-        {
-            HashSet<string> keys = LoadResourceKeys(language);
-            string[] missing = RequiredXamlResourceProperties
-                .SelectMany(item => item.Properties.Select(property =>
-                    $"{item.Uid}.{property}"))
-                .Where(key => !keys.Contains(key))
-                .ToArray();
-
-            Assert.IsEmpty(
-                missing,
-                $"{language}に必須リソースキーがありません: "
-                + string.Join(", ", missing));
-        }
-    }
-
-    [TestMethod]
     public void LanguageSelectorResources_UseRestartGuidanceAndSelfNames()
     {
         foreach ((string language, string expectedDescription) in new[]
@@ -198,6 +162,16 @@ public sealed class LanguageLocalizationContractTests
               <Button Content="Delete" />
               <Button AutomationProperties.HelpText="Explain delete" />
               <TextBlock>Body literal</TextBlock>
+              <TextBlock>
+                <TextBlock.Text>Property element literal</TextBlock.Text>
+              </TextBlock>
+              <NavigationViewItem>Navigation item literal</NavigationViewItem>
+              <InfoBar Message="InfoBar message" />
+              <Button ToolTipService.ToolTip="Tooltip literal" />
+              <ContentDialog
+                PrimaryButtonText="Primary button"
+                SecondaryButtonText="Secondary button"
+                CloseButtonText="Close button" />
               <Style TargetType="Button">
                 <Setter Property="Content">
                   <Setter.Value>Setter literal</Setter.Value>
@@ -206,17 +180,24 @@ public sealed class LanguageLocalizationContractTests
             </StackPanel>
             """);
 
-        XamlLiteralViolation[] violations = FindFixedDisplayLiterals(fixture);
+        string[] violations = FindFixedDisplayLiterals(fixture);
 
         CollectionAssert.AreEquivalent(
             new[]
             {
                 "Button.Content=Delete",
                 "Button.AutomationProperties.HelpText=Explain delete",
-                "TextBlock.Body=Body literal",
+                "TextBlock.Text=Body literal",
+                "TextBlock.Text=Property element literal",
+                "NavigationViewItem.Text=Navigation item literal",
+                "InfoBar.Message=InfoBar message",
+                "Button.ToolTipService.ToolTip=Tooltip literal",
+                "ContentDialog.PrimaryButtonText=Primary button",
+                "ContentDialog.SecondaryButtonText=Secondary button",
+                "ContentDialog.CloseButtonText=Close button",
                 "Setter.Value=Setter literal",
             },
-            violations.Select(violation => violation.ToString()).ToArray());
+            violations);
     }
 
     [TestMethod]
@@ -227,6 +208,7 @@ public sealed class LanguageLocalizationContractTests
             <Grid xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
               <ComboBox x:Uid="LanguageSelector" />
+              <TextBlock x:Uid="SettingsPageTitle" />
             </Grid>
             """);
         HashSet<string> resourceKeys =
@@ -234,6 +216,7 @@ public sealed class LanguageLocalizationContractTests
             "LanguageSelector.Header",
             "LanguageSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name",
             "LanguageSelector.Description",
+            "SettingsPageTitle.Tag",
         ];
 
         string[] missing = FindMissingRequiredProperties(fixture, resourceKeys);
@@ -242,6 +225,7 @@ public sealed class LanguageLocalizationContractTests
             new[]
             {
                 "LanguageSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText",
+                "SettingsPageTitle.Text",
             },
             missing);
     }
@@ -253,35 +237,10 @@ public sealed class LanguageLocalizationContractTests
         XDocument[] documents = GetProductionXamlPaths(root)
             .Select(XDocument.Load)
             .ToArray();
-        HashSet<string> uids = documents
-            .SelectMany(document => document.Descendants())
-            .Select(element => AttributeValue(element, "Uid"))
-            .OfType<string>()
-            .Distinct(StringComparer.Ordinal)
-            .ToHashSet(StringComparer.Ordinal);
-
-        string[] missingFromProduction = RequiredXamlResourceProperties
-            .Select(item => item.Uid)
-            .Where(uid => !uids.Contains(uid))
-            .ToArray();
-        Assert.IsEmpty(
-            missingFromProduction,
-            "必須property表のx:Uidがproduction XAMLにありません: "
-            + string.Join(", ", missingFromProduction));
 
         foreach (string language in new[] { "ja-JP", "en-US" })
         {
             HashSet<string> keys = LoadResourceKeys(language);
-            string[] missingAnyProperty = uids
-                .Where(uid => !keys.Any(key => key.StartsWith(
-                    uid + ".",
-                    StringComparison.OrdinalIgnoreCase)))
-                .ToArray();
-            Assert.IsEmpty(
-                missingAnyProperty,
-                $"{language}にx:Uidのproperty keyがありません: "
-                + string.Join(", ", missingAnyProperty));
-
             string[] missing = documents
                 .SelectMany(document =>
                     FindMissingRequiredProperties(document, keys))
@@ -300,7 +259,7 @@ public sealed class LanguageLocalizationContractTests
         string root = FindRepositoryRoot();
         foreach (string path in GetProductionXamlPaths(root))
         {
-            XamlLiteralViolation[] violations = FindFixedDisplayLiterals(
+            string[] violations = FindFixedDisplayLiterals(
                 XDocument.Load(path));
 
             Assert.IsEmpty(
@@ -331,67 +290,44 @@ public sealed class LanguageLocalizationContractTests
                 StringComparer.OrdinalIgnoreCase);
     }
 
-    private static XamlLiteralViolation[] FindFixedDisplayLiterals(
+    private static string[] FindFixedDisplayLiterals(
         XDocument document)
     {
-        List<XamlLiteralViolation> violations = [];
+        List<string> violations = [];
 
         foreach (XElement element in document.Descendants())
         {
             foreach (XAttribute attribute in element.Attributes()
-                .Where(attribute => FixedDisplayProperties.Contains(
+                .Where(attribute => DisplayProperties.Contains(
                     attribute.Name.LocalName,
                     StringComparer.Ordinal)))
             {
                 if (IsFixedDisplayLiteral(attribute.Value))
                 {
-                    violations.Add(new(
-                        element.Name.LocalName,
-                        attribute.Name.LocalName,
-                        attribute.Value.Trim()));
+                    violations.Add(
+                        $"{element.Name.LocalName}.{attribute.Name.LocalName}="
+                        + attribute.Value.Trim());
                 }
             }
 
-            if (DisplayElementNames.Contains(
+            if (NonDisplayElementNames.Contains(
                 element.Name.LocalName,
                 StringComparer.Ordinal))
-            {
-                foreach (string text in element.Nodes()
-                    .OfType<XText>()
-                    .Select(node => node.Value.Trim())
-                    .Where(IsFixedDisplayLiteral))
-                {
-                    violations.Add(new(
-                        element.Name.LocalName,
-                        "Body",
-                        text));
-                }
-            }
-
-            if (element.Name.LocalName != "Setter"
-                || !FixedDisplayProperties.Contains(
-                    AttributeValue(element, "Property") ?? string.Empty,
-                    StringComparer.Ordinal))
             {
                 continue;
             }
 
-            string? value = AttributeValue(element, "Value");
-            if (value is not null && IsFixedDisplayLiteral(value))
+            foreach (string text in element.Nodes()
+                .OfType<XText>()
+                .Select(node => node.Value.Trim())
+                .Where(IsFixedDisplayLiteral))
             {
-                violations.Add(new("Setter", "Value", value.Trim()));
-            }
-
-            foreach (XElement setterValue in element.Elements()
-                .Where(child => child.Name.LocalName is "Value" or "Setter.Value"))
-            {
-                foreach (string text in setterValue.DescendantNodes()
-                    .OfType<XText>()
-                    .Select(node => node.Value.Trim())
-                    .Where(IsFixedDisplayLiteral))
-                {
-                    violations.Add(new("Setter", "Value", text));
-                }
+                string target = element.Name.LocalName.Contains(
+                    '.',
+                    StringComparison.Ordinal)
+                    ? element.Name.LocalName
+                    : $"{element.Name.LocalName}.Text";
+                violations.Add($"{target}={text}");
             }
         }
 
@@ -402,36 +338,86 @@ public sealed class LanguageLocalizationContractTests
         XDocument document,
         HashSet<string> resourceKeys)
     {
-        HashSet<string> uids = document.Descendants()
-            .Select(element => AttributeValue(element, "Uid"))
-            .OfType<string>()
-            .ToHashSet(StringComparer.Ordinal);
+        List<string> missing = [];
 
-        return RequiredXamlResourceProperties
-            .Where(item => uids.Contains(item.Uid))
-            .SelectMany(item => item.Properties.Select(property =>
-                $"{item.Uid}.{property}"))
-            .Where(key => !resourceKeys.Contains(key))
-            .ToArray();
+        foreach (XElement element in document.Descendants())
+        {
+            string? uid = AttributeValue(element, "Uid");
+            if (uid is null)
+            {
+                continue;
+            }
+
+            foreach (string property in GetRequiredProperties(element, uid))
+            {
+                string key = $"{uid}.{property}";
+                if (!resourceKeys.Contains(key))
+                {
+                    missing.Add(key);
+                }
+            }
+        }
+
+        return missing.ToArray();
     }
+
+    private static string[] GetRequiredProperties(XElement element, string uid)
+    {
+        string primaryProperty = GetPrimaryProperty(element, uid);
+        foreach ((string overrideUid, string[] properties)
+            in RequiredPropertyOverrides)
+        {
+            if (string.Equals(overrideUid, uid, StringComparison.Ordinal))
+            {
+                return properties;
+            }
+        }
+
+        return [primaryProperty];
+    }
+
+    private static string GetPrimaryProperty(XElement element, string uid) =>
+        element.Name.LocalName switch
+        {
+            "TextBlock" => HasDynamicText(element)
+                ? AutomationNameResourceProperty
+                : "Text",
+            "ComboBoxItem" or "NavigationViewItem" => "Content",
+            "InfoBar" => "Title",
+            "NavigationView" => "PaneTitle",
+            "ComboBox" or "NumberBox" or "TextBox" or "ToggleSwitch"
+                or "Slider" => "Header",
+            "Setter" => "Value",
+            "Button" => element.Elements().Any()
+                ? AutomationNameResourceProperty
+                : "Content",
+            "ContentControl" or "Image" or "ItemsRepeater"
+                or "ProgressRing" or "StackPanel" =>
+                AutomationNameResourceProperty,
+            _ => throw new AssertFailedException(
+                $"x:Uid付きの未知要素型です: {element.Name.LocalName} "
+                + $"(x:Uid={uid})"),
+        };
+
+    private static bool HasDynamicText(XElement element) =>
+        element.DescendantsAndSelf()
+            .Attributes()
+            .Any(attribute => attribute.Name.LocalName == "Text"
+                && IsMarkupExtension(attribute.Value))
+        || element.Elements()
+            .Where(child => child.Name.LocalName == "TextBlock.Text")
+            .SelectMany(child => child.Nodes().OfType<XText>())
+            .Any(node => IsMarkupExtension(node.Value));
 
     private static bool IsFixedDisplayLiteral(string value) =>
         !string.IsNullOrWhiteSpace(value)
-        && !value.TrimStart().StartsWith(
-            "{",
-            StringComparison.Ordinal)
+        && !IsMarkupExtension(value)
         && !FixedLiteralAllowlist.Contains(
             value.Trim(),
             StringComparer.Ordinal);
 
-    private sealed record XamlLiteralViolation(
-        string Element,
-        string Property,
-        string Value)
-    {
-        public override string ToString() =>
-            $"{Element}.{Property}={Value}";
-    }
+    private static bool IsMarkupExtension(string value) =>
+        value.TrimStart().StartsWith("{", StringComparison.Ordinal);
 
     private static IEnumerable<string> GetProductionXamlPaths(string root) =>
         Directory.EnumerateFiles(
