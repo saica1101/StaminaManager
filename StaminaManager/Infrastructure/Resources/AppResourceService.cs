@@ -38,16 +38,6 @@ public sealed class AppResourceService : IAppResourceService
         _getString = getString;
     }
 
-    internal AppResourceService(
-        AppLanguage sessionLanguage,
-        Func<AppLanguage, Func<string, string>> createGetter)
-    {
-        ArgumentNullException.ThrowIfNull(createGetter);
-        Func<string, string>? getString = createGetter(sessionLanguage);
-        ArgumentNullException.ThrowIfNull(getString);
-        _getString = getString;
-    }
-
     private static (
         ResourceManager Manager,
         ResourceMap Map,

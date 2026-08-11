@@ -18,7 +18,7 @@ public sealed class AppCompositionContractTests
             IAppResourceService ResourceService,
             AppLanguage SessionLanguage) session =
             global::StaminaManager.App.CreateSessionResources(
-                languageService,
+                languageService.GetEffectiveLanguage,
                 language =>
                 {
                     resourceLanguage = language;

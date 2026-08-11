@@ -68,7 +68,7 @@ public partial class App : Microsoft.UI.Xaml.Application
         : this(
             notificationScheduler,
             appResourceService,
-            AppLanguage.Japanese)
+            AppResourceService.GetEffectiveLanguageOrDefault())
     {
     }
 
@@ -102,24 +102,19 @@ public partial class App : Microsoft.UI.Xaml.Application
     private static (
         IAppResourceService ResourceService,
         AppLanguage SessionLanguage) CreateSessionResources()
-    {
-        AppLanguage sessionLanguage =
-            AppResourceService.GetEffectiveLanguageOrDefault();
-        return (
-            new AppResourceService(sessionLanguage),
-            sessionLanguage);
-    }
+        => CreateSessionResources(
+            AppResourceService.GetEffectiveLanguageOrDefault,
+            static language => new AppResourceService(language));
 
     internal static (
         IAppResourceService ResourceService,
         AppLanguage SessionLanguage) CreateSessionResources(
-        IAppLanguageService appLanguageService,
+        Func<AppLanguage> resolveLanguage,
         Func<AppLanguage, IAppResourceService> createResourceService)
     {
-        ArgumentNullException.ThrowIfNull(appLanguageService);
+        ArgumentNullException.ThrowIfNull(resolveLanguage);
         ArgumentNullException.ThrowIfNull(createResourceService);
-        AppLanguage sessionLanguage =
-            appLanguageService.GetEffectiveLanguage();
+        AppLanguage sessionLanguage = resolveLanguage();
         IAppResourceService resourceService =
             createResourceService(sessionLanguage);
         ArgumentNullException.ThrowIfNull(resourceService);
