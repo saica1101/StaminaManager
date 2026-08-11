@@ -14,7 +14,9 @@ public sealed class AboutViewModelTests
         RecordingLauncher launcher = new();
         AboutViewModel viewModel = new(
             new FixedVersionProvider(new AppVersionInfo(1, 2, 3, 0)),
-            launcher);
+            launcher,
+            new AppResourceService(_ => string.Empty),
+            AppLanguage.Japanese);
 
         Assert.AreEqual("1.2.3", viewModel.VersionText);
         Assert.AreEqual(0, launcher.CallCount);
@@ -29,7 +31,9 @@ public sealed class AboutViewModelTests
         RecordingLauncher launcher = new();
         AboutViewModel viewModel = new(
             new FixedVersionProvider(new AppVersionInfo(1, 2, 3, 4)),
-            launcher);
+            launcher,
+            new AppResourceService(_ => string.Empty),
+            AppLanguage.Japanese);
 
         await viewModel.OpenGitHubCommand.ExecuteAsync(null);
 
@@ -43,7 +47,9 @@ public sealed class AboutViewModelTests
         RecordingLauncher launcher = new();
         AboutViewModel viewModel = new(
             new FixedVersionProvider(new AppVersionInfo(1, 2, 3, 4)),
-            launcher);
+            launcher,
+            new AppResourceService(_ => string.Empty),
+            AppLanguage.Japanese);
 
         await viewModel.OpenReadmeCommand.ExecuteAsync(null);
 
@@ -59,9 +65,10 @@ public sealed class AboutViewModelTests
             new FixedVersionProvider(new AppVersionInfo(1, 2, 3, 0)),
             launcher,
             new AppResourceService(resourceId =>
-                resourceId == "AboutInfoBar.Message"
+                resourceId == "AboutInfoBar/Message"
                     ? "Could not open the link in the default browser."
-                    : resourceId));
+                    : resourceId),
+            AppLanguage.English);
 
         await viewModel.OpenGitHubCommand.ExecuteAsync(null);
 
@@ -80,9 +87,10 @@ public sealed class AboutViewModelTests
             new FixedVersionProvider(new AppVersionInfo(1, 2, 3, 0)),
             launcher,
             new AppResourceService(resourceId =>
-                resourceId == "AboutInfoBar.Message"
+                resourceId == "AboutInfoBar/Message"
                     ? "Could not open the link in the default browser."
-                    : resourceId));
+                    : resourceId),
+            AppLanguage.English);
 
         await viewModel.OpenReadmeCommand.ExecuteAsync(null);
 
@@ -101,9 +109,10 @@ public sealed class AboutViewModelTests
             new FixedVersionProvider(new AppVersionInfo(1, 2, 3, 0)),
             launcher,
             new AppResourceService(resourceId =>
-                resourceId == "AboutInfoBar.Message"
+                resourceId == "AboutInfoBar/Message"
                     ? "リンクを既定のブラウザーで開けませんでした。"
-                    : resourceId));
+                    : resourceId),
+            AppLanguage.Japanese);
 
         await viewModel.OpenGitHubCommand.ExecuteAsync(null);
 
@@ -170,7 +179,7 @@ public sealed class AboutViewModelTests
 
             Assert.AreEqual(expectedMessage, viewModel.InfoBarMessage);
             Assert.DoesNotContain(
-                "AboutInfoBar.Message",
+                "AboutInfoBar/Message",
                 viewModel.InfoBarMessage);
             Assert.DoesNotContain(
                 "private launcher detail",

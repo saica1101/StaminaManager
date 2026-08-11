@@ -205,6 +205,26 @@ public sealed class ResourceLocalizationContractTests
             formatFailure.Format("BrokenFormat", 1));
     }
 
+    [TestMethod]
+    public void AboutInfoBarMessage_UsesPriPathInCodeAndDotKeyInResources()
+    {
+        string source = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "StaminaManager",
+            "ViewModels",
+            "AboutViewModel.cs"));
+
+        StringAssert.Contains(source, "\"AboutInfoBar/Message\"");
+        Assert.DoesNotContain(source, "\"AboutInfoBar.Message\"");
+
+        foreach (string language in new[] { "ja-JP", "en-US" })
+        {
+            Assert.IsTrue(
+                LoadResources(language).ContainsKey("AboutInfoBar.Message"),
+                $"{language}のResources.reswはdot形式のPRIキーを維持してください。");
+        }
+    }
+
     private static Dictionary<string, string> LoadResources(string language)
     {
         string path = Path.Combine(

@@ -2,14 +2,13 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
-using StaminaManager.Infrastructure.Resources;
 using System.Diagnostics;
 
 namespace StaminaManager.ViewModels;
 
 public sealed partial class AboutViewModel : ObservableObject
 {
-    private const string LaunchFailureResourceId = "AboutInfoBar.Message";
+    private const string LaunchFailureResourceId = "AboutInfoBar/Message";
     private const string JapaneseLaunchFailureFallback =
         "リンクを既定のブラウザーで開けませんでした。";
     private const string EnglishLaunchFailureFallback =
@@ -17,42 +16,6 @@ public sealed partial class AboutViewModel : ObservableObject
     private readonly IExternalUriLauncher _uriLauncher;
     private readonly IAppResourceService _appResourceService;
     private readonly AppLanguage _sessionLanguage;
-
-    public AboutViewModel(
-        IAppVersionProvider versionProvider,
-        IExternalUriLauncher uriLauncher)
-        : this(
-            versionProvider,
-            uriLauncher,
-            CreateSessionResources())
-    {
-    }
-
-    private AboutViewModel(
-        IAppVersionProvider versionProvider,
-        IExternalUriLauncher uriLauncher,
-        (
-            IAppResourceService ResourceService,
-            AppLanguage SessionLanguage) session)
-        : this(
-            versionProvider,
-            uriLauncher,
-            session.ResourceService,
-            session.SessionLanguage)
-    {
-    }
-
-    public AboutViewModel(
-        IAppVersionProvider versionProvider,
-        IExternalUriLauncher uriLauncher,
-        IAppResourceService appResourceService)
-        : this(
-            versionProvider,
-            uriLauncher,
-            appResourceService,
-            AppResourceService.GetEffectiveLanguageOrDefault())
-    {
-    }
 
     public AboutViewModel(
         IAppVersionProvider versionProvider,
@@ -67,17 +30,6 @@ public sealed partial class AboutViewModel : ObservableObject
         _appResourceService = appResourceService;
         _sessionLanguage = sessionLanguage;
         VersionText = versionProvider.GetVersion().DisplayVersion;
-    }
-
-    private static (
-        IAppResourceService ResourceService,
-        AppLanguage SessionLanguage) CreateSessionResources()
-    {
-        AppLanguage sessionLanguage =
-            AppResourceService.GetEffectiveLanguageOrDefault();
-        return (
-            new AppResourceService(sessionLanguage),
-            sessionLanguage);
     }
 
     public string VersionText { get; }

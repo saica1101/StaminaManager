@@ -8,7 +8,6 @@ using StaminaManager.Application;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Calculations;
 using StaminaManager.Core.Models;
-using StaminaManager.Infrastructure.Resources;
 using StaminaManager.Infrastructure.Windows;
 using System.Diagnostics;
 using System.Globalization;
@@ -51,11 +50,6 @@ public sealed class MainWindow : WinUIEx.WindowEx
     private bool _isLifecycleDisposed;
     private readonly MainWindowContent _windowContent;
     private readonly CoalescingUiAction _captionColorUpdate;
-
-    public MainWindow(MainPage mainPage)
-        : this(mainPage, new AppResourceService())
-    {
-    }
 
     public MainWindow(
         MainPage mainPage,

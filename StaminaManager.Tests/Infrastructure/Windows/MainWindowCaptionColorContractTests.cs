@@ -72,11 +72,20 @@ public sealed class MainWindowCaptionColorContractTests
     public void ResolveAppTitle_UsesBrandFallbackWhenResourceIsMissingOrThrows()
     {
         IAppResourceService missing = new AppResourceService(_ => string.Empty);
-        IAppResourceService throwing = new AppResourceService(
-            _ => throw new InvalidOperationException("private loader detail"));
+        IAppResourceService throwing = new ThrowingResourceService(
+            new InvalidOperationException("private loader detail"));
 
         Assert.AreEqual("Stamina Manager", MainWindow.ResolveAppTitle(missing));
         Assert.AreEqual("Stamina Manager", MainWindow.ResolveAppTitle(throwing));
+    }
+
+    [TestMethod]
+    public void ResolveAppTitle_WhenResourceThrowsOutOfMemory_Propagates()
+    {
+        Assert.ThrowsExactly<OutOfMemoryException>(() =>
+            MainWindow.ResolveAppTitle(
+                new ThrowingResourceService(
+                    new OutOfMemoryException("private loader detail"))));
     }
 
     private static string ExtractMethod(
@@ -114,5 +123,14 @@ public sealed class MainWindowCaptionColorContractTests
 
         throw new AssertFailedException(
             "リポジトリ ルートを検出できません。");
+    }
+
+    private sealed class ThrowingResourceService(Exception exception)
+        : IAppResourceService
+    {
+        public string GetString(string resourceId) => throw exception;
+
+        public string Format(string resourceId, params object?[] args) =>
+            throw exception;
     }
 }
