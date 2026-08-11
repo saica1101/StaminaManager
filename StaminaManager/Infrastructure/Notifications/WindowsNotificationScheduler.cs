@@ -1,6 +1,7 @@
 using Microsoft.Windows.AppNotifications;
 using Microsoft.Windows.AppNotifications.Builder;
 using StaminaManager.Core.Abstractions;
+using StaminaManager.Core.Models;
 using StaminaManager.Infrastructure.Resources;
 using System.Diagnostics;
 using System.Globalization;
@@ -287,36 +288,53 @@ internal interface IWindowsNotificationPlatformAdapter
 internal sealed class WindowsNotificationPlatformAdapter
     : IWindowsNotificationPlatformAdapter
 {
-    private readonly AppNotificationManager _manager =
-        AppNotificationManager.Default;
-    private readonly ToastNotifier _notifier =
-        ToastNotificationManager.CreateToastNotifier(
-            AppInfo.Current.AppUserModelId);
+    private readonly Func<string, string?> _resolveResource;
+    private readonly Lazy<AppNotificationManager> _manager = new(
+        static () => AppNotificationManager.Default,
+        LazyThreadSafetyMode.ExecutionAndPublication);
+    private readonly Lazy<ToastNotifier> _notifier = new(
+        static () => ToastNotificationManager.CreateToastNotifier(
+            AppInfo.Current.AppUserModelId),
+        LazyThreadSafetyMode.ExecutionAndPublication);
+
+    internal WindowsNotificationPlatformAdapter()
+        : this(resourceId => LateBoundResourceText.Resolve(
+            resourceId,
+            "Notification"))
+    {
+    }
+
+    internal WindowsNotificationPlatformAdapter(
+        Func<string, string?> resolveResource)
+    {
+        ArgumentNullException.ThrowIfNull(resolveResource);
+        _resolveResource = resolveResource;
+    }
 
     public event EventHandler<string>? ActivationReceived;
 
     public void Register()
     {
-        _manager.NotificationInvoked += OnNotificationInvoked;
+        Manager.NotificationInvoked += OnNotificationInvoked;
         try
         {
-            _manager.Register();
+            Manager.Register();
         }
         catch
         {
-            _manager.NotificationInvoked -= OnNotificationInvoked;
+            Manager.NotificationInvoked -= OnNotificationInvoked;
             throw;
         }
     }
 
     public void Unregister()
     {
-        _manager.NotificationInvoked -= OnNotificationInvoked;
-        _manager.Unregister();
+        Manager.NotificationInvoked -= OnNotificationInvoked;
+        Manager.Unregister();
     }
 
     public IReadOnlyList<WindowsScheduledNotification> GetScheduled() =>
-        _notifier.GetScheduledToastNotifications()
+        Notifier.GetScheduledToastNotifications()
             .Select(notification => new WindowsScheduledNotification(
                 notification.Tag,
                 notification.Group,
@@ -334,7 +352,7 @@ internal sealed class WindowsNotificationPlatformAdapter
             Tag = request.GameId.ToString("N"),
             Group = WindowsNotificationScheduler.NotificationGroup,
         };
-        _notifier.AddToSchedule(notification);
+        Notifier.AddToSchedule(notification);
     }
 
     public bool Show(NotificationRequest request)
@@ -342,7 +360,7 @@ internal sealed class WindowsNotificationPlatformAdapter
         AppNotification notification = BuildNotification(request);
         notification.Tag = request.GameId.ToString("N");
         notification.Group = WindowsNotificationScheduler.NotificationGroup;
-        _manager.Show(notification);
+        Manager.Show(notification);
         return notification.Id != 0;
     }
 
@@ -356,10 +374,14 @@ internal sealed class WindowsNotificationPlatformAdapter
                 nameof(notification));
         }
 
-        _notifier.RemoveFromSchedule(native);
+        Notifier.RemoveFromSchedule(native);
     }
 
-    private static AppNotification BuildNotification(
+    private AppNotificationManager Manager => _manager.Value;
+
+    private ToastNotifier Notifier => _notifier.Value;
+
+    internal AppNotification BuildNotification(
         NotificationRequest request)
     {
         AppNotificationBuilder builder = new AppNotificationBuilder()
@@ -367,9 +389,7 @@ internal sealed class WindowsNotificationPlatformAdapter
             .AddText(request.GameName);
         string? detail = TryFormatDetail(
             request.FullAtUtc,
-            resourceId => LateBoundResourceText.TryGet(
-                resourceId,
-                "Notification"));
+            _resolveResource);
         if (detail is not null)
         {
             builder.AddText(detail);
@@ -381,56 +401,65 @@ internal sealed class WindowsNotificationPlatformAdapter
     internal static string? TryFormatDetail(
         DateTimeOffset fullAtUtc,
         Func<string, string?> resolveResource)
+        => TryFormatDetail(
+            fullAtUtc,
+            resolveResource,
+            LateBoundResourceText.GetEffectiveLanguage());
+
+    internal static string? TryFormatDetail(
+        DateTimeOffset fullAtUtc,
+        Func<string, string?> resolveResource,
+        AppLanguage fallbackLanguage)
     {
         ArgumentNullException.ThrowIfNull(resolveResource);
-        string? detailFormat;
-        try
+        string? detailFormat = LateBoundResourceText.TryGet(
+            "StaminaNotificationDetailFormat",
+            "Notification",
+            resolveResource);
+        if (TryFormatDetail(
+            fullAtUtc,
+            detailFormat,
+            out string? detail))
         {
-            detailFormat = resolveResource(
-                "StaminaNotificationDetailFormat");
-        }
-        catch (Exception exception) when (!IsProcessFatal(exception))
-        {
-            Debug.WriteLine(
-                "Notification resource resolution failed: "
-                + exception.GetType().Name);
-            return null;
+            return detail;
         }
 
-        if (string.IsNullOrWhiteSpace(detailFormat)
-            || string.Equals(
-                detailFormat,
-                "StaminaNotificationDetailFormat",
-                StringComparison.Ordinal))
+        string fallbackFormat = LateBoundResourceText.GetFallback(
+            "StaminaNotificationDetailFormat",
+            fallbackLanguage);
+        return string.Format(
+            CultureInfo.CurrentCulture,
+            fallbackFormat,
+            fullAtUtc.ToLocalTime());
+    }
+
+    private static bool TryFormatDetail(
+        DateTimeOffset fullAtUtc,
+        string? detailFormat,
+        out string? detail)
+    {
+        detail = null;
+        if (string.IsNullOrWhiteSpace(detailFormat))
         {
-            return null;
+            return false;
         }
 
         try
         {
-            string detail = string.Format(
+            detail = string.Format(
                 CultureInfo.CurrentCulture,
                 detailFormat,
                 fullAtUtc.ToLocalTime());
-            return string.IsNullOrWhiteSpace(detail) ? null : detail;
+            return !string.IsNullOrWhiteSpace(detail);
         }
-        catch (Exception exception) when (!IsProcessFatal(exception))
+        catch (FormatException exception)
         {
             Debug.WriteLine(
                 "Notification resource formatting failed: "
                 + exception.GetType().Name);
-            return null;
+            return false;
         }
     }
-
-    private static bool IsProcessFatal(Exception exception) =>
-        exception is OutOfMemoryException
-            or StackOverflowException
-            or AccessViolationException
-            or AppDomainUnloadedException
-            or BadImageFormatException
-            or CannotUnloadAppDomainException
-            or InvalidProgramException;
 
     private void OnNotificationInvoked(
         AppNotificationManager sender,

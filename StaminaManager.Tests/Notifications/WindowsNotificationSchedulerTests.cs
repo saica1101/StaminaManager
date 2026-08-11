@@ -1,5 +1,7 @@
 using StaminaManager.Core.Abstractions;
+using StaminaManager.Core.Models;
 using StaminaManager.Infrastructure.Notifications;
+using Microsoft.Windows.AppNotifications;
 
 namespace StaminaManager.Tests.Notifications;
 
@@ -109,7 +111,7 @@ public sealed class WindowsNotificationSchedulerTests
     }
 
     [TestMethod]
-    public void NotificationDetail_ResourceOrFormatFailureOmitsRawDetail()
+    public void NotificationDetail_ResourceOrFormatFailureUsesLanguageFallback()
     {
         DateTimeOffset fullAtUtc = new(
             2026,
@@ -120,13 +122,51 @@ public sealed class WindowsNotificationSchedulerTests
             0,
             TimeSpan.Zero);
 
-        Assert.IsNull(FormatNotificationDetail(fullAtUtc, _ => null));
-        Assert.IsNull(
-            FormatNotificationDetail(
-                fullAtUtc,
-                _ => throw new InvalidOperationException("loader failure")));
-        Assert.IsNull(
-            FormatNotificationDetail(fullAtUtc, _ => "Broken {0"));
+        string? missing = FormatNotificationDetail(
+            fullAtUtc,
+            _ => null,
+            AppLanguage.Japanese);
+        string? loaderFailure = FormatNotificationDetail(
+            fullAtUtc,
+            _ => throw new InvalidOperationException("loader failure"),
+            AppLanguage.Japanese);
+        string? malformed = FormatNotificationDetail(
+            fullAtUtc,
+            _ => "Broken {0",
+            AppLanguage.Japanese);
+        string? english = FormatNotificationDetail(
+            fullAtUtc,
+            _ => null,
+            AppLanguage.English);
+
+        StringAssert.StartsWith(missing!, "全回復予定:");
+        StringAssert.StartsWith(loaderFailure!, "全回復予定:");
+        StringAssert.StartsWith(malformed!, "全回復予定:");
+        StringAssert.Contains(missing!, "2026");
+        StringAssert.Contains(loaderFailure!, "2026");
+        StringAssert.Contains(malformed!, "2026");
+        StringAssert.StartsWith(english!, "Full recovery scheduled for:");
+    }
+
+    [TestMethod]
+    public void BuildNotification_SameAdapterResolvesChangedLanguage()
+    {
+        Guid gameId = Guid.NewGuid();
+        string language = "ja";
+        Func<string, string?> resolve = _ => language == "ja"
+            ? "JA {0:yyyy-MM-dd}"
+            : "EN {0:yyyy-MM-dd}";
+        WindowsNotificationPlatformAdapter adapter = new(resolve);
+        NotificationRequest request = CreateRequest(gameId);
+
+        AppNotification japanese = adapter.BuildNotification(request);
+        language = "en";
+        AppNotification english = adapter.BuildNotification(request);
+
+        StringAssert.Contains(japanese.Payload, "JA 2026-07-25");
+        Assert.DoesNotContain(japanese.Payload, "EN 2026-07-25");
+        StringAssert.Contains(english.Payload, "EN 2026-07-25");
+        Assert.DoesNotContain(english.Payload, "JA 2026-07-25");
     }
 
     [TestMethod]
@@ -226,10 +266,12 @@ public sealed class WindowsNotificationSchedulerTests
 
     private static string? FormatNotificationDetail(
         DateTimeOffset fullAtUtc,
-        Func<string, string?> resolve)
+        Func<string, string?> resolve,
+        AppLanguage fallbackLanguage = AppLanguage.Japanese)
         => WindowsNotificationPlatformAdapter.TryFormatDetail(
             fullAtUtc,
-            resolve);
+            resolve,
+            fallbackLanguage);
 
     private sealed class FakeWindowsNotificationPlatformAdapter
         : IWindowsNotificationPlatformAdapter

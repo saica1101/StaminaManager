@@ -122,14 +122,17 @@ internal static class LateBoundResourceText
 {
     internal static string? TryGet(
         string resourceId,
-        string consumer)
+        string consumer,
+        Func<string, string?>? resolve = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
         ArgumentException.ThrowIfNullOrWhiteSpace(consumer);
 
         try
         {
-            string value = new ResourceLoader().GetString(resourceId);
+            string? value = resolve is null
+                ? new ResourceLoader().GetString(resourceId)
+                : resolve(resourceId);
             return string.IsNullOrWhiteSpace(value)
                 || string.Equals(
                     value,
@@ -146,6 +149,43 @@ internal static class LateBoundResourceText
             return null;
         }
     }
+
+    internal static string Resolve(
+        string resourceId,
+        string consumer,
+        Func<string, string?>? resolve = null) =>
+        TryGet(resourceId, consumer, resolve)
+        ?? GetFallback(resourceId);
+
+    internal static AppLanguage GetEffectiveLanguage() =>
+        AppResourceService.GetEffectiveLanguageOrDefault();
+
+    internal static string GetFallback(
+        string resourceId,
+        AppLanguage language) => resourceId switch
+        {
+            "StaminaNotificationDetailFormat"
+                when language == AppLanguage.English
+                => "Full recovery scheduled for: {0:g}",
+            "StaminaNotificationDetailFormat"
+                => "全回復予定: {0:g}",
+            "TrayOpenText" when language == AppLanguage.English => "Open",
+            "TrayOpenText" => "開く",
+            "TrayExitText" when language == AppLanguage.English => "Exit",
+            "TrayExitText" => "終了",
+            "TrayOpenAutomationName"
+                when language == AppLanguage.English
+                => "Open Stamina Manager",
+            "TrayOpenAutomationName" => "Stamina Managerを開く",
+            "TrayExitAutomationName"
+                when language == AppLanguage.English
+                => "Exit Stamina Manager",
+            "TrayExitAutomationName" => "Stamina Managerを終了する",
+            _ => resourceId,
+        };
+
+    internal static string GetFallback(string resourceId) =>
+        GetFallback(resourceId, GetEffectiveLanguage());
 
     private static bool IsProcessFatal(Exception exception) =>
         exception is OutOfMemoryException

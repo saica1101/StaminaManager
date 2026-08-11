@@ -1,3 +1,5 @@
+using StaminaManager.Core.Models;
+using StaminaManager.Infrastructure.Resources;
 using StaminaManager.Infrastructure.Windows;
 
 namespace StaminaManager.Tests.Infrastructure.Windows;
@@ -35,7 +37,7 @@ public sealed class TrayServiceTests
     }
 
     [TestMethod]
-    public void CreateDefinitions_リソース失敗時はリソースIDを使い日本語を混在させない()
+    public void CreateDefinitions_リソース失敗時も人間可読fallbackを使う()
     {
         IReadOnlyList<TrayMenuItemDefinition> definitions =
             TrayMenuItemFactory.CreateDefinitions(
@@ -45,15 +47,55 @@ public sealed class TrayServiceTests
             new[]
             {
                 new TrayMenuItemDefinition(
-                    "TrayOpenText",
+                    LateBoundResourceText.GetFallback(
+                        "TrayOpenText"),
                     "TrayOpenMenuItem",
-                    "TrayOpenAutomationName"),
+                    LateBoundResourceText.GetFallback(
+                        "TrayOpenAutomationName")),
                 new TrayMenuItemDefinition(
-                    "TrayExitText",
+                    LateBoundResourceText.GetFallback(
+                        "TrayExitText"),
                     "TrayExitMenuItem",
-                    "TrayExitAutomationName"),
+                    LateBoundResourceText.GetFallback(
+                        "TrayExitAutomationName")),
             },
             definitions.ToArray());
+    }
+
+    [TestMethod]
+    public void Fallbacks_日本語と英語の人間可読文言を持つ()
+    {
+        Assert.AreEqual(
+            "開く",
+            LateBoundResourceText.GetFallback(
+                "TrayOpenText",
+                AppLanguage.Japanese));
+        Assert.AreEqual(
+            "Open",
+            LateBoundResourceText.GetFallback(
+                "TrayOpenText",
+                AppLanguage.English));
+        Assert.AreEqual(
+            "Stamina Managerを終了する",
+            LateBoundResourceText.GetFallback(
+                "TrayExitAutomationName",
+                AppLanguage.Japanese));
+        Assert.AreEqual(
+            "Exit Stamina Manager",
+            LateBoundResourceText.GetFallback(
+                "TrayExitAutomationName",
+                AppLanguage.English));
+    }
+
+    [TestMethod]
+    public void Resolve_リソース値をfallbackより優先する()
+    {
+        Assert.AreEqual(
+            "from-resource",
+            LateBoundResourceText.Resolve(
+                "TrayOpenText",
+                "Tray",
+                _ => "from-resource"));
     }
 
     [TestMethod]

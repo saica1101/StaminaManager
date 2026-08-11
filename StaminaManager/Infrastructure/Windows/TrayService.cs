@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Automation;
 using StaminaManager.Core.Abstractions;
+using StaminaManager.Core.Models;
 using StaminaManager.Infrastructure.Resources;
 using WinUIEx;
 
@@ -214,20 +215,34 @@ internal static class TrayMenuItemFactory
         Func<string, string, string> resolveText)
     {
         ArgumentNullException.ThrowIfNull(resolveText);
+        AppLanguage fallbackLanguage =
+            LateBoundResourceText.GetEffectiveLanguage();
         return
         [
             new TrayMenuItemDefinition(
-                resolveText("TrayOpenText", "TrayOpenText"),
+                resolveText(
+                    "TrayOpenText",
+                    LateBoundResourceText.GetFallback(
+                        "TrayOpenText",
+                        fallbackLanguage)),
                 "TrayOpenMenuItem",
                 resolveText(
                     "TrayOpenAutomationName",
-                    "TrayOpenAutomationName")),
+                    LateBoundResourceText.GetFallback(
+                        "TrayOpenAutomationName",
+                        fallbackLanguage))),
             new TrayMenuItemDefinition(
-                resolveText("TrayExitText", "TrayExitText"),
+                resolveText(
+                    "TrayExitText",
+                    LateBoundResourceText.GetFallback(
+                        "TrayExitText",
+                        fallbackLanguage)),
                 "TrayExitMenuItem",
                 resolveText(
                     "TrayExitAutomationName",
-                    "TrayExitAutomationName")),
+                    LateBoundResourceText.GetFallback(
+                        "TrayExitAutomationName",
+                        fallbackLanguage))),
         ];
     }
 
