@@ -487,7 +487,9 @@ public partial class App : Microsoft.UI.Xaml.Application
             _overviewViewModel,
             _appResourceService);
         _startupStage = "SettingsPage";
-        SettingsPage settingsPage = new(_settingsViewModel);
+        SettingsPage settingsPage = new(
+            _settingsViewModel,
+            _appResourceService);
         _startupStage = "AboutPage";
         AboutPage aboutPage = new(
             new AboutViewModel(versionProvider, externalUriLauncher));

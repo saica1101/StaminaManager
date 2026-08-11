@@ -15,7 +15,8 @@ public sealed class SettingsViewModelBackupTests
     [TestMethod]
     public async Task PreviewRestoreAsync_実行中は全設定操作と再入を拒否する()
     {
-        await using PreviewContext context = await PreviewContext.CreateAsync();
+        await using PreviewContext context = await PreviewContext.CreateAsync(
+            SettingsEnglishResourceFixture.Create());
 
         Task<PreparedBackupRestore> previewTask = context.ViewModel
             .PreviewRestoreAsync("backup.staminabackup");
@@ -24,6 +25,9 @@ public sealed class SettingsViewModelBackupTests
         Assert.IsFalse(context.ViewModel.IsSettingsInteractionEnabled);
         await context.Backup.PreviewStarted.Task.WaitAsync(
             TimeSpan.FromSeconds(5));
+        Assert.AreEqual(
+            "Checking the backup contents...",
+            context.ViewModel.BackupStatusText);
         await Assert.ThrowsExactlyAsync<InvalidOperationException>(
             () => context.ViewModel.PreviewRestoreAsync("second"));
         await Assert.ThrowsExactlyAsync<InvalidOperationException>(
@@ -48,7 +52,8 @@ public sealed class SettingsViewModelBackupTests
     [TestMethod]
     public async Task PreviewRestoreAsync_例外後に設定操作を再び有効にする()
     {
-        await using PreviewContext context = await PreviewContext.CreateAsync();
+        await using PreviewContext context = await PreviewContext.CreateAsync(
+            SettingsEnglishResourceFixture.Create());
         Task<PreparedBackupRestore> previewTask = context.ViewModel
             .PreviewRestoreAsync("backup.staminabackup");
         await context.Backup.PreviewStarted.Task.WaitAsync(
@@ -59,8 +64,82 @@ public sealed class SettingsViewModelBackupTests
         context.Backup.FailPreview(new IOException("preview failure"));
 
         await Assert.ThrowsExactlyAsync<IOException>(() => previewTask);
+        Assert.AreEqual(
+            "The backup could not be read.",
+            context.ViewModel.BackupStatusText);
+        Assert.AreEqual(
+            "The selected backup could not be read. Choose another backup and try again.",
+            context.ViewModel.InfoBarMessage);
+        Assert.AreEqual(
+            "Backup could not be read",
+            context.ViewModel.InfoBarTitle);
         Assert.IsFalse(context.ViewModel.IsBackupBusy);
         Assert.IsTrue(context.ViewModel.IsSettingsInteractionEnabled);
+    }
+
+    [TestMethod]
+    public async Task ExportBackupAsync_英語resourceで成功文言を表示する()
+    {
+        await using PreviewContext context = await PreviewContext.CreateAsync(
+            SettingsEnglishResourceFixture.Create());
+
+        await context.ViewModel.ExportBackupAsync("export");
+
+        Assert.AreEqual(
+            "Backup created.",
+            context.ViewModel.BackupStatusText);
+        Assert.AreEqual(
+            "The backup was saved to the selected location.",
+            context.ViewModel.InfoBarMessage);
+        Assert.AreEqual(
+            "Backup completed",
+            context.ViewModel.InfoBarTitle);
+        Assert.IsFalse(context.ViewModel.IsBackupBusy);
+    }
+
+    [TestMethod]
+    public async Task ExportBackupAsync_失敗時に英語InfoBarを表示する()
+    {
+        await using PreviewContext context = await PreviewContext.CreateAsync(
+            SettingsEnglishResourceFixture.Create());
+        context.Backup.ExportException = new IOException("test failure");
+
+        await context.ViewModel.ExportBackupAsync("export");
+
+        Assert.AreEqual(
+            "The backup could not be created.",
+            context.ViewModel.BackupStatusText);
+        Assert.AreEqual(
+            "The backup could not be created. Try again.",
+            context.ViewModel.InfoBarMessage);
+        Assert.AreEqual(
+            "Backup failed",
+            context.ViewModel.InfoBarTitle);
+        Assert.IsFalse(context.ViewModel.IsBackupBusy);
+    }
+
+    [TestMethod]
+    public async Task RestoreBackupAsync_失敗時に英語InfoBarを表示する()
+    {
+        await using PreviewContext context = await PreviewContext.CreateAsync(
+            SettingsEnglishResourceFixture.Create());
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(
+            () => context.ViewModel.RestoreBackupAsync(
+                "restore",
+                isReplacementConfirmed: true));
+
+        Assert.AreEqual(
+            "The backup could not be restored.",
+            context.ViewModel.BackupStatusText);
+        Assert.AreEqual(
+            "The backup could not be restored. Your current data was not replaced.",
+            context.ViewModel.InfoBarMessage);
+        Assert.AreEqual(
+            "Restore failed",
+            context.ViewModel.InfoBarTitle);
+        Assert.IsFalse(context.ViewModel.IsBackupBusy);
+        Assert.AreEqual(0, context.Store.SaveCount);
     }
 
     [TestMethod]
@@ -130,7 +209,8 @@ public sealed class SettingsViewModelBackupTests
 
         public SettingsViewModel ViewModel { get; }
 
-        public static async Task<PreviewContext> CreateAsync()
+        public static async Task<PreviewContext> CreateAsync(
+            IAppResourceService? resources = null)
         {
             RestoreWorkflowTestStore testStore =
                 await RestoreWorkflowTestStore.CreateAsync(
@@ -164,7 +244,7 @@ public sealed class SettingsViewModelBackupTests
                 services,
                 services,
                 services,
-                new AppResourceService(resourceId => resourceId),
+                resources ?? new AppResourceService(resourceId => resourceId),
                 app);
             viewModel.MarkReady();
             return new PreviewContext(testStore, store, backup, viewModel);
@@ -212,6 +292,8 @@ public sealed class SettingsViewModelBackupTests
 
         public int ExportCount { get; private set; }
 
+        public Exception? ExportException { get; set; }
+
         public int RestoreCount { get; private set; }
 
         public int CancelCount { get; private set; }
@@ -223,6 +305,11 @@ public sealed class SettingsViewModelBackupTests
             CancellationToken cancellationToken)
         {
             ExportCount++;
+            if (ExportException is not null)
+            {
+                return Task.FromException(ExportException);
+            }
+
             return Task.CompletedTask;
         }
 

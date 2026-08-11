@@ -17,6 +17,7 @@ public sealed partial class SettingsPage : Page
 {
     private const int AcrylicOpacityCommitDelayMilliseconds = 250;
     private readonly SettingsAppearanceChangeRouter _appearanceChangeRouter;
+    private readonly IAppResourceService _appResourceService;
     private DispatcherQueueTimer? _acrylicOpacityCommitTimer;
     private Task _acrylicOpacityOperation = Task.CompletedTask;
     private int? _pendingAcrylicOpacityPercent;
@@ -25,10 +26,14 @@ public sealed partial class SettingsPage : Page
     private bool _isSynchronizingControls = true;
     private bool _areControlEventsAttached;
 
-    public SettingsPage(SettingsViewModel viewModel)
+    public SettingsPage(
+        SettingsViewModel viewModel,
+        IAppResourceService appResourceService)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
+        ArgumentNullException.ThrowIfNull(appResourceService);
         ViewModel = viewModel;
+        _appResourceService = appResourceService;
         InitializeComponent();
         DeferredSettingsChangeExecutor executor = new(
             new DispatcherQueueUiWorkQueue(DispatcherQueue));
@@ -228,7 +233,8 @@ public sealed partial class SettingsPage : Page
             SuggestedFileName = $"StaminaManager-{DateTime.Now:yyyyMMdd}",
         };
         picker.FileTypeChoices.Add(
-            "Stamina Manager バックアップ",
+            _appResourceService.GetString(
+                "SettingsBackupFileTypeName"),
             new List<string> { ".staminabackup" });
         PickFileResult? selected = await picker.PickSaveFileAsync();
         if (selected is null)
@@ -266,11 +272,14 @@ public sealed partial class SettingsPage : Page
             {
                 XamlRoot = XamlRoot,
                 RequestedTheme = ActualTheme,
-                Title = "バックアップを復元しますか？",
-                PrimaryButtonText = "現在データを置き換える",
+                Title = _appResourceService.GetString(
+                    "SettingsRestoreDialogTitle"),
+                PrimaryButtonText = _appResourceService.GetString(
+                    "SettingsRestoreDialogPrimaryButton"),
                 PrimaryButtonStyle = (Style)Microsoft.UI.Xaml.Application
                     .Current.Resources["RestoreDialogPrimaryButtonStyle"],
-                CloseButtonText = "キャンセル",
+                CloseButtonText = _appResourceService.GetString(
+                    "SettingsRestoreDialogCloseButton"),
                 CloseButtonStyle = (Style)Microsoft.UI.Xaml.Application
                     .Current.Resources["RestoreDialogCancelButtonStyle"],
                 DefaultButton = ContentDialogButton.Close,
@@ -281,7 +290,12 @@ public sealed partial class SettingsPage : Page
                 "RestoreBackupDialog");
             AutomationProperties.SetName(
                 confirmation,
-                "バックアップの復元確認");
+                _appResourceService.GetString(
+                    "SettingsRestoreDialogAutomationName"));
+            AutomationProperties.SetHelpText(
+                confirmation,
+                _appResourceService.GetString(
+                    "SettingsRestoreDialogHelpText"));
             ContentDialogResult result = await confirmation.ShowAsync();
             if (result != ContentDialogResult.Primary)
             {
@@ -292,10 +306,11 @@ public sealed partial class SettingsPage : Page
             }
 
             isCommitRequested = true;
-            await ExecuteSettingChangeAsync(() =>
-                ViewModel.RestoreBackupAsync(
+            await ExecuteSettingChangeAsync(
+                () => ViewModel.RestoreBackupAsync(
                     prepared.SessionId,
-                    isReplacementConfirmed: true));
+                    isReplacementConfirmed: true),
+                ViewModel.ReportBackupRestoreFailure);
             prepared = null;
         }
         catch (Exception exception)
@@ -318,7 +333,14 @@ public sealed partial class SettingsPage : Page
             Debug.WriteLine(
                 "Backup restore preparation failed: "
                 + exception.GetType().Name);
-            ViewModel.ReportBackupImportFailure();
+            if (isCommitRequested)
+            {
+                ViewModel.ReportBackupRestoreFailure();
+            }
+            else
+            {
+                ViewModel.ReportBackupImportFailure();
+            }
         }
     }
 
@@ -331,24 +353,46 @@ public sealed partial class SettingsPage : Page
         };
         content.Children.Add(new TextBlock
         {
-            Text = "現在のゲーム、画像、設定をバックアップの内容で置き換えます。"
-                + " 端末固有の通知台帳は保持されます。",
+            Text = _appResourceService.GetString(
+                "SettingsRestorePreviewDescription"),
             TextWrapping = TextWrapping.Wrap,
         });
         foreach (string line in new[]
         {
-            $"ゲーム: {preview.GameCount}件",
-            $"画像: {preview.ImageCount}件",
-            $"テーマ: {ViewModel.Theme} → {FormatTheme(preview.Theme)}",
-            $"背景: {ViewModel.SelectedBackdrop} → {FormatBackdrop(preview.Backdrop)}",
-            $"通知: {FormatEnabled(ViewModel.AreNotificationsEnabled)}"
-                + $" → {FormatEnabled(preview.NotificationsEnabled)}",
-            $"閉じる動作: {ViewModel.CloseBehavior} → "
-                + FormatCloseBehavior(preview.CloseBehavior),
-            $"Acrylic の色調不透明度: {preview.AcrylicTintOpacityPercent}%",
-            $"言語: {FormatLanguage(preview.Language)}",
-            $"自動起動: {FormatEnabled(ViewModel.IsStartupEnabled)}"
-                + $" → {FormatEnabled(preview.StartupEnabled)}",
+            _appResourceService.Format(
+                "SettingsRestorePreviewGameCountFormat",
+                preview.GameCount),
+            _appResourceService.Format(
+                "SettingsRestorePreviewImageCountFormat",
+                preview.ImageCount),
+            _appResourceService.Format(
+                "SettingsRestorePreviewThemeFormat",
+                FormatTheme(ViewModel.Theme),
+                FormatTheme(preview.Theme)),
+            _appResourceService.Format(
+                "SettingsRestorePreviewBackdropFormat",
+                FormatBackdrop(ViewModel.SelectedBackdrop),
+                FormatBackdrop(preview.Backdrop)),
+            _appResourceService.Format(
+                "SettingsRestorePreviewNotificationsFormat",
+                FormatEnabled(ViewModel.AreNotificationsEnabled),
+                FormatEnabled(preview.NotificationsEnabled)),
+            _appResourceService.Format(
+                "SettingsRestorePreviewCloseBehaviorFormat",
+                FormatCloseBehavior(ViewModel.CloseBehavior),
+                FormatCloseBehavior(preview.CloseBehavior)),
+            _appResourceService.Format(
+                "SettingsRestorePreviewAcrylicOpacityFormat",
+                ViewModel.AcrylicTintOpacityPercent,
+                preview.AcrylicTintOpacityPercent),
+            _appResourceService.Format(
+                "SettingsRestorePreviewLanguageFormat",
+                FormatLanguage(ViewModel.Language),
+                FormatLanguage(preview.Language)),
+            _appResourceService.Format(
+                "SettingsRestorePreviewStartupFormat",
+                FormatEnabled(ViewModel.IsStartupEnabled),
+                FormatEnabled(preview.StartupEnabled)),
         })
         {
             content.Children.Add(new TextBlock
@@ -361,40 +405,58 @@ public sealed partial class SettingsPage : Page
         return content;
     }
 
-    private static string FormatEnabled(bool isEnabled) =>
-        isEnabled ? "オン" : "オフ";
+    private string FormatEnabled(bool isEnabled) =>
+        _appResourceService.GetString(
+            isEnabled
+                ? "SettingsRestorePreviewOn"
+                : "SettingsRestorePreviewOff");
 
-    private static string FormatTheme(AppTheme theme) => theme switch
+    private string FormatTheme(AppTheme theme) => theme switch
     {
-        AppTheme.Light => "ライト",
-        AppTheme.Dark => "ダーク",
+        AppTheme.Light => _appResourceService.GetString(
+            "SettingsRestorePreviewLight"),
+        AppTheme.Dark => _appResourceService.GetString(
+            "SettingsRestorePreviewDark"),
         _ => theme.ToString(),
     };
 
-    private static string FormatBackdrop(BackdropKind backdrop) => backdrop switch
+    private string FormatBackdrop(BackdropKind backdrop) => backdrop switch
     {
-        BackdropKind.Mica => "Mica",
-        BackdropKind.Acrylic => "Acrylic",
-        BackdropKind.Solid => "単色",
-        BackdropKind.Blur => "Blur",
-        BackdropKind.Transparent => "Transparent",
+        BackdropKind.Mica => _appResourceService.GetString(
+            "SettingsRestorePreviewMica"),
+        BackdropKind.Acrylic => _appResourceService.GetString(
+            "SettingsRestorePreviewAcrylic"),
+        BackdropKind.Solid => _appResourceService.GetString(
+            "SettingsRestorePreviewSolid"),
+        BackdropKind.Blur => _appResourceService.GetString(
+            "SettingsRestorePreviewBlur"),
+        BackdropKind.Transparent => _appResourceService.GetString(
+            "SettingsRestorePreviewTransparent"),
         _ => backdrop.ToString(),
     };
 
-    private static string FormatCloseBehavior(CloseBehavior closeBehavior) =>
-        closeBehavior == CloseBehavior.Exit ? "終了" : "最小化";
+    private string FormatCloseBehavior(CloseBehavior closeBehavior) =>
+        _appResourceService.GetString(
+            closeBehavior == CloseBehavior.Exit
+                ? "SettingsRestorePreviewExit"
+                : "SettingsRestorePreviewTray");
 
-    private static string FormatLanguage(AppLanguage language) => language ==
-        AppLanguage.English ? "English" : "日本語";
+    private string FormatLanguage(AppLanguage language) =>
+        _appResourceService.GetString(
+            language == AppLanguage.English
+                ? "SettingsRestorePreviewEnglish"
+                : "SettingsRestorePreviewJapanese");
 
     private void SettingsInfoBar_Closed(
         InfoBar sender,
         InfoBarClosedEventArgs args) => ViewModel.DismissInfoBar();
 
-    internal Task ExecuteSettingChangeAsync(Func<Task> settingChange) =>
+    internal Task ExecuteSettingChangeAsync(
+        Func<Task> settingChange,
+        Action? reportFailure = null) =>
         SettingsChangeExecutor.ExecuteAsync(
             settingChange,
-            ViewModel.ReportUnexpectedFailure,
+            reportFailure ?? ViewModel.ReportUnexpectedFailure,
             SynchronizeControls);
 
     private void SynchronizeControls()

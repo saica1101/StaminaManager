@@ -1320,7 +1320,8 @@ public sealed class SettingsViewModelTests
     public async Task ReservedActions_ReportPreparationWithoutClaimingSuccess()
     {
         Context context = await Context.CreateAsync();
-        SettingsViewModel viewModel = context.CreateViewModel();
+        SettingsViewModel viewModel = context.CreateViewModel(
+            SettingsEnglishResourceFixture.Create());
         List<SettingsPreparationAction> requests = [];
         viewModel.PreparationRequested += requests.Add;
 
@@ -1340,7 +1341,9 @@ public sealed class SettingsViewModelTests
         Assert.IsFalse(viewModel.AreWindowsNotificationsAvailable);
         Assert.IsTrue(viewModel.IsOpenWindowsNotificationSettingsVisible);
         Assert.IsTrue(viewModel.IsInfoBarOpen);
-        StringAssert.Contains(viewModel.InfoBarMessage, "準備中");
+        Assert.AreEqual(
+            "This feature is being prepared. No data or Windows settings were changed.",
+            viewModel.InfoBarMessage);
     }
 
     [TestMethod]

@@ -643,7 +643,13 @@ public sealed class AccessibilityPrivacyContractTests
             "ReportBackupImportFailure");
         StringAssert.Contains(
             viewModelSource,
-            "別のバックアップを選んで再試行してください");
+            "SettingsBackupImportFailureMessage");
+        Dictionary<string, string> english = LoadResourceValues(
+            Path.Combine(root, "StaminaManager"),
+            "en-US");
+        Assert.AreEqual(
+            "The selected backup could not be read. Choose another backup and try again.",
+            english["SettingsBackupImportFailureMessage"]);
     }
 
     [TestMethod]

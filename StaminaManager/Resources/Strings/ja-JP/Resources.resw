@@ -303,4 +303,59 @@
   <data name="SettingsAcrylicOpacityRollbackUnknownAfterCancel" xml:space="preserve"><value>設定の保存がキャンセルされました。以前の設定に戻しました。背景の実際の表示状態を確認できません。アプリを再起動してください。</value></data>
   <data name="SettingsAcrylicOpacityRollbackFailed" xml:space="preserve"><value>設定を保存できませんでした。背景表示を以前に戻せないため、アプリを再起動してください。</value></data>
   <data name="SettingsAcrylicOpacityRollbackFailedAfterCancel" xml:space="preserve"><value>設定の保存がキャンセルされました。背景表示を以前に戻せないため、アプリを再起動してください。</value></data>
+  <data name="SettingsBackupBusy" xml:space="preserve"><value>バックアップ処理中です。完了してからもう一度お試しください。</value></data>
+  <data name="SettingsBackupBusyTitle" xml:space="preserve"><value>バックアップ処理中です</value></data>
+  <data name="SettingsBackupExportBusy" xml:space="preserve"><value>バックアップを作成しています…</value></data>
+  <data name="SettingsBackupExportSuccessStatus" xml:space="preserve"><value>バックアップを作成しました。</value></data>
+  <data name="SettingsBackupExportSuccessMessage" xml:space="preserve"><value>選択した場所にバックアップを保存しました。</value></data>
+  <data name="SettingsBackupExportSuccessTitle" xml:space="preserve"><value>バックアップが完了しました</value></data>
+  <data name="SettingsBackupExportFailureStatus" xml:space="preserve"><value>バックアップを作成できませんでした。</value></data>
+  <data name="SettingsBackupExportFailureMessage" xml:space="preserve"><value>バックアップを作成できませんでした。もう一度お試しください。</value></data>
+  <data name="SettingsBackupExportFailureTitle" xml:space="preserve"><value>バックアップに失敗しました</value></data>
+  <data name="SettingsBackupPreviewBusy" xml:space="preserve"><value>バックアップの内容を確認しています…</value></data>
+  <data name="SettingsBackupImportFailureStatus" xml:space="preserve"><value>バックアップを読み込めませんでした。</value></data>
+  <data name="SettingsBackupImportFailureMessage" xml:space="preserve"><value>選択したバックアップを読み込めませんでした。別のバックアップを選んで再試行してください。</value></data>
+  <data name="SettingsBackupImportFailureTitle" xml:space="preserve"><value>バックアップを読み込めませんでした</value></data>
+  <data name="SettingsBackupCancelBusy" xml:space="preserve"><value>復元の準備を取り消しています…</value></data>
+  <data name="SettingsBackupRestoreBusy" xml:space="preserve"><value>バックアップを復元しています…</value></data>
+  <data name="SettingsBackupRestoreSuccessStatus" xml:space="preserve"><value>バックアップを復元しました。</value></data>
+  <data name="SettingsBackupRestorePartialStatus" xml:space="preserve"><value>データを復元しました。Windows設定の再調整を次回も試行します。</value></data>
+  <data name="SettingsBackupRestoreSuccessTitle" xml:space="preserve"><value>復元が完了しました</value></data>
+  <data name="SettingsBackupRestorePartialTitle" xml:space="preserve"><value>データは復元済みです</value></data>
+  <data name="SettingsBackupRestoreFailureStatus" xml:space="preserve"><value>バックアップを復元できませんでした。</value></data>
+  <data name="SettingsBackupRestoreFailureMessage" xml:space="preserve"><value>バックアップを復元できませんでした。現在のデータは置き換えていません。</value></data>
+  <data name="SettingsBackupRestoreFailureTitle" xml:space="preserve"><value>復元に失敗しました</value></data>
+  <data name="SettingsBackupPrepareMessage" xml:space="preserve"><value>この機能は準備中です。データやWindows設定は変更されていません。</value></data>
+  <data name="SettingsBackupPrepareTitle" xml:space="preserve"><value>準備中の機能です</value></data>
+  <data name="SettingsBackupUnavailable" xml:space="preserve"><value>バックアップ機能を利用できません。</value></data>
+  <data name="SettingsBackupAlreadyBusy" xml:space="preserve"><value>バックアップ処理は既に実行中です。</value></data>
+  <data name="SettingsBackupFileTypeName" xml:space="preserve"><value>Stamina Manager バックアップ</value></data>
+  <data name="SettingsRestoreDialogTitle" xml:space="preserve"><value>バックアップを復元しますか？</value></data>
+  <data name="SettingsRestoreDialogPrimaryButton" xml:space="preserve"><value>現在のデータを置き換える</value></data>
+  <data name="SettingsRestoreDialogCloseButton" xml:space="preserve"><value>キャンセル</value></data>
+  <data name="SettingsRestoreDialogAutomationName" xml:space="preserve"><value>バックアップの復元確認</value></data>
+  <data name="SettingsRestoreDialogHelpText" xml:space="preserve"><value>バックアップ内容を確認し、現在のデータを置き換えるか選択します。</value></data>
+  <data name="SettingsRestorePreviewDescription" xml:space="preserve"><value>現在のゲーム、画像、設定をバックアップの内容で置き換えます。端末固有の通知台帳は保持されます。</value></data>
+  <data name="SettingsRestorePreviewGameCountFormat" xml:space="preserve"><value>ゲーム: {0}件</value></data>
+  <data name="SettingsRestorePreviewImageCountFormat" xml:space="preserve"><value>画像: {0}件</value></data>
+  <data name="SettingsRestorePreviewThemeFormat" xml:space="preserve"><value>テーマ: {0} → {1}</value></data>
+  <data name="SettingsRestorePreviewBackdropFormat" xml:space="preserve"><value>背景: {0} → {1}</value></data>
+  <data name="SettingsRestorePreviewNotificationsFormat" xml:space="preserve"><value>通知: {0} → {1}</value></data>
+  <data name="SettingsRestorePreviewCloseBehaviorFormat" xml:space="preserve"><value>閉じる動作: {0} → {1}</value></data>
+  <data name="SettingsRestorePreviewAcrylicOpacityFormat" xml:space="preserve"><value>Acrylic の色調不透明度: {0}% → {1}%</value></data>
+  <data name="SettingsRestorePreviewLanguageFormat" xml:space="preserve"><value>言語: {0} → {1}</value></data>
+  <data name="SettingsRestorePreviewStartupFormat" xml:space="preserve"><value>自動起動: {0} → {1}</value></data>
+  <data name="SettingsRestorePreviewOn" xml:space="preserve"><value>オン</value></data>
+  <data name="SettingsRestorePreviewOff" xml:space="preserve"><value>オフ</value></data>
+  <data name="SettingsRestorePreviewLight" xml:space="preserve"><value>ライト</value></data>
+  <data name="SettingsRestorePreviewDark" xml:space="preserve"><value>ダーク</value></data>
+  <data name="SettingsRestorePreviewMica" xml:space="preserve"><value>Mica</value></data>
+  <data name="SettingsRestorePreviewAcrylic" xml:space="preserve"><value>Acrylic</value></data>
+  <data name="SettingsRestorePreviewSolid" xml:space="preserve"><value>単色</value></data>
+  <data name="SettingsRestorePreviewBlur" xml:space="preserve"><value>Blur</value></data>
+  <data name="SettingsRestorePreviewTransparent" xml:space="preserve"><value>Transparent</value></data>
+  <data name="SettingsRestorePreviewTray" xml:space="preserve"><value>最小化</value></data>
+  <data name="SettingsRestorePreviewExit" xml:space="preserve"><value>終了</value></data>
+  <data name="SettingsRestorePreviewJapanese" xml:space="preserve"><value>日本語</value></data>
+  <data name="SettingsRestorePreviewEnglish" xml:space="preserve"><value>English</value></data>
 </root>

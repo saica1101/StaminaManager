@@ -42,8 +42,8 @@ public sealed partial class SettingsViewModel : ObservableObject
     private string InitializationFailureMessage =>
         _appResourceService.GetString("SettingsInitializationFailure");
 
-    private const string BackupBusyMessage =
-        "バックアップ処理中です。完了してからもう一度お試しください。";
+    private string BackupBusyMessage => _appResourceService.GetString(
+        "SettingsBackupBusy");
 
     private string UnexpectedFailureMessage => _appResourceService.GetString(
         "SettingsUnexpectedFailure");
@@ -1087,17 +1087,40 @@ public sealed partial class SettingsViewModel : ObservableObject
         EnsureBackupIsIdle();
         AppCoordinator coordinator = GetBackupCoordinator();
         IsBackupBusy = true;
-        BackupStatusText = "バックアップを作成しています…";
+        BackupStatusText = _appResourceService.GetString(
+            "SettingsBackupExportBusy");
         try
         {
             await coordinator.ExportBackupAsync(
                 destinationPath,
                 cancellationToken);
-            BackupStatusText = "バックアップを作成しました。";
+            BackupStatusText = _appResourceService.GetString(
+                "SettingsBackupExportSuccessStatus");
             ShowMessage(
-                "選択した場所にバックアップを保存しました。",
+                _appResourceService.GetString(
+                    "SettingsBackupExportSuccessMessage"),
                 InfoBarSeverity.Success,
-                "バックアップが完了しました");
+                _appResourceService.GetString(
+                    "SettingsBackupExportSuccessTitle"));
+        }
+        catch (OperationCanceledException)
+        {
+            BackupStatusText = string.Empty;
+            throw;
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Backup export failed: "
+                + exception.GetType().Name);
+            BackupStatusText = _appResourceService.GetString(
+                "SettingsBackupExportFailureStatus");
+            ShowMessage(
+                _appResourceService.GetString(
+                    "SettingsBackupExportFailureMessage"),
+                InfoBarSeverity.Error,
+                _appResourceService.GetString(
+                    "SettingsBackupExportFailureTitle"));
         }
         finally
         {
@@ -1112,12 +1135,33 @@ public sealed partial class SettingsViewModel : ObservableObject
         EnsureBackupIsIdle();
         AppCoordinator coordinator = GetBackupCoordinator();
         IsBackupBusy = true;
-        BackupStatusText = "バックアップの内容を確認しています…";
+        BackupStatusText = _appResourceService.GetString(
+            "SettingsBackupPreviewBusy");
         try
         {
             return await coordinator.PreviewRestoreAsync(
                 sourcePath,
                 cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            BackupStatusText = string.Empty;
+            throw;
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Backup restore preview failed: "
+                + exception.GetType().Name);
+            BackupStatusText = _appResourceService.GetString(
+                "SettingsBackupImportFailureStatus");
+            ShowMessage(
+                _appResourceService.GetString(
+                    "SettingsBackupImportFailureMessage"),
+                InfoBarSeverity.Error,
+                _appResourceService.GetString(
+                    "SettingsBackupImportFailureTitle"));
+            throw;
         }
         finally
         {
@@ -1132,13 +1176,34 @@ public sealed partial class SettingsViewModel : ObservableObject
         EnsureBackupIsIdle();
         AppCoordinator coordinator = GetBackupCoordinator();
         IsBackupBusy = true;
-        BackupStatusText = "復元の準備を取り消しています…";
+        BackupStatusText = _appResourceService.GetString(
+            "SettingsBackupCancelBusy");
         try
         {
             await coordinator.CancelPreparedRestoreAsync(
                 sessionId,
                 cancellationToken);
             BackupStatusText = string.Empty;
+        }
+        catch (OperationCanceledException)
+        {
+            BackupStatusText = string.Empty;
+            throw;
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Prepared backup restore cancellation failed: "
+                + exception.GetType().Name);
+            BackupStatusText = _appResourceService.GetString(
+                "SettingsBackupRestoreFailureStatus");
+            ShowMessage(
+                _appResourceService.GetString(
+                    "SettingsBackupRestoreFailureMessage"),
+                InfoBarSeverity.Error,
+                _appResourceService.GetString(
+                    "SettingsBackupRestoreFailureTitle"));
+            throw;
         }
         finally
         {
@@ -1154,7 +1219,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         EnsureBackupIsIdle();
         AppCoordinator coordinator = GetBackupCoordinator();
         IsBackupBusy = true;
-        BackupStatusText = "バックアップを復元しています…";
+        BackupStatusText = _appResourceService.GetString(
+            "SettingsBackupRestoreBusy");
         try
         {
             BackupRestoreResult result = await coordinator.RestoreBackupAsync(
@@ -1172,17 +1238,41 @@ public sealed partial class SettingsViewModel : ObservableObject
                 || coordinator.LastNotificationReconcileResult?.HasFailures
                     == true;
             BackupStatusText = hasRetry
-                ? "データを復元しました。Windows設定の再調整を次回も試行します。"
-                : "バックアップを復元しました。";
+                ? _appResourceService.GetString(
+                    "SettingsBackupRestorePartialStatus")
+                : _appResourceService.GetString(
+                    "SettingsBackupRestoreSuccessStatus");
             ShowMessage(
                 BackupStatusText,
                 hasRetry
                     ? InfoBarSeverity.Warning
                     : InfoBarSeverity.Success,
                 hasRetry
-                    ? "データは復元済みです"
-                    : "復元が完了しました");
+                    ? _appResourceService.GetString(
+                        "SettingsBackupRestorePartialTitle")
+                    : _appResourceService.GetString(
+                        "SettingsBackupRestoreSuccessTitle"));
             return result;
+        }
+        catch (OperationCanceledException)
+        {
+            BackupStatusText = string.Empty;
+            throw;
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Backup restore failed: "
+                + exception.GetType().Name);
+            BackupStatusText = _appResourceService.GetString(
+                "SettingsBackupRestoreFailureStatus");
+            ShowMessage(
+                _appResourceService.GetString(
+                    "SettingsBackupRestoreFailureMessage"),
+                InfoBarSeverity.Error,
+                _appResourceService.GetString(
+                    "SettingsBackupRestoreFailureTitle"));
+            throw;
         }
         finally
         {
@@ -1217,11 +1307,29 @@ public sealed partial class SettingsViewModel : ObservableObject
         UnexpectedFailureMessage,
         InfoBarSeverity.Error);
 
-    internal void ReportBackupImportFailure() => ShowMessage(
-        "選択したバックアップを読み込めませんでした。"
-        + "別のバックアップを選んで再試行してください。",
-        InfoBarSeverity.Error,
-        "バックアップを読み込めませんでした");
+    internal void ReportBackupImportFailure()
+    {
+        BackupStatusText = _appResourceService.GetString(
+            "SettingsBackupImportFailureStatus");
+        ShowMessage(
+            _appResourceService.GetString(
+                "SettingsBackupImportFailureMessage"),
+            InfoBarSeverity.Error,
+            _appResourceService.GetString(
+                "SettingsBackupImportFailureTitle"));
+    }
+
+    internal void ReportBackupRestoreFailure()
+    {
+        BackupStatusText = _appResourceService.GetString(
+            "SettingsBackupRestoreFailureStatus");
+        ShowMessage(
+            _appResourceService.GetString(
+                "SettingsBackupRestoreFailureMessage"),
+            InfoBarSeverity.Error,
+            _appResourceService.GetString(
+                "SettingsBackupRestoreFailureTitle"));
+    }
 
     public void SynchronizeFromCurrentSettings(
         ThemeResult? themeResult = null,
@@ -1435,21 +1543,25 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         PreparationRequested?.Invoke(action);
         ShowMessage(
-            "この機能は準備中です。データやWindows設定は変更されていません。",
+            _appResourceService.GetString(
+                "SettingsBackupPrepareMessage"),
             InfoBarSeverity.Informational,
-            "準備中の機能です");
+            _appResourceService.GetString(
+                "SettingsBackupPrepareTitle"));
     }
 
     private AppCoordinator GetBackupCoordinator() =>
         _appCoordinator ?? throw new InvalidOperationException(
-            "バックアップ機能を利用できません。");
+            _appResourceService.GetString(
+                "SettingsBackupUnavailable"));
 
     private void EnsureBackupIsIdle()
     {
         if (IsBackupBusy)
         {
             throw new InvalidOperationException(
-                "バックアップ処理は既に実行中です。");
+                _appResourceService.GetString(
+                    "SettingsBackupAlreadyBusy"));
         }
     }
 
@@ -1849,7 +1961,8 @@ public sealed partial class SettingsViewModel : ObservableObject
             ShowMessage(
                 BackupBusyMessage,
                 InfoBarSeverity.Warning,
-                "バックアップ処理中です");
+                _appResourceService.GetString(
+                    "SettingsBackupBusyTitle"));
             return false;
         }
 

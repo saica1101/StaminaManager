@@ -47,5 +47,57 @@ internal static class SettingsEnglishResourceFixture
                 + "be synchronized. Change the setting and try again.",
             ["SettingsNotificationReconcileTitle"] =
                 "Notification synchronization is incomplete",
+            ["SettingsBackupBusy"] =
+                "A backup operation is already in progress. Try again when it is complete.",
+            ["SettingsBackupBusyTitle"] =
+                "Backup in progress",
+            ["SettingsBackupExportBusy"] =
+                "Creating a backup...",
+            ["SettingsBackupExportSuccessStatus"] =
+                "Backup created.",
+            ["SettingsBackupExportSuccessMessage"] =
+                "The backup was saved to the selected location.",
+            ["SettingsBackupExportSuccessTitle"] =
+                "Backup completed",
+            ["SettingsBackupExportFailureStatus"] =
+                "The backup could not be created.",
+            ["SettingsBackupExportFailureMessage"] =
+                "The backup could not be created. Try again.",
+            ["SettingsBackupExportFailureTitle"] =
+                "Backup failed",
+            ["SettingsBackupPreviewBusy"] =
+                "Checking the backup contents...",
+            ["SettingsBackupImportFailureStatus"] =
+                "The backup could not be read.",
+            ["SettingsBackupCancelBusy"] =
+                "Canceling backup restore preparation...",
+            ["SettingsBackupRestoreBusy"] =
+                "Restoring the backup...",
+            ["SettingsBackupRestoreSuccessStatus"] =
+                "Backup restored.",
+            ["SettingsBackupRestorePartialStatus"] =
+                "Data restored. Windows settings will be retried next time.",
+            ["SettingsBackupRestoreSuccessTitle"] =
+                "Restore completed",
+            ["SettingsBackupRestorePartialTitle"] =
+                "Data restored",
+            ["SettingsBackupRestoreFailureStatus"] =
+                "The backup could not be restored.",
+            ["SettingsBackupImportFailureMessage"] =
+                "The selected backup could not be read. Choose another backup and try again.",
+            ["SettingsBackupImportFailureTitle"] =
+                "Backup could not be read",
+            ["SettingsBackupRestoreFailureMessage"] =
+                "The backup could not be restored. Your current data was not replaced.",
+            ["SettingsBackupRestoreFailureTitle"] =
+                "Restore failed",
+            ["SettingsBackupPrepareMessage"] =
+                "This feature is being prepared. No data or Windows settings were changed.",
+            ["SettingsBackupPrepareTitle"] =
+                "Feature not ready",
+            ["SettingsBackupUnavailable"] =
+                "Backup is unavailable.",
+            ["SettingsBackupAlreadyBusy"] =
+                "A backup operation is already running.",
         });
 }

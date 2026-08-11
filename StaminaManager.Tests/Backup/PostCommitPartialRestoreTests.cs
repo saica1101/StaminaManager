@@ -154,7 +154,7 @@ public sealed class PostCommitPartialRestoreTests
             services,
             services,
             services,
-            new AppResourceService(resourceId => resourceId),
+            SettingsEnglishResourceFixture.Create(),
             app);
         viewModel.MarkReady();
 
@@ -175,6 +175,12 @@ public sealed class PostCommitPartialRestoreTests
         Assert.AreEqual("new", manager.Games[0].Name);
         Assert.AreEqual(AppTheme.Dark, manager.CurrentData.Settings.Theme);
         Assert.AreEqual(AppTheme.Dark, viewModel.Theme);
+        Assert.AreEqual(
+            "Data restored. Windows settings will be retried next time.",
+            viewModel.BackupStatusText);
+        Assert.AreEqual(
+            "Data restored",
+            viewModel.InfoBarTitle);
         Assert.IsFalse(viewModel.IsBackupBusy);
         Assert.IsTrue(viewModel.IsSettingsInteractionEnabled);
         Assert.IsNotNull(await backup.ResumeAsync(CancellationToken.None));
