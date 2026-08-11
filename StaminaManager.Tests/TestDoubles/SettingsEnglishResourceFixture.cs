@@ -71,6 +71,12 @@ internal static class SettingsEnglishResourceFixture
                 "The backup could not be read.",
             ["SettingsBackupCancelBusy"] =
                 "Canceling backup restore preparation...",
+            ["SettingsBackupCancelFailureStatus"] =
+                "Backup restore preparation could not be canceled.",
+            ["SettingsBackupCancelFailureMessage"] =
+                "The backup restore preparation could not be canceled. Try again.",
+            ["SettingsBackupCancelFailureTitle"] =
+                "Cancel failed",
             ["SettingsBackupRestoreBusy"] =
                 "Restoring the backup...",
             ["SettingsBackupRestoreSuccessStatus"] =

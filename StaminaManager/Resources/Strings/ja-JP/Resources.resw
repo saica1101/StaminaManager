@@ -317,6 +317,9 @@
   <data name="SettingsBackupImportFailureMessage" xml:space="preserve"><value>選択したバックアップを読み込めませんでした。別のバックアップを選んで再試行してください。</value></data>
   <data name="SettingsBackupImportFailureTitle" xml:space="preserve"><value>バックアップを読み込めませんでした</value></data>
   <data name="SettingsBackupCancelBusy" xml:space="preserve"><value>復元の準備を取り消しています…</value></data>
+  <data name="SettingsBackupCancelFailureStatus" xml:space="preserve"><value>復元の準備を取り消せませんでした。</value></data>
+  <data name="SettingsBackupCancelFailureMessage" xml:space="preserve"><value>復元の準備を取り消せませんでした。もう一度お試しください。</value></data>
+  <data name="SettingsBackupCancelFailureTitle" xml:space="preserve"><value>取り消しに失敗しました</value></data>
   <data name="SettingsBackupRestoreBusy" xml:space="preserve"><value>バックアップを復元しています…</value></data>
   <data name="SettingsBackupRestoreSuccessStatus" xml:space="preserve"><value>バックアップを復元しました。</value></data>
   <data name="SettingsBackupRestoreSuccessRestartStatus" xml:space="preserve"><value>バックアップを復元しました。表示言語を反映するにはアプリを再起動してください。</value></data>

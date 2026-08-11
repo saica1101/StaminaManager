@@ -16,6 +16,13 @@ namespace StaminaManager.Views;
 public sealed partial class SettingsPage : Page
 {
     private const int AcrylicOpacityCommitDelayMilliseconds = 250;
+
+    private enum RestoreDialogPhase
+    {
+        Preview,
+        Cancel,
+        Commit,
+    }
     private readonly SettingsAppearanceChangeRouter _appearanceChangeRouter;
     private readonly IAppResourceService _appResourceService;
     private DispatcherQueueTimer? _acrylicOpacityCommitTimer;
@@ -263,12 +270,12 @@ public sealed partial class SettingsPage : Page
         }
 
         PreparedBackupRestore? prepared = null;
-        bool isCommitRequested = false;
+        RestoreDialogPhase phase = RestoreDialogPhase.Preview;
         try
         {
             prepared = await ViewModel.PreviewRestoreAsync(
                 selected.Path);
-            ContentDialog confirmation = new()
+            RestoreBackupDialog confirmation = new()
             {
                 XamlRoot = XamlRoot,
                 RequestedTheme = ActualTheme,
@@ -285,6 +292,7 @@ public sealed partial class SettingsPage : Page
                 DefaultButton = ContentDialogButton.Close,
                 Content = CreateRestorePreview(prepared.Preview),
             };
+            confirmation.Opened += RestoreBackupDialog_Opened;
             AutomationProperties.SetAutomationId(
                 confirmation,
                 "RestoreBackupDialog");
@@ -299,13 +307,14 @@ public sealed partial class SettingsPage : Page
             ContentDialogResult result = await confirmation.ShowAsync();
             if (result != ContentDialogResult.Primary)
             {
+                phase = RestoreDialogPhase.Cancel;
                 await ViewModel.CancelPreparedRestoreAsync(
                     prepared.SessionId);
                 prepared = null;
                 return;
             }
 
-            isCommitRequested = true;
+            phase = RestoreDialogPhase.Commit;
             await ExecuteSettingChangeAsync(
                 () => ViewModel.RestoreBackupAsync(
                     prepared.SessionId,
@@ -315,7 +324,8 @@ public sealed partial class SettingsPage : Page
         }
         catch (Exception exception)
         {
-            if (prepared is not null && !isCommitRequested)
+            if (prepared is not null
+                && phase == RestoreDialogPhase.Preview)
             {
                 try
                 {
@@ -333,18 +343,35 @@ public sealed partial class SettingsPage : Page
             Debug.WriteLine(
                 "Backup restore preparation failed: "
                 + exception.GetType().Name);
-            if (isCommitRequested)
+            if (phase == RestoreDialogPhase.Commit)
             {
                 ViewModel.ReportBackupRestoreFailure();
             }
-            else
+            else if (phase == RestoreDialogPhase.Preview)
             {
                 ViewModel.ReportBackupImportFailure();
             }
         }
     }
 
-    private StackPanel CreateRestorePreview(BackupPreview preview)
+    private void RestoreBackupDialog_Opened(
+        ContentDialog sender,
+        ContentDialogOpenedEventArgs args)
+    {
+        if (sender is not RestoreBackupDialog dialog)
+        {
+            return;
+        }
+
+        dialog.ApplyCloseButtonAutomation(
+            "RestoreBackupCancelButton",
+            _appResourceService.GetString(
+                "RestoreDialogCancelButtonAutomationName.Value"),
+            _appResourceService.GetString(
+                "SettingsRestoreDialogHelpText"));
+    }
+
+    private ScrollViewer CreateRestorePreview(BackupPreview preview)
     {
         StackPanel content = new()
         {
@@ -367,32 +394,40 @@ public sealed partial class SettingsPage : Page
                 preview.ImageCount),
             _appResourceService.Format(
                 "SettingsRestorePreviewThemeFormat",
-                FormatTheme(ViewModel.Theme),
-                FormatTheme(preview.Theme)),
+                FormatTheme(_appResourceService, ViewModel.Theme),
+                FormatTheme(_appResourceService, preview.Theme)),
             _appResourceService.Format(
                 "SettingsRestorePreviewBackdropFormat",
-                FormatBackdrop(ViewModel.SelectedBackdrop),
-                FormatBackdrop(preview.Backdrop)),
+                FormatBackdrop(_appResourceService, ViewModel.SelectedBackdrop),
+                FormatBackdrop(_appResourceService, preview.Backdrop)),
             _appResourceService.Format(
                 "SettingsRestorePreviewNotificationsFormat",
-                FormatEnabled(ViewModel.AreNotificationsEnabled),
-                FormatEnabled(preview.NotificationsEnabled)),
+                FormatEnabled(
+                    _appResourceService,
+                    ViewModel.AreNotificationsEnabled),
+                FormatEnabled(
+                    _appResourceService,
+                    preview.NotificationsEnabled)),
             _appResourceService.Format(
                 "SettingsRestorePreviewCloseBehaviorFormat",
-                FormatCloseBehavior(ViewModel.CloseBehavior),
-                FormatCloseBehavior(preview.CloseBehavior)),
+                FormatCloseBehavior(
+                    _appResourceService,
+                    ViewModel.CloseBehavior),
+                FormatCloseBehavior(
+                    _appResourceService,
+                    preview.CloseBehavior)),
             _appResourceService.Format(
                 "SettingsRestorePreviewAcrylicOpacityFormat",
                 ViewModel.AcrylicTintOpacityPercent,
                 preview.AcrylicTintOpacityPercent),
             _appResourceService.Format(
                 "SettingsRestorePreviewLanguageFormat",
-                FormatLanguage(ViewModel.Language),
-                FormatLanguage(preview.Language)),
+                FormatLanguage(_appResourceService, ViewModel.Language),
+                FormatLanguage(_appResourceService, preview.Language)),
             _appResourceService.Format(
                 "SettingsRestorePreviewStartupFormat",
-                FormatEnabled(ViewModel.IsStartupEnabled),
-                FormatEnabled(preview.StartupEnabled)),
+                FormatEnabled(_appResourceService, ViewModel.IsStartupEnabled),
+                FormatEnabled(_appResourceService, preview.StartupEnabled)),
         })
         {
             content.Children.Add(new TextBlock
@@ -402,50 +437,90 @@ public sealed partial class SettingsPage : Page
             });
         }
 
-        return content;
+        return new ScrollViewer
+        {
+            Content = content,
+            MaxHeight = 360,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            VerticalScrollMode = ScrollMode.Auto,
+            HorizontalScrollMode = ScrollMode.Disabled,
+        };
     }
 
-    private string FormatEnabled(bool isEnabled) =>
-        _appResourceService.GetString(
+    internal static string FormatEnabled(
+        IAppResourceService resources,
+        bool isEnabled) =>
+        resources.GetString(
             isEnabled
                 ? "SettingsRestorePreviewOn"
                 : "SettingsRestorePreviewOff");
 
-    private string FormatTheme(AppTheme theme) => theme switch
-    {
-        AppTheme.Light => _appResourceService.GetString(
-            "SettingsRestorePreviewLight"),
-        AppTheme.Dark => _appResourceService.GetString(
-            "SettingsRestorePreviewDark"),
-        _ => theme.ToString(),
-    };
+    internal static string FormatTheme(
+        IAppResourceService resources,
+        AppTheme theme) =>
+        theme switch
+        {
+            AppTheme.Light => resources.GetString(
+                "SettingsRestorePreviewLight"),
+            AppTheme.Dark => resources.GetString(
+                "SettingsRestorePreviewDark"),
+            _ => theme.ToString(),
+        };
 
-    private string FormatBackdrop(BackdropKind backdrop) => backdrop switch
-    {
-        BackdropKind.Mica => _appResourceService.GetString(
-            "SettingsRestorePreviewMica"),
-        BackdropKind.Acrylic => _appResourceService.GetString(
-            "SettingsRestorePreviewAcrylic"),
-        BackdropKind.Solid => _appResourceService.GetString(
-            "SettingsRestorePreviewSolid"),
-        BackdropKind.Blur => _appResourceService.GetString(
-            "SettingsRestorePreviewBlur"),
-        BackdropKind.Transparent => _appResourceService.GetString(
-            "SettingsRestorePreviewTransparent"),
-        _ => backdrop.ToString(),
-    };
+    internal static string FormatBackdrop(
+        IAppResourceService resources,
+        BackdropKind backdrop) =>
+        backdrop switch
+        {
+            BackdropKind.Mica => resources.GetString(
+                "SettingsRestorePreviewMica"),
+            BackdropKind.Acrylic => resources.GetString(
+                "SettingsRestorePreviewAcrylic"),
+            BackdropKind.Solid => resources.GetString(
+                "SettingsRestorePreviewSolid"),
+            BackdropKind.Blur => resources.GetString(
+                "SettingsRestorePreviewBlur"),
+            BackdropKind.Transparent => resources.GetString(
+                "SettingsRestorePreviewTransparent"),
+            _ => backdrop.ToString(),
+        };
 
-    private string FormatCloseBehavior(CloseBehavior closeBehavior) =>
-        _appResourceService.GetString(
+    internal static string FormatCloseBehavior(
+        IAppResourceService resources,
+        CloseBehavior closeBehavior) =>
+        resources.GetString(
             closeBehavior == CloseBehavior.Exit
                 ? "SettingsRestorePreviewExit"
                 : "SettingsRestorePreviewTray");
 
-    private string FormatLanguage(AppLanguage language) =>
-        _appResourceService.GetString(
+    internal static string FormatLanguage(
+        IAppResourceService resources,
+        AppLanguage language) =>
+        resources.GetString(
             language == AppLanguage.English
                 ? "SettingsRestorePreviewEnglish"
                 : "SettingsRestorePreviewJapanese");
+
+    private sealed class RestoreBackupDialog : ContentDialog
+    {
+        internal void ApplyCloseButtonAutomation(
+            string automationId,
+            string name,
+            string helpText)
+        {
+            if (GetTemplateChild("CloseButton") is not Button closeButton)
+            {
+                return;
+            }
+
+            AutomationProperties.SetAutomationId(
+                closeButton,
+                automationId);
+            AutomationProperties.SetName(closeButton, name);
+            AutomationProperties.SetHelpText(closeButton, helpText);
+        }
+    }
 
     private void SettingsInfoBar_Closed(
         InfoBar sender,

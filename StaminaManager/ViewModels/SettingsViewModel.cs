@@ -1195,14 +1195,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             Debug.WriteLine(
                 "Prepared backup restore cancellation failed: "
                 + exception.GetType().Name);
-            BackupStatusText = _appResourceService.GetString(
-                "SettingsBackupRestoreFailureStatus");
-            ShowMessage(
-                _appResourceService.GetString(
-                    "SettingsBackupRestoreFailureMessage"),
-                InfoBarSeverity.Error,
-                _appResourceService.GetString(
-                    "SettingsBackupRestoreFailureTitle"));
+            ReportBackupCancelFailure();
             throw;
         }
         finally
@@ -1322,6 +1315,18 @@ public sealed partial class SettingsViewModel : ObservableObject
             InfoBarSeverity.Error,
             _appResourceService.GetString(
                 "SettingsBackupImportFailureTitle"));
+    }
+
+    internal void ReportBackupCancelFailure()
+    {
+        BackupStatusText = _appResourceService.GetString(
+            "SettingsBackupCancelFailureStatus");
+        ShowMessage(
+            _appResourceService.GetString(
+                "SettingsBackupCancelFailureMessage"),
+            InfoBarSeverity.Error,
+            _appResourceService.GetString(
+                "SettingsBackupCancelFailureTitle"));
     }
 
     internal void ReportBackupRestoreFailure()

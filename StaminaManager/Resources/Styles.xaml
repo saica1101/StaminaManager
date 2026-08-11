@@ -201,7 +201,7 @@
 
     <Style
         x:Key="RestoreDialogPrimaryButtonStyle"
-        BasedOn="{StaticResource AccentButtonStyle}"
+        BasedOn="{StaticResource DefaultButtonStyle}"
         TargetType="Button">
         <Setter Property="AutomationProperties.AutomationId" Value="RestoreBackupConfirmButton" />
         <Setter
@@ -212,7 +212,7 @@
 
     <Style
         x:Key="RestoreDialogCancelButtonStyle"
-        BasedOn="{StaticResource DefaultButtonStyle}"
+        BasedOn="{StaticResource AccentButtonStyle}"
         TargetType="Button">
         <Setter Property="AutomationProperties.AutomationId" Value="RestoreBackupCancelButton" />
         <Setter

@@ -187,6 +187,39 @@ public sealed class SettingsViewModelBackupTests
         Assert.IsTrue(context.ViewModel.IsSettingsInteractionEnabled);
     }
 
+    [TestMethod]
+    public async Task CancelPreparedRestoreAsync_失敗時は取消固有InfoBarを表示する()
+    {
+        await using PreviewContext context = await PreviewContext.CreateAsync(
+            SettingsEnglishResourceFixture.Create());
+        Task<PreparedBackupRestore> previewTask = context.ViewModel
+            .PreviewRestoreAsync("backup.staminabackup");
+        await context.Backup.PreviewStarted.Task.WaitAsync(
+            TimeSpan.FromSeconds(5));
+        context.Backup.CompletePreview();
+        PreparedBackupRestore prepared = await previewTask;
+        context.Backup.CancelException = new IOException("cancel failure");
+
+        await Assert.ThrowsExactlyAsync<IOException>(
+            () => context.ViewModel.CancelPreparedRestoreAsync(
+                prepared.SessionId,
+                CancellationToken.None));
+
+        Assert.AreEqual(
+            "Backup restore preparation could not be canceled.",
+            context.ViewModel.BackupStatusText);
+        Assert.AreEqual(
+            "The backup restore preparation could not be canceled. Try again.",
+            context.ViewModel.InfoBarMessage);
+        Assert.AreEqual(
+            "Cancel failed",
+            context.ViewModel.InfoBarTitle);
+        Assert.AreEqual(1, context.Backup.CancelCount);
+        Assert.AreEqual(0, context.Backup.RestoreCount);
+        Assert.AreEqual(0, context.Store.SaveCount);
+        Assert.IsFalse(context.ViewModel.IsBackupBusy);
+    }
+
     private sealed class PreviewContext : IAsyncDisposable
     {
         private PreviewContext(
@@ -294,6 +327,8 @@ public sealed class SettingsViewModelBackupTests
 
         public Exception? ExportException { get; set; }
 
+        public Exception? CancelException { get; set; }
+
         public int RestoreCount { get; private set; }
 
         public int CancelCount { get; private set; }
@@ -343,6 +378,11 @@ public sealed class SettingsViewModelBackupTests
         {
             CancelCount++;
             LastCanceledSessionId = sessionId;
+            if (CancelException is not null)
+            {
+                return Task.FromException(CancelException);
+            }
+
             return Task.CompletedTask;
         }
 

@@ -317,6 +317,9 @@
   <data name="SettingsBackupImportFailureMessage" xml:space="preserve"><value>The selected backup could not be read. Choose another backup and try again.</value></data>
   <data name="SettingsBackupImportFailureTitle" xml:space="preserve"><value>Backup could not be read</value></data>
   <data name="SettingsBackupCancelBusy" xml:space="preserve"><value>Canceling backup restore preparation...</value></data>
+  <data name="SettingsBackupCancelFailureStatus" xml:space="preserve"><value>Backup restore preparation could not be canceled.</value></data>
+  <data name="SettingsBackupCancelFailureMessage" xml:space="preserve"><value>The backup restore preparation could not be canceled. Try again.</value></data>
+  <data name="SettingsBackupCancelFailureTitle" xml:space="preserve"><value>Cancel failed</value></data>
   <data name="SettingsBackupRestoreBusy" xml:space="preserve"><value>Restoring the backup...</value></data>
   <data name="SettingsBackupRestoreSuccessStatus" xml:space="preserve"><value>Backup restored.</value></data>
   <data name="SettingsBackupRestoreSuccessRestartStatus" xml:space="preserve"><value>Backup restored. Restart the app to apply the display language.</value></data>
