@@ -62,7 +62,7 @@ public sealed class AppResourceService : IAppResourceService
         return (manager, map, context);
     }
 
-    private static AppLanguage GetEffectiveLanguageOrDefault()
+    internal static AppLanguage GetEffectiveLanguageOrDefault()
     {
         try
         {

@@ -43,6 +43,7 @@ public partial class App : Microsoft.UI.Xaml.Application
     private ITrayService? _trayService;
     private readonly INotificationScheduler _notificationScheduler;
     private readonly IAppResourceService _appResourceService;
+    private readonly AppLanguage _sessionLanguage;
     private DispatcherQueue? _dispatcherQueue;
     private Window? _fallbackWindow;
     private readonly NotificationActivationQueue
@@ -52,42 +53,77 @@ public partial class App : Microsoft.UI.Xaml.Application
     public App()
         : this(
             new WindowsNotificationScheduler(),
-            CreateSessionResourceService())
+            CreateSessionResources())
     {
     }
 
     internal App(INotificationScheduler notificationScheduler)
-        : this(notificationScheduler, CreateSessionResourceService())
+        : this(notificationScheduler, CreateSessionResources())
     {
     }
 
     internal App(
         INotificationScheduler notificationScheduler,
         IAppResourceService appResourceService)
+        : this(
+            notificationScheduler,
+            appResourceService,
+            AppLanguage.Japanese)
+    {
+    }
+
+    internal App(
+        INotificationScheduler notificationScheduler,
+        IAppResourceService appResourceService,
+        AppLanguage sessionLanguage)
     {
         ArgumentNullException.ThrowIfNull(notificationScheduler);
         ArgumentNullException.ThrowIfNull(appResourceService);
         _notificationScheduler = notificationScheduler;
         _appResourceService = appResourceService;
+        _sessionLanguage = sessionLanguage;
         _notificationScheduler.ActivationRequested +=
             OnNotificationActivationRequested;
         InitializeComponent();
     }
 
-    private static IAppResourceService CreateSessionResourceService()
+    private App(
+        INotificationScheduler notificationScheduler,
+        (
+            IAppResourceService ResourceService,
+            AppLanguage SessionLanguage) session)
+        : this(
+            notificationScheduler,
+            session.ResourceService,
+            session.SessionLanguage)
     {
-        try
-        {
-            return new AppResourceService(
-                new AppLanguageService().GetEffectiveLanguage());
-        }
-        catch (Exception exception) when (!IsProcessFatal(exception))
-        {
-            Debug.WriteLine(
-                "Session language resolution failed: "
-                + exception.GetType().Name);
-            return new AppResourceService(AppLanguage.Japanese);
-        }
+    }
+
+    private static (
+        IAppResourceService ResourceService,
+        AppLanguage SessionLanguage) CreateSessionResources()
+    {
+        AppLanguage sessionLanguage =
+            AppResourceService.GetEffectiveLanguageOrDefault();
+        return (
+            new AppResourceService(sessionLanguage),
+            sessionLanguage);
+    }
+
+    internal static (
+        IAppResourceService ResourceService,
+        AppLanguage SessionLanguage) CreateSessionResources(
+        IAppLanguageService appLanguageService,
+        Func<AppLanguage, IAppResourceService> createResourceService)
+    {
+        ArgumentNullException.ThrowIfNull(appLanguageService);
+        ArgumentNullException.ThrowIfNull(createResourceService);
+        AppLanguage sessionLanguage =
+            appLanguageService.GetEffectiveLanguage();
+        IAppResourceService resourceService =
+            createResourceService(sessionLanguage);
+        ArgumentNullException.ThrowIfNull(resourceService);
+        return (resourceService, sessionLanguage);
     }
 
     public nint MainWindowHandle => _window is null
@@ -358,7 +394,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             dispatcherQueue);
         IClock clock = new SystemClock();
         IAppLanguageService appLanguageService = new AppLanguageService();
-        AppLanguage sessionLanguage = appLanguageService.GetEffectiveLanguage();
+        AppLanguage sessionLanguage = _sessionLanguage;
         IAppDataPathProvider pathProvider = new AppDataPathProvider();
         ILocalDataStore dataStore = new LocalDataStore(
             pathProvider,
