@@ -1,6 +1,6 @@
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
-using StaminaManager.Infrastructure.Resources;
+using StaminaManager.Tests.TestDoubles;
 using StaminaManager.Views;
 
 namespace StaminaManager.Tests.Views;
@@ -9,43 +9,45 @@ namespace StaminaManager.Tests.Views;
 public sealed class SettingsBackupLocalizationContractTests
 {
     [TestMethod]
-    public void RestorePreviewFormatters_KeepCurrentAndRestoredValuesDistinct()
+    public void RestorePreviewLines_FormatsCurrentThenRestoredValues()
     {
-        IAppResourceService resources = new AppResourceService(ResolveFormatterResource);
+        SettingsPage.RestorePreviewSnapshot current = new(
+            AppTheme.Light,
+            BackdropKind.Mica,
+            true,
+            CloseBehavior.MinimizeToTray,
+            20,
+            AppLanguage.Japanese,
+            false);
+        BackupPreview restored = new(
+            5,
+            3,
+            AppTheme.Dark,
+            BackdropKind.Acrylic,
+            false,
+            CloseBehavior.Exit,
+            true,
+            80,
+            AppLanguage.English);
 
         CollectionAssert.AreEqual(
             new[]
             {
+                "The current games, images, and settings will be replaced with the backup. Device-specific notification records will be kept.",
+                "Games: 5",
+                "Images: 3",
                 "Theme: Light -> Dark",
-                "Theme: Dark -> Light",
                 "Background: Mica -> Acrylic",
                 "Notifications: Enabled -> Disabled",
-                "Close: Tray -> Exit",
+                "Close behavior: Tray -> Exit",
+                "Acrylic tint opacity: 20% -> 80%",
                 "Language: Japanese -> English",
+                "Startup: Disabled -> Enabled",
             },
-            new[]
-            {
-                Line(resources, "SettingsRestorePreviewThemeFormat",
-                    SettingsPage.FormatTheme(resources, AppTheme.Light),
-                    SettingsPage.FormatTheme(resources, AppTheme.Dark)),
-                Line(resources, "SettingsRestorePreviewThemeFormat",
-                    SettingsPage.FormatTheme(resources, AppTheme.Dark),
-                    SettingsPage.FormatTheme(resources, AppTheme.Light)),
-                Line(resources, "SettingsRestorePreviewBackdropFormat",
-                    SettingsPage.FormatBackdrop(resources, BackdropKind.Mica),
-                    SettingsPage.FormatBackdrop(resources, BackdropKind.Acrylic)),
-                Line(resources, "SettingsRestorePreviewNotificationsFormat",
-                    SettingsPage.FormatEnabled(resources, true),
-                    SettingsPage.FormatEnabled(resources, false)),
-                Line(resources, "SettingsRestorePreviewCloseBehaviorFormat",
-                    SettingsPage.FormatCloseBehavior(
-                        resources, CloseBehavior.MinimizeToTray),
-                    SettingsPage.FormatCloseBehavior(
-                        resources, CloseBehavior.Exit)),
-                Line(resources, "SettingsRestorePreviewLanguageFormat",
-                    SettingsPage.FormatLanguage(resources, AppLanguage.Japanese),
-                    SettingsPage.FormatLanguage(resources, AppLanguage.English)),
-            });
+            SettingsPage.CreateRestorePreviewLines(
+                SettingsEnglishResourceFixture.Create(),
+                current,
+                restored).ToArray());
     }
     [TestMethod]
     public void RestoreDialog_ConnectsScrollablePreviewAndOpenedButtonAutomation()
@@ -54,6 +56,7 @@ public sealed class SettingsBackupLocalizationContractTests
         string source = Read(root, "StaminaManager", "Views", "SettingsPage.xaml.cs");
         AssertContains(source,
             "Content = CreateRestorePreview(prepared.Preview)",
+            "foreach (string line in CreateRestorePreviewLines(",
             "new ScrollViewer",
             "MaxHeight = 360",
             "VerticalScrollBarVisibility = ScrollBarVisibility.Auto",
@@ -64,21 +67,29 @@ public sealed class SettingsBackupLocalizationContractTests
             "AutomationProperties.SetName",
             "AutomationProperties.SetHelpText",
             "DefaultButton = ContentDialogButton.Close");
-
-        string styles = Read(root, "StaminaManager", "Resources", "Styles.xaml");
-        int primaryStart = styles.IndexOf(
-            "x:Key=\"RestoreDialogPrimaryButtonStyle\"",
+        int openedIndex = source.IndexOf(
+            "confirmation.Opened += RestoreBackupDialog_Opened;",
             StringComparison.Ordinal);
-        int cancelStart = styles.IndexOf(
-            "x:Key=\"RestoreDialogCancelButtonStyle\"",
+        int handlerIndex = source.IndexOf(
+            "private void RestoreBackupDialog_Opened",
             StringComparison.Ordinal);
-        Assert.IsTrue(primaryStart >= 0 && cancelStart > primaryStart);
-        StringAssert.Contains(
-            styles[primaryStart..cancelStart],
-            "BasedOn=\"{StaticResource DefaultButtonStyle}\"");
-        StringAssert.Contains(
-            styles[cancelStart..],
-            "BasedOn=\"{StaticResource AccentButtonStyle}\"");
+        int handlerEnd = handlerIndex < 0
+            ? -1
+            : source.IndexOf(
+                "private ScrollViewer CreateRestorePreview",
+                handlerIndex,
+                StringComparison.Ordinal);
+        int applyIndex = handlerIndex < 0
+            ? -1
+            : source.IndexOf(
+                "dialog.ApplyCloseButtonAutomation(",
+                handlerIndex,
+                StringComparison.Ordinal);
+        Assert.IsTrue(openedIndex >= 0
+            && handlerIndex > openedIndex
+            && handlerEnd > handlerIndex
+            && applyIndex > handlerIndex
+            && applyIndex < handlerEnd);
     }
     [TestMethod]
     public void RestoreDialog_CancelFailureHasOnePhaseOwner()
@@ -92,13 +103,27 @@ public sealed class SettingsBackupLocalizationContractTests
             "RestoreDialogPhase.Cancel",
             "phase == RestoreDialogPhase.Preview",
             "phase == RestoreDialogPhase.Commit");
+        int cancelBlockStart = page.IndexOf(
+            "if (result != ContentDialogResult.Primary)",
+            StringComparison.Ordinal);
+        int commitIndex = cancelBlockStart < 0
+            ? -1
+            : page.IndexOf(
+                "phase = RestoreDialogPhase.Commit;",
+                cancelBlockStart,
+                StringComparison.Ordinal);
+        string cancelBlock = cancelBlockStart >= 0 && commitIndex > cancelBlockStart
+            ? page[cancelBlockStart..commitIndex]
+            : string.Empty;
+        int cancelIndex = cancelBlock.IndexOf(
+            "phase = RestoreDialogPhase.Cancel;",
+            StringComparison.Ordinal);
+        int cancelAwaitIndex = cancelBlock.IndexOf(
+            "await ViewModel.CancelPreparedRestoreAsync(",
+            StringComparison.Ordinal);
+        Assert.IsTrue(cancelIndex >= 0 && cancelAwaitIndex > cancelIndex);
         StringAssert.Contains(viewModel, "ReportBackupCancelFailure");
     }
-    private static string Line(
-        IAppResourceService resources,
-        string resourceId,
-        params object?[] args) => resources.Format(resourceId, args);
-
     private static void AssertContains(
         string source,
         params string[] fragments)
@@ -108,34 +133,8 @@ public sealed class SettingsBackupLocalizationContractTests
             StringAssert.Contains(source, fragment);
         }
     }
-    private static string Read(string root, params string[] path) =>
-        File.ReadAllText(Path.Combine(
-            new[] { root }.Concat(path).ToArray()));
-    private static string ResolveFormatterResource(string resourceId) =>
-        resourceId switch
-        {
-            "SettingsRestorePreviewOn" => "Enabled",
-            "SettingsRestorePreviewOff" => "Disabled",
-            "SettingsRestorePreviewLight" => "Light",
-            "SettingsRestorePreviewDark" => "Dark",
-            "SettingsRestorePreviewMica" => "Mica",
-            "SettingsRestorePreviewAcrylic" => "Acrylic",
-            "SettingsRestorePreviewTray" => "Tray",
-            "SettingsRestorePreviewExit" => "Exit",
-            "SettingsRestorePreviewJapanese" => "Japanese",
-            "SettingsRestorePreviewEnglish" => "English",
-            "SettingsRestorePreviewThemeFormat" => "Theme: {0} -> {1}",
-            "SettingsRestorePreviewBackdropFormat" =>
-                "Background: {0} -> {1}",
-            "SettingsRestorePreviewNotificationsFormat" =>
-                "Notifications: {0} -> {1}",
-            "SettingsRestorePreviewCloseBehaviorFormat" =>
-                "Close: {0} -> {1}",
-            "SettingsRestorePreviewLanguageFormat" =>
-                "Language: {0} -> {1}",
-            _ => resourceId,
-        };
-
+    private static string Read(string root, params string[] path) => File.ReadAllText(
+        Path.Combine(new[] { root }.Concat(path).ToArray()));
     private static string FindRepositoryRoot()
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);

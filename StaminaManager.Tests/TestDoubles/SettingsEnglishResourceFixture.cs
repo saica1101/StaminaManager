@@ -109,5 +109,32 @@ internal static class SettingsEnglishResourceFixture
                 "Backup is unavailable.",
             ["SettingsBackupAlreadyBusy"] =
                 "A backup operation is already running.",
+            ["SettingsRestorePreviewDescription"] =
+                "The current games, images, and settings will be replaced with the backup. Device-specific notification records will be kept.",
+            ["SettingsRestorePreviewGameCountFormat"] = "Games: {0}",
+            ["SettingsRestorePreviewImageCountFormat"] = "Images: {0}",
+            ["SettingsRestorePreviewThemeFormat"] = "Theme: {0} -> {1}",
+            ["SettingsRestorePreviewBackdropFormat"] =
+                "Background: {0} -> {1}",
+            ["SettingsRestorePreviewNotificationsFormat"] =
+                "Notifications: {0} -> {1}",
+            ["SettingsRestorePreviewCloseBehaviorFormat"] =
+                "Close behavior: {0} -> {1}",
+            ["SettingsRestorePreviewAcrylicOpacityFormat"] =
+                "Acrylic tint opacity: {0}% -> {1}%",
+            ["SettingsRestorePreviewLanguageFormat"] =
+                "Language: {0} -> {1}",
+            ["SettingsRestorePreviewStartupFormat"] =
+                "Startup: {0} -> {1}",
+            ["SettingsRestorePreviewOn"] = "Enabled",
+            ["SettingsRestorePreviewOff"] = "Disabled",
+            ["SettingsRestorePreviewLight"] = "Light",
+            ["SettingsRestorePreviewDark"] = "Dark",
+            ["SettingsRestorePreviewMica"] = "Mica",
+            ["SettingsRestorePreviewAcrylic"] = "Acrylic",
+            ["SettingsRestorePreviewTray"] = "Tray",
+            ["SettingsRestorePreviewExit"] = "Exit",
+            ["SettingsRestorePreviewJapanese"] = "Japanese",
+            ["SettingsRestorePreviewEnglish"] = "English",
         });
 }

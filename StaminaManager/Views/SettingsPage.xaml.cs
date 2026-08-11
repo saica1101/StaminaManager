@@ -23,6 +23,16 @@ public sealed partial class SettingsPage : Page
         Cancel,
         Commit,
     }
+
+    internal readonly record struct RestorePreviewSnapshot(
+        AppTheme Theme,
+        BackdropKind Backdrop,
+        bool NotificationsEnabled,
+        CloseBehavior CloseBehavior,
+        int AcrylicTintOpacityPercent,
+        AppLanguage Language,
+        bool StartupEnabled);
+
     private readonly SettingsAppearanceChangeRouter _appearanceChangeRouter;
     private readonly IAppResourceService _appResourceService;
     private DispatcherQueueTimer? _acrylicOpacityCommitTimer;
@@ -378,57 +388,18 @@ public sealed partial class SettingsPage : Page
             Spacing = 8,
             MaxWidth = 520,
         };
-        content.Children.Add(new TextBlock
-        {
-            Text = _appResourceService.GetString(
-                "SettingsRestorePreviewDescription"),
-            TextWrapping = TextWrapping.Wrap,
-        });
-        foreach (string line in new[]
-        {
-            _appResourceService.Format(
-                "SettingsRestorePreviewGameCountFormat",
-                preview.GameCount),
-            _appResourceService.Format(
-                "SettingsRestorePreviewImageCountFormat",
-                preview.ImageCount),
-            _appResourceService.Format(
-                "SettingsRestorePreviewThemeFormat",
-                FormatTheme(_appResourceService, ViewModel.Theme),
-                FormatTheme(_appResourceService, preview.Theme)),
-            _appResourceService.Format(
-                "SettingsRestorePreviewBackdropFormat",
-                FormatBackdrop(_appResourceService, ViewModel.SelectedBackdrop),
-                FormatBackdrop(_appResourceService, preview.Backdrop)),
-            _appResourceService.Format(
-                "SettingsRestorePreviewNotificationsFormat",
-                FormatEnabled(
-                    _appResourceService,
-                    ViewModel.AreNotificationsEnabled),
-                FormatEnabled(
-                    _appResourceService,
-                    preview.NotificationsEnabled)),
-            _appResourceService.Format(
-                "SettingsRestorePreviewCloseBehaviorFormat",
-                FormatCloseBehavior(
-                    _appResourceService,
-                    ViewModel.CloseBehavior),
-                FormatCloseBehavior(
-                    _appResourceService,
-                    preview.CloseBehavior)),
-            _appResourceService.Format(
-                "SettingsRestorePreviewAcrylicOpacityFormat",
-                ViewModel.AcrylicTintOpacityPercent,
-                preview.AcrylicTintOpacityPercent),
-            _appResourceService.Format(
-                "SettingsRestorePreviewLanguageFormat",
-                FormatLanguage(_appResourceService, ViewModel.Language),
-                FormatLanguage(_appResourceService, preview.Language)),
-            _appResourceService.Format(
-                "SettingsRestorePreviewStartupFormat",
-                FormatEnabled(_appResourceService, ViewModel.IsStartupEnabled),
-                FormatEnabled(_appResourceService, preview.StartupEnabled)),
-        })
+        RestorePreviewSnapshot current = new(
+            ViewModel.Theme,
+            ViewModel.SelectedBackdrop,
+            ViewModel.AreNotificationsEnabled,
+            ViewModel.CloseBehavior,
+            ViewModel.AcrylicTintOpacityPercent,
+            ViewModel.Language,
+            ViewModel.IsStartupEnabled);
+        foreach (string line in CreateRestorePreviewLines(
+            _appResourceService,
+            current,
+            preview))
         {
             content.Children.Add(new TextBlock
             {
@@ -447,6 +418,48 @@ public sealed partial class SettingsPage : Page
             HorizontalScrollMode = ScrollMode.Disabled,
         };
     }
+
+    internal static IReadOnlyList<string> CreateRestorePreviewLines(
+        IAppResourceService resources,
+        RestorePreviewSnapshot current,
+        BackupPreview restored) => new[]
+        {
+            resources.GetString("SettingsRestorePreviewDescription"),
+            resources.Format(
+                "SettingsRestorePreviewGameCountFormat",
+                restored.GameCount),
+            resources.Format(
+                "SettingsRestorePreviewImageCountFormat",
+                restored.ImageCount),
+            resources.Format(
+                "SettingsRestorePreviewThemeFormat",
+                FormatTheme(resources, current.Theme),
+                FormatTheme(resources, restored.Theme)),
+            resources.Format(
+                "SettingsRestorePreviewBackdropFormat",
+                FormatBackdrop(resources, current.Backdrop),
+                FormatBackdrop(resources, restored.Backdrop)),
+            resources.Format(
+                "SettingsRestorePreviewNotificationsFormat",
+                FormatEnabled(resources, current.NotificationsEnabled),
+                FormatEnabled(resources, restored.NotificationsEnabled)),
+            resources.Format(
+                "SettingsRestorePreviewCloseBehaviorFormat",
+                FormatCloseBehavior(resources, current.CloseBehavior),
+                FormatCloseBehavior(resources, restored.CloseBehavior)),
+            resources.Format(
+                "SettingsRestorePreviewAcrylicOpacityFormat",
+                current.AcrylicTintOpacityPercent,
+                restored.AcrylicTintOpacityPercent),
+            resources.Format(
+                "SettingsRestorePreviewLanguageFormat",
+                FormatLanguage(resources, current.Language),
+                FormatLanguage(resources, restored.Language)),
+            resources.Format(
+                "SettingsRestorePreviewStartupFormat",
+                FormatEnabled(resources, current.StartupEnabled),
+                FormatEnabled(resources, restored.StartupEnabled)),
+        };
 
     internal static string FormatEnabled(
         IAppResourceService resources,
