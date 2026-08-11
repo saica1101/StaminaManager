@@ -22,18 +22,7 @@ public sealed class SettingsViewModelTests
     public async Task DynamicAccessibilityAndAvailabilityText_UsesResources()
     {
         Context context = await Context.CreateAsync();
-        AppResourceService resources = new(resourceId => resourceId switch
-        {
-            "SettingsErrorTitle" => "localized-error-title",
-            "AcrylicOpacityAutomationNameFormat" => "opacity={0}%",
-            "AcrylicOpacityHelpTextDisabledFormat" =>
-                "disabled-opacity={0}%",
-            "NotificationAvailabilityEnabled" =>
-                "localized-notifications-enabled",
-            "NotificationAvailabilityDisabledForApplication" =>
-                "localized-notifications-disabled-for-app",
-            _ => resourceId,
-        });
+        AppResourceService resources = CreateDynamicResources();
         SettingsViewModel viewModel = new(
             context.Manager,
             context.ThemeService,
@@ -53,12 +42,12 @@ public sealed class SettingsViewModelTests
             $"disabled-opacity={AppSettings.DefaultAcrylicTintOpacityPercent}%",
             viewModel.AcrylicOpacityHelpText);
         Assert.AreEqual(
-            "localized-notifications-enabled",
+            "localized-NotificationAvailabilityEnabled",
             viewModel.NotificationAvailabilityText);
 
         viewModel.SetWindowsNotificationAvailability(isAvailable: false);
         Assert.AreEqual(
-            "localized-notifications-disabled-for-app",
+            "localized-NotificationAvailabilityDisabledForApplication",
             viewModel.NotificationAvailabilityText);
 
         context.ThemeService.NextResult = new ThemeResult(
@@ -68,6 +57,97 @@ public sealed class SettingsViewModelTests
             ErrorMessage: null);
         Assert.IsFalse(await viewModel.SetThemeAsync(AppTheme.Dark));
         Assert.AreEqual("localized-error-title", viewModel.InfoBarTitle);
+    }
+
+    [TestMethod]
+    [DataRow(BackdropKind.Acrylic, "enabled-opacity={0}%")]
+    [DataRow(BackdropKind.Mica, "disabled-opacity={0}%")]
+    public async Task AcrylicOpacityHelpText_UsesEnabledOrDisabledResource(
+        BackdropKind backdrop,
+        string expectedFormat)
+    {
+        Context context = await Context.CreateAsync(backdrop, 42);
+        SettingsViewModel viewModel = context.CreateViewModel(
+            CreateDynamicResources());
+
+        Assert.AreEqual(
+            string.Format(expectedFormat, 42),
+            viewModel.AcrylicOpacityHelpText);
+    }
+
+    [TestMethod]
+    [DataRow(
+        NotificationPermissionState.Enabled,
+        "NotificationAvailabilityEnabled")]
+    [DataRow(
+        NotificationPermissionState.DisabledForApplication,
+        "NotificationAvailabilityDisabledForApplication")]
+    [DataRow(
+        NotificationPermissionState.DisabledForUser,
+        "NotificationAvailabilityDisabledForUser")]
+    [DataRow(
+        NotificationPermissionState.DisabledByPolicy,
+        "NotificationAvailabilityDisabledByPolicy")]
+    [DataRow(
+        NotificationPermissionState.DisabledByManifest,
+        "NotificationAvailabilityDisabledByManifest")]
+    [DataRow(
+        NotificationPermissionState.Unsupported,
+        "NotificationAvailabilityUnsupported")]
+    public async Task NotificationAvailabilityText_UsesResourceForEachState(
+        NotificationPermissionState state,
+        string resourceId)
+    {
+        Context context = await Context.CreateAsync();
+        SettingsViewModel viewModel = context.CreateViewModel(
+            CreateDynamicResources());
+
+        SetViewModelProperty(viewModel, nameof(
+            SettingsViewModel.WindowsNotificationState), state);
+
+        Assert.AreEqual(
+            $"localized-{resourceId}",
+            viewModel.NotificationAvailabilityText);
+    }
+
+    [TestMethod]
+    public async Task DynamicDisplayProperties_RaiseRequiredPropertyChanged()
+    {
+        Context context = await Context.CreateAsync(BackdropKind.Acrylic, 42);
+        SettingsViewModel viewModel = context.CreateViewModel(
+            CreateDynamicResources());
+        List<string> changedProperties = [];
+        viewModel.PropertyChanged += (_, args) =>
+            changedProperties.Add(args.PropertyName ?? string.Empty);
+
+        SetViewModelProperty(
+            viewModel,
+            nameof(SettingsViewModel.AcrylicTintOpacityPercent),
+            43);
+
+        CollectionAssert.AreEquivalent(
+            new[]
+            {
+                nameof(SettingsViewModel.AcrylicTintOpacityPercent),
+                nameof(SettingsViewModel.AcrylicOpacityValueText),
+                nameof(SettingsViewModel.AcrylicOpacityValueAutomationName),
+                nameof(SettingsViewModel.AcrylicOpacityHelpText),
+            },
+            changedProperties);
+
+        changedProperties.Clear();
+        SetViewModelProperty(
+            viewModel,
+            nameof(SettingsViewModel.WindowsNotificationState),
+            NotificationPermissionState.DisabledForUser);
+
+        CollectionAssert.AreEquivalent(
+            new[]
+            {
+                nameof(SettingsViewModel.WindowsNotificationState),
+                nameof(SettingsViewModel.NotificationAvailabilityText),
+            },
+            changedProperties);
     }
 
     [TestMethod]
@@ -499,6 +579,21 @@ public sealed class SettingsViewModelTests
         Assert.IsNotNull(property);
         property!.SetValue(viewModel, value);
     }
+
+    private static AppResourceService CreateDynamicResources() => new(
+        resourceId => resourceId switch
+        {
+            "SettingsErrorTitle" => "localized-error-title",
+            "AcrylicOpacityAutomationNameFormat" => "opacity={0}%",
+            "AcrylicOpacityHelpTextEnabledFormat" =>
+                "enabled-opacity={0}%",
+            "AcrylicOpacityHelpTextDisabledFormat" =>
+                "disabled-opacity={0}%",
+            _ when resourceId.StartsWith(
+                "NotificationAvailability",
+                StringComparison.Ordinal) => $"localized-{resourceId}",
+            _ => resourceId,
+        });
 
     [TestMethod]
     [DataRow(BackdropFallbackReason.HighContrast, "コントラスト テーマ")]
@@ -1221,18 +1316,20 @@ public sealed class SettingsViewModelTests
                 notificationReconciler);
         }
 
-        public SettingsViewModel CreateViewModel()
+        public SettingsViewModel CreateViewModel(
+            IAppResourceService? resources = null)
         {
-            SettingsViewModel viewModel = CreateNotReadyViewModel();
+            SettingsViewModel viewModel = CreateNotReadyViewModel(resources);
             viewModel.MarkReady();
             return viewModel;
         }
 
-        public SettingsViewModel CreateNotReadyViewModel() => new(
+        public SettingsViewModel CreateNotReadyViewModel(
+            IAppResourceService? resources = null) => new(
             Manager,
             ThemeService,
             BackdropService,
-            TestResources);
+            resources ?? TestResources);
 
         public SettingsViewModel CreateLanguageViewModel(
             AppLanguage sessionLanguage = AppLanguage.Japanese)

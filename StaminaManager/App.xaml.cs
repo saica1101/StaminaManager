@@ -52,12 +52,12 @@ public partial class App : Microsoft.UI.Xaml.Application
     public App()
         : this(
             new WindowsNotificationScheduler(),
-            new AppResourceService())
+            CreateSessionResourceService())
     {
     }
 
     internal App(INotificationScheduler notificationScheduler)
-        : this(notificationScheduler, new AppResourceService())
+        : this(notificationScheduler, CreateSessionResourceService())
     {
     }
 
@@ -72,6 +72,22 @@ public partial class App : Microsoft.UI.Xaml.Application
         _notificationScheduler.ActivationRequested +=
             OnNotificationActivationRequested;
         InitializeComponent();
+    }
+
+    private static IAppResourceService CreateSessionResourceService()
+    {
+        try
+        {
+            return new AppResourceService(
+                new AppLanguageService().GetEffectiveLanguage());
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Session language resolution failed: "
+                + exception.GetType().Name);
+            return new AppResourceService(AppLanguage.Japanese);
+        }
     }
 
     public nint MainWindowHandle => _window is null

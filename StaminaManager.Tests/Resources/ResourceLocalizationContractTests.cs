@@ -1,5 +1,6 @@
 using System.Text;
 using System.Xml.Linq;
+using StaminaManager.Core.Models;
 using StaminaManager.Infrastructure.Resources;
 
 namespace StaminaManager.Tests.Resources;
@@ -203,6 +204,31 @@ public sealed class ResourceLocalizationContractTests
         Assert.AreEqual(
             "BrokenFormat",
             formatFailure.Format("BrokenFormat", 1));
+    }
+
+    [TestMethod]
+    public void AppResourceService_DoesNotRebindAfterPrimaryLanguageOverrideChanges()
+    {
+        AppLanguage currentOverrideLanguage = AppLanguage.Japanese;
+        AppResourceService service = new(
+            AppLanguage.Japanese,
+            _ =>
+            {
+                AppLanguage contextLanguage = currentOverrideLanguage;
+                return _ => contextLanguage == AppLanguage.Japanese
+                    ? "操作を完了できませんでした"
+                    : "Could not complete the setting";
+            });
+
+        Assert.AreEqual(
+            "操作を完了できませんでした",
+            service.GetString("SettingsErrorTitle"));
+
+        currentOverrideLanguage = AppLanguage.English;
+
+        Assert.AreEqual(
+            "操作を完了できませんでした",
+            service.GetString("SettingsErrorTitle"));
     }
 
     private static Dictionary<string, string> LoadResources(string language)
