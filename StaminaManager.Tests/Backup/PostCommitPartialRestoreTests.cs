@@ -110,12 +110,18 @@ public sealed class PostCommitPartialRestoreTests
     }
 
     [TestMethod]
-    public async Task RestoreAsync_theme例外後もnewDataとVmを同期してpartialを返す()
+    [DataRow(true)]
+    [DataRow(false)]
+    public async Task RestoreAsync_theme例外後もnewDataとVmを同期してpartialを返す(
+        bool languageChanged)
     {
         await using RestoreWorkflowTestStore source =
             await RestoreWorkflowTestStore.CreateAsync(
                 "new",
-                startupEnabled: false);
+                startupEnabled: false,
+                language: languageChanged
+                    ? AppLanguage.English
+                    : AppLanguage.Japanese);
         DataEnvelope sourceData = (await source.Store.LoadAsync(
             CancellationToken.None)).Envelope!;
         await source.Store.SaveAsync(
@@ -176,14 +182,74 @@ public sealed class PostCommitPartialRestoreTests
         Assert.AreEqual(AppTheme.Dark, manager.CurrentData.Settings.Theme);
         Assert.AreEqual(AppTheme.Dark, viewModel.Theme);
         Assert.AreEqual(
-            "Data restored. Windows settings will be retried next time.",
+            languageChanged ? AppLanguage.English : AppLanguage.Japanese,
+            viewModel.Language);
+        Assert.AreEqual(
+            languageChanged
+                ? "Data restored. Windows settings will be retried next time. Restart the app to apply the display language."
+                : "Data restored. Windows settings will be retried next time.",
             viewModel.BackupStatusText);
         Assert.AreEqual(
             "Data restored",
             viewModel.InfoBarTitle);
+        Assert.AreEqual(languageChanged, viewModel.IsLanguageRestartRequired);
         Assert.IsFalse(viewModel.IsBackupBusy);
         Assert.IsTrue(viewModel.IsSettingsInteractionEnabled);
         Assert.IsNotNull(await backup.ResumeAsync(CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task RestoreAsync_言語変更の成功では再起動案内を表示する()
+    {
+        await using LanguageRestoreContext context =
+            await LanguageRestoreContext.CreateAsync(AppLanguage.English);
+
+        PreparedBackupRestore prepared = await context.ViewModel
+            .PreviewRestoreAsync(context.BackupPath, CancellationToken.None);
+        BackupRestoreResult result = await context.ViewModel.RestoreBackupAsync(
+            prepared.SessionId,
+            isReplacementConfirmed: true,
+            CancellationToken.None);
+
+        Assert.IsTrue(result.IsCommitted);
+        Assert.IsFalse(result.IsPartial);
+        Assert.AreEqual(AppLanguage.English, context.ViewModel.Language);
+        Assert.IsTrue(context.ViewModel.IsLanguageRestartRequired);
+        Assert.AreEqual(
+            "Backup restored. Restart the app to apply the display language.",
+            context.ViewModel.BackupStatusText);
+        Assert.AreEqual(
+            context.ViewModel.BackupStatusText,
+            context.ViewModel.InfoBarMessage);
+    }
+
+    [TestMethod]
+    public async Task RestoreAsync_言語不変の成功では再起動案内を表示しない()
+    {
+        await using LanguageRestoreContext context =
+            await LanguageRestoreContext.CreateAsync(AppLanguage.Japanese);
+
+        PreparedBackupRestore prepared = await context.ViewModel
+            .PreviewRestoreAsync(context.BackupPath, CancellationToken.None);
+        BackupRestoreResult result = await context.ViewModel.RestoreBackupAsync(
+            prepared.SessionId,
+            isReplacementConfirmed: true,
+            CancellationToken.None);
+
+        Assert.IsTrue(result.IsCommitted);
+        Assert.IsFalse(result.IsPartial);
+        Assert.AreEqual(AppLanguage.Japanese, context.ViewModel.Language);
+        Assert.IsFalse(context.ViewModel.IsLanguageRestartRequired);
+        Assert.AreEqual(
+            "Backup restored.",
+            context.ViewModel.BackupStatusText);
+        Assert.AreEqual(
+            context.ViewModel.BackupStatusText,
+            context.ViewModel.InfoBarMessage);
+        Assert.IsFalse(
+            context.ViewModel.BackupStatusText.Contains(
+                "Restart",
+                StringComparison.Ordinal));
     }
 
     [TestMethod]
@@ -376,5 +442,79 @@ public sealed class PostCommitPartialRestoreTests
 
         public Task<bool> OpenNotificationSettingsAsync(
             CancellationToken cancellationToken) => Task.FromResult(true);
+    }
+
+    private sealed class LanguageRestoreContext : IAsyncDisposable
+    {
+        private LanguageRestoreContext(
+            RestoreWorkflowTestStore source,
+            RestoreWorkflowTestStore destination,
+            string backupPath,
+            SettingsViewModel viewModel)
+        {
+            Source = source;
+            Destination = destination;
+            BackupPath = backupPath;
+            ViewModel = viewModel;
+        }
+
+        private RestoreWorkflowTestStore Source { get; }
+
+        private RestoreWorkflowTestStore Destination { get; }
+
+        public string BackupPath { get; }
+
+        public SettingsViewModel ViewModel { get; }
+
+        public static async Task<LanguageRestoreContext> CreateAsync(
+            AppLanguage sourceLanguage)
+        {
+            RestoreWorkflowTestStore source =
+                await RestoreWorkflowTestStore.CreateAsync(
+                    "new",
+                    startupEnabled: false,
+                    language: sourceLanguage);
+            RestoreWorkflowTestStore destination =
+                await RestoreWorkflowTestStore.CreateAsync(
+                    "old",
+                    startupEnabled: false,
+                    language: AppLanguage.Japanese);
+            GameManager manager = destination.CreateManager();
+            PartialServices services = new();
+            BackupCoordinator backup = destination.CreateBackup();
+            AppCoordinator app = new(
+                destination.Store,
+                manager,
+                new RecordingUiDispatcher(),
+                services,
+                services,
+                services,
+                services,
+                services,
+                new RestoreCoordinator(backup, manager));
+            await app.InitializeAsync(CancellationToken.None);
+            SettingsViewModel viewModel = new(
+                manager,
+                services,
+                services,
+                services,
+                services,
+                services,
+                services,
+                SettingsEnglishResourceFixture.Create(),
+                app);
+            viewModel.MarkReady();
+            return new LanguageRestoreContext(
+                source,
+                destination,
+                await source.ExportAsync(),
+                viewModel);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await Source.DisposeAsync();
+            await Destination.DisposeAsync();
+        }
     }
 }

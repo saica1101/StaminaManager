@@ -1237,11 +1237,16 @@ public sealed partial class SettingsViewModel : ObservableObject
                 || !coordinator.IsLanguageSynchronized
                 || coordinator.LastNotificationReconcileResult?.HasFailures
                     == true;
+            bool isLanguageRestartRequired = IsLanguageRestartRequired;
             BackupStatusText = hasRetry
                 ? _appResourceService.GetString(
-                    "SettingsBackupRestorePartialStatus")
+                    isLanguageRestartRequired
+                        ? "SettingsBackupRestorePartialRestartStatus"
+                        : "SettingsBackupRestorePartialStatus")
                 : _appResourceService.GetString(
-                    "SettingsBackupRestoreSuccessStatus");
+                    isLanguageRestartRequired
+                        ? "SettingsBackupRestoreSuccessRestartStatus"
+                        : "SettingsBackupRestoreSuccessStatus");
             ShowMessage(
                 BackupStatusText,
                 hasRetry

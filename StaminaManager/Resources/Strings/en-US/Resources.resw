@@ -319,7 +319,9 @@
   <data name="SettingsBackupCancelBusy" xml:space="preserve"><value>Canceling backup restore preparation...</value></data>
   <data name="SettingsBackupRestoreBusy" xml:space="preserve"><value>Restoring the backup...</value></data>
   <data name="SettingsBackupRestoreSuccessStatus" xml:space="preserve"><value>Backup restored.</value></data>
+  <data name="SettingsBackupRestoreSuccessRestartStatus" xml:space="preserve"><value>Backup restored. Restart the app to apply the display language.</value></data>
   <data name="SettingsBackupRestorePartialStatus" xml:space="preserve"><value>Data restored. Windows settings will be retried next time.</value></data>
+  <data name="SettingsBackupRestorePartialRestartStatus" xml:space="preserve"><value>Data restored. Windows settings will be retried next time. Restart the app to apply the display language.</value></data>
   <data name="SettingsBackupRestoreSuccessTitle" xml:space="preserve"><value>Restore completed</value></data>
   <data name="SettingsBackupRestorePartialTitle" xml:space="preserve"><value>Data restored</value></data>
   <data name="SettingsBackupRestoreFailureStatus" xml:space="preserve"><value>The backup could not be restored.</value></data>

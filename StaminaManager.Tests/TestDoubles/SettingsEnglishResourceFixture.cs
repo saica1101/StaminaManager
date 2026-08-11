@@ -75,8 +75,12 @@ internal static class SettingsEnglishResourceFixture
                 "Restoring the backup...",
             ["SettingsBackupRestoreSuccessStatus"] =
                 "Backup restored.",
+            ["SettingsBackupRestoreSuccessRestartStatus"] =
+                "Backup restored. Restart the app to apply the display language.",
             ["SettingsBackupRestorePartialStatus"] =
                 "Data restored. Windows settings will be retried next time.",
+            ["SettingsBackupRestorePartialRestartStatus"] =
+                "Data restored. Windows settings will be retried next time. Restart the app to apply the display language.",
             ["SettingsBackupRestoreSuccessTitle"] =
                 "Restore completed",
             ["SettingsBackupRestorePartialTitle"] =
