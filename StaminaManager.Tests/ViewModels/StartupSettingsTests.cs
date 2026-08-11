@@ -11,8 +11,6 @@ namespace StaminaManager.Tests.ViewModels;
 [TestClass]
 public sealed class StartupSettingsTests
 {
-    private static readonly RecordingResourceService TestResources = new();
-
     [TestMethod]
     public async Task SetStartupEnabledAsync_ユーザー拒否時は実状態へ戻す()
     {
@@ -70,9 +68,10 @@ public sealed class StartupSettingsTests
         context.StartupService.Results.Enqueue(new StartupChangeResult(
             new StartupStatus(StartupState.Disabled),
             IsApplied: false,
-            StartupFailureReason.None));
-        SettingsViewModel viewModel = context.CreateViewModel(
-            SettingsEnglishResourceFixture.Create());
+            StartupFailureReason.OperationFailed));
+        RecordingResourceService resources =
+            SettingsEnglishResourceFixture.Create();
+        SettingsViewModel viewModel = context.CreateViewModel(resources);
 
         bool changed = await viewModel.SetStartupEnabledAsync(
             isEnabled: true,
@@ -82,6 +81,9 @@ public sealed class StartupSettingsTests
         Assert.AreEqual(
             "Windows startup could not be changed. Try again later.",
             viewModel.InfoBarMessage);
+        CollectionAssert.Contains(
+            resources.RequestedResourceIds,
+            "SettingsStartupChangeFailure");
     }
 
     [TestMethod]
@@ -238,7 +240,7 @@ public sealed class StartupSettingsTests
                 new PassThroughThemeService(),
                 new PassThroughBackdropService(),
                 StartupService,
-                resources ?? TestResources);
+                resources ?? new RecordingResourceService());
             viewModel.MarkReady();
             return viewModel;
         }

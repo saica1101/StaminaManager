@@ -15,8 +15,6 @@ namespace StaminaManager.Tests.ViewModels;
 [TestClass]
 public sealed class SettingsViewModelTests
 {
-    private static readonly RecordingResourceService TestResources = new();
-
     [TestMethod]
     public async Task DynamicAccessibilityAndAvailabilityText_UsesResources()
     {
@@ -1440,7 +1438,7 @@ public sealed class SettingsViewModelTests
             Manager,
             ThemeService,
             BackdropService,
-            resources ?? TestResources);
+            resources ?? new RecordingResourceService());
 
         public SettingsViewModel CreateLanguageViewModel(
             AppLanguage sessionLanguage = AppLanguage.Japanese,
@@ -1454,7 +1452,7 @@ public sealed class SettingsViewModelTests
                 NotificationReconciler,
                 new PassThroughPermissionService(),
                 new PassThroughSettingsLauncher(),
-                resources ?? TestResources,
+                resources ?? new RecordingResourceService(),
                 appLanguageService: LanguageService,
                 sessionLanguage: sessionLanguage);
             viewModel.MarkReady();

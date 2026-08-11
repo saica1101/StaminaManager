@@ -17,9 +17,6 @@ internal static class SettingsEnglishResourceFixture
                 "The solid background could not be applied. Restart the app.",
             ["SettingsBackdropFallbackTitle"] =
                 "Switched to a solid background",
-            ["SettingsAcrylicOpacityFailureRollbackFailed"] =
-                "Acrylic tint opacity could not be changed. "
-                + "The background could not be restored, so restart the app.",
             ["SettingsAcrylicOpacityRollbackSafeFallback"] =
                 "Acrylic tint opacity could not be saved. "
                 + "The background was switched to a safe solid background. "
