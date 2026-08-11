@@ -33,25 +33,29 @@ public sealed partial class SettingsViewModel : ObservableObject
         Unknown,
     }
 
-    private const string SaveFailureMessage =
-        "設定を保存できませんでした。以前の設定に戻しました。"
-        + "もう一度お試しください。";
-    private const string NotReadyMessage =
-        "設定を読み込み中です。完了してからもう一度お試しください。";
-    private const string InitializationFailureMessage =
-        "設定を読み込めませんでした。アプリを再起動してください。";
+    private string SaveFailureMessage => _appResourceService.GetString(
+        "SettingsSaveFailure");
+
+    private string NotReadyMessage => _appResourceService.GetString(
+        "SettingsNotReady");
+
+    private string InitializationFailureMessage =>
+        _appResourceService.GetString("SettingsInitializationFailure");
+
     private const string BackupBusyMessage =
         "バックアップ処理中です。完了してからもう一度お試しください。";
-    private const string UnexpectedFailureMessage =
-        "設定を変更できませんでした。もう一度お試しください。";
-    private const string LanguageSaveFailureMessage =
-        "言語設定を保存できませんでした。以前の設定に戻しました。"
-        + "もう一度お試しください。";
-    private const string LanguageRestartMessage =
-        "言語を変更しました。アプリを再起動すると表示へ反映されます。";
-    private const string LanguageInconsistentMessage =
-        "言語設定は保存しましたが、Windowsの言語を適用できませんでした。"
-        + "次回起動時に再試行します。";
+
+    private string UnexpectedFailureMessage => _appResourceService.GetString(
+        "SettingsUnexpectedFailure");
+
+    private string LanguageSaveFailureMessage => _appResourceService.GetString(
+        "SettingsLanguageSaveFailure");
+
+    private string LanguageRestartMessage => _appResourceService.GetString(
+        "SettingsLanguageRestartRequired");
+
+    private string LanguageInconsistentMessage =>
+        _appResourceService.GetString("SettingsLanguageInconsistent");
     private readonly GameManager _gameManager;
     private readonly IThemeService _themeService;
     private readonly IBackdropService _backdropService;
@@ -382,8 +386,8 @@ public sealed partial class SettingsViewModel : ObservableObject
             if (!result.IsApplied)
             {
                 ShowMessage(
-                    result.ErrorMessage
-                    ?? "テーマを適用できませんでした。",
+                    _appResourceService.GetString(
+                        "SettingsThemeApplyFailure"),
                     InfoBarSeverity.Error);
                 return false;
             }
@@ -455,7 +459,8 @@ public sealed partial class SettingsViewModel : ObservableObject
                 ShowMessage(
                     GetBackdropFallbackMessage(result),
                     InfoBarSeverity.Warning,
-                    "背景を単色表示へ切り替えました");
+                    _appResourceService.GetString(
+                        "SettingsBackdropFallbackTitle"));
                 return false;
             }
 
@@ -519,7 +524,8 @@ public sealed partial class SettingsViewModel : ObservableObject
             out _))
         {
             ShowMessage(
-                "選択した言語は利用できません。",
+                _appResourceService.GetString(
+                    "SettingsLanguageUnsupported"),
                 InfoBarSeverity.Error);
             return false;
         }
@@ -601,7 +607,8 @@ public sealed partial class SettingsViewModel : ObservableObject
                     ShowMessage(
                         LanguageInconsistentMessage,
                         InfoBarSeverity.Warning,
-                        "言語設定の同期が完了していません");
+                        _appResourceService.GetString(
+                            "SettingsLanguageInconsistentTitle"));
                 }
 
                 return false;
@@ -645,7 +652,8 @@ public sealed partial class SettingsViewModel : ObservableObject
                 ShowMessage(
                     LanguageRestartMessage,
                     InfoBarSeverity.Informational,
-                    "再起動が必要です");
+                    _appResourceService.GetString(
+                        "SettingsRestartRequiredTitle"));
             }
             else
             {
@@ -673,7 +681,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (!AcrylicOpacityPolicy.IsValid(percent))
         {
             ShowMessage(
-                "Acrylic の不透明度は0～100%の整数で入力してください。",
+                _appResourceService.GetString(
+                    "SettingsAcrylicOpacityInvalid"),
                 InfoBarSeverity.Error);
             return false;
         }
@@ -715,7 +724,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             AcrylicTintOpacityPercent = lastApplied;
             AppearanceRollbackStatus rollbackStatus =
                 RollbackAcrylicOpacity(lastApplied);
-            ShowAcrylicOpacityFailure(result, rollbackStatus);
+            ShowAcrylicOpacityFailure(rollbackStatus);
             return false;
         }
         finally
@@ -737,7 +746,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (!AcrylicOpacityPolicy.IsValid(percent))
         {
             ShowMessage(
-                "Acrylic の不透明度は0～100%の整数で入力してください。",
+                _appResourceService.GetString(
+                    "SettingsAcrylicOpacityInvalid"),
                 InfoBarSeverity.Error);
             return false;
         }
@@ -771,7 +781,7 @@ public sealed partial class SettingsViewModel : ObservableObject
                     AcrylicTintOpacityPercent = previousSaved;
                     AppearanceRollbackStatus rollbackStatus =
                         RollbackAcrylicOpacity(previousSaved);
-                    ShowAcrylicOpacityFailure(null, rollbackStatus);
+                    ShowAcrylicOpacityFailure(rollbackStatus);
                     return false;
                 }
 
@@ -781,7 +791,7 @@ public sealed partial class SettingsViewModel : ObservableObject
                     AcrylicTintOpacityPercent = previousSaved;
                     AppearanceRollbackStatus rollbackStatus =
                         RollbackAcrylicOpacity(previousSaved);
-                    ShowAcrylicOpacityFailure(result, rollbackStatus);
+                    ShowAcrylicOpacityFailure(rollbackStatus);
                     return false;
                 }
 
@@ -846,7 +856,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (!Enum.IsDefined(closeBehavior))
         {
             ShowMessage(
-                "閉じる操作の設定が正しくありません。",
+                _appResourceService.GetString(
+                    "SettingsCloseBehaviorInvalid"),
                 InfoBarSeverity.Error);
             return Task.FromResult(false);
         }
@@ -888,7 +899,8 @@ public sealed partial class SettingsViewModel : ObservableObject
                     "StartupTask change failed: "
                     + exception.GetType().Name);
                 ShowMessage(
-                    "Windowsログイン時起動を変更できませんでした。",
+                    _appResourceService.GetString(
+                        "SettingsStartupChangeFailure"),
                     InfoBarSeverity.Error);
                 return false;
             }
@@ -925,8 +937,8 @@ public sealed partial class SettingsViewModel : ObservableObject
                 ShowMessage(
                     wasRestored
                         ? SaveFailureMessage
-                        : SaveFailureMessage
-                            + " Windowsの実際の状態は画面へ反映しました。",
+                        : _appResourceService.GetString(
+                            "SettingsStartupSaveFailureActualState"),
                     InfoBarSeverity.Error);
                 return false;
             }
@@ -975,7 +987,8 @@ public sealed partial class SettingsViewModel : ObservableObject
                 or > AppSettings.MaxNotificationLeadMinutes)
         {
             ShowMessage(
-                "通知時間は0～525,600分の整数で入力してください。",
+                _appResourceService.GetString(
+                    "SettingsNotificationLeadInvalid"),
                 InfoBarSeverity.Error);
             return Task.FromResult(false);
         }
@@ -1025,8 +1038,8 @@ public sealed partial class SettingsViewModel : ObservableObject
             WindowsNotificationState = NotificationPermissionState.Unsupported;
             AreWindowsNotificationsAvailable = false;
             ShowMessage(
-                "Windowsの通知状態を確認できませんでした。"
-                + "Windowsの通知設定を確認してから再試行してください。",
+                _appResourceService.GetString(
+                    "SettingsNotificationAvailabilityCheckFailure"),
                 InfoBarSeverity.Error);
         }
     }
@@ -1041,8 +1054,8 @@ public sealed partial class SettingsViewModel : ObservableObject
             if (!opened)
             {
                 ShowMessage(
-                    "Windowsの通知設定を開けませんでした。"
-                    + "Windowsの設定から通知を手動で確認してください。",
+                    _appResourceService.GetString(
+                        "SettingsNotificationSettingsLaunchFailure"),
                     InfoBarSeverity.Error);
             }
 
@@ -1058,8 +1071,8 @@ public sealed partial class SettingsViewModel : ObservableObject
                 "Notification settings launch failed: "
                 + exception.GetType().Name);
             ShowMessage(
-                "Windowsの通知設定を開けませんでした。"
-                + "Windowsの設定から通知を手動で確認してください。",
+                _appResourceService.GetString(
+                    "SettingsNotificationSettingsLaunchFailure"),
                 InfoBarSeverity.Error);
             return false;
         }
@@ -1246,11 +1259,10 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (!isStartupSynchronized)
         {
             ShowMessage(
-                startupStatus is null
-                    ? "Windowsログイン時起動の実際の状態を確認できませんでした。"
-                        + "Settingsを開き直して再試行してください。"
-                    : "Windowsログイン時起動の実際の状態は画面へ反映しましたが、"
-                        + "設定を保存できませんでした。再試行してください。",
+                _appResourceService.GetString(
+                    startupStatus is null
+                        ? "SettingsStartupStatusCheckFailure"
+                        : "SettingsStartupStatusSaveFailure"),
                 InfoBarSeverity.Error);
             return;
         }
@@ -1268,15 +1280,16 @@ public sealed partial class SettingsViewModel : ObservableObject
             ShowMessage(
                 GetBackdropFallbackMessage(backdropResult),
                 InfoBarSeverity.Warning,
-                "背景を単色表示へ切り替えました");
+                _appResourceService.GetString(
+                    "SettingsBackdropFallbackTitle"));
             return;
         }
 
         if (themeResult is { IsApplied: false })
         {
             ShowMessage(
-                themeResult.ErrorMessage
-                ?? "保存済みのテーマを適用できませんでした。",
+                _appResourceService.GetString(
+                    "SettingsThemeApplyFailure"),
                 InfoBarSeverity.Error);
             return;
         }
@@ -1317,7 +1330,8 @@ public sealed partial class SettingsViewModel : ObservableObject
                 ShowMessage(
                     successMessage,
                     InfoBarSeverity.Informational,
-                    "設定を保存しました");
+                    _appResourceService.GetString(
+                        "SettingsSavedTitle"));
             }
 
             return true;
@@ -1395,37 +1409,34 @@ public sealed partial class SettingsViewModel : ObservableObject
     private void ShowNotificationReconcileFailure(bool hasInvalidSchedule)
     {
         ShowMessage(
-            hasInvalidSchedule
-                ? "通知時刻を計算できませんでした。"
-                    + "通知する分数またはゲーム設定を見直してください。"
-                : "設定は保存しましたが、一部のWindows通知を同期できませんでした。"
-                    + "設定を変更して再試行してください。",
+            _appResourceService.GetString(
+                hasInvalidSchedule
+                    ? "SettingsNotificationReconcileInvalidSchedule"
+                    : "SettingsNotificationReconcileFailure"),
             InfoBarSeverity.Warning,
-            "通知の同期が完了していません");
+            _appResourceService.GetString(
+                "SettingsNotificationReconcileTitle"));
     }
 
     private void ShowNotificationPermissionMessage(
         NotificationPermissionState state)
     {
-        string message = state switch
+        string resourceId = state switch
         {
             NotificationPermissionState.DisabledForApplication
                 or NotificationPermissionState.DisabledForUser =>
-                "Windows通知が無効です。Windowsの通知設定を開いて"
-                + "有効にしてください。",
+                "SettingsNotificationPermissionDisabled",
             NotificationPermissionState.DisabledByPolicy =>
-                "組織のポリシーによりWindows通知を利用できません。"
-                + "必要な場合は管理者へ確認してください。",
+                "SettingsNotificationPermissionPolicy",
             NotificationPermissionState.DisabledByManifest =>
-                "Windows通知のアプリ構成を利用できません。"
-                + "通知をオフにしてスタミナをアプリで確認してください。",
-            _ => "この環境ではWindows通知を利用できません。"
-                + "通知をオフにしてスタミナをアプリで確認してください。",
+                "SettingsNotificationPermissionManifest",
+            _ => "SettingsNotificationPermissionUnsupported",
         };
         ShowMessage(
-            message,
+            _appResourceService.GetString(resourceId),
             InfoBarSeverity.Warning,
-            "Windows通知を利用できません");
+            _appResourceService.GetString(
+                "SettingsNotificationPermissionTitle"));
     }
 
     private void ReportPreparation(SettingsPreparationAction action)
@@ -1509,46 +1520,40 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     private void ShowStartupFailure(StartupFailureReason reason)
     {
-        string message = reason switch
+        string resourceId = reason switch
         {
             StartupFailureReason.DisabledByUser =>
-                "ユーザーがWindowsのスタートアップ設定で無効にしています。"
-                + "Windowsの設定から有効にしてください。",
+                "SettingsStartupDisabledByUser",
             StartupFailureReason.DisabledByPolicy =>
-                "組織のポリシーによりWindowsログイン時起動を有効にできません。"
-                + "必要な場合は組織の管理者へ確認してください。",
+                "SettingsStartupDisabledByPolicy",
             StartupFailureReason.EnabledByPolicy =>
-                "組織のポリシーによりWindowsログイン時起動を無効にできません。"
-                + "必要な場合は組織の管理者へ確認してください。",
-            _ => "Windowsログイン時起動を変更できませんでした。"
-                + "時間をおいて再試行してください。",
+                "SettingsStartupEnabledByPolicy",
+            _ => "SettingsStartupChangeFailure",
         };
-        ShowMessage(message, InfoBarSeverity.Warning);
+        ShowMessage(
+            _appResourceService.GetString(resourceId),
+            InfoBarSeverity.Warning);
     }
 
-    private static string GetBackdropFallbackMessage(
-        BackdropResult result)
+    private string GetBackdropFallbackMessage(BackdropResult result)
     {
-        string detail = result.ErrorMessage
-            ?? "選択した背景を使用できないため、単色背景を使用します。";
-        string nextAction = result.FallbackReason switch
+        string resourceId = result.FallbackReason switch
         {
             BackdropFallbackReason.HighContrast =>
-                "Windowsのコントラスト テーマ設定を確認するか、"
-                + "単色表示を続けてください。",
+                "SettingsBackdropFallbackHighContrast",
             BackdropFallbackReason.TransparencyDisabled =>
-                "Windowsの透明効果設定を確認するか、"
-                + "単色表示を続けてください。",
+                "SettingsBackdropFallbackTransparencyDisabled",
             BackdropFallbackReason.RemoteSession =>
-                "リモート接続を終了後に再確認するか、"
-                + "単色表示を続けてください。",
+                "SettingsBackdropFallbackRemoteSession",
             BackdropFallbackReason.Unsupported =>
-                "単色表示を続けるか、別の背景を選択してください。",
+                "SettingsBackdropFallbackUnsupported",
             BackdropFallbackReason.ApplyFailed =>
-                "単色表示を続けるか、別の背景を選択して再試行してください。",
-            _ => "単色表示を続けるか、別の背景を選択してください。",
+                "SettingsBackdropFallbackApplyFailed",
+            BackdropFallbackReason.SolidFallbackFailed =>
+                "SettingsBackdropFallbackSolidFailed",
+            _ => "SettingsBackdropFallbackDefault",
         };
-        return detail + " " + nextAction;
+        return _appResourceService.GetString(resourceId);
     }
 
     private static bool IsPersistenceFailure(Exception exception) =>
@@ -1649,27 +1654,28 @@ public sealed partial class SettingsViewModel : ObservableObject
     private void ShowLanguageChangeFailure(
         LanguageFailureReason reason)
     {
-        string message = reason switch
+        string resourceId = reason switch
         {
             LanguageFailureReason.Unsupported =>
-                "選択した言語は利用できません。以前の設定に戻しました。",
-            _ => "Windowsの言語を変更できませんでした。"
-                + "以前の設定に戻しました。もう一度お試しください。",
+                "SettingsLanguageUnsupportedRestore",
+            _ => "SettingsLanguageApplyFailureRestore",
         };
-        ShowMessage(message, InfoBarSeverity.Error);
+        ShowMessage(
+            _appResourceService.GetString(resourceId),
+            InfoBarSeverity.Error);
     }
 
     private void ShowLanguageSynchronizationFailure(
         LanguageFailureReason reason)
     {
-        string message = reason == LanguageFailureReason.Unsupported
-            ? "保存済みの言語はこのバージョンでは利用できません。"
-            : "保存済みの言語をWindowsへ適用できませんでした。"
-                + "次回起動時に再試行します。";
+        string resourceId = reason == LanguageFailureReason.Unsupported
+            ? "SettingsLanguageUnsupportedSaved"
+            : "SettingsLanguageApplyFailureSaved";
         ShowMessage(
-            message,
+            _appResourceService.GetString(resourceId),
             InfoBarSeverity.Warning,
-            "言語の同期が完了していません");
+            _appResourceService.GetString(
+                "SettingsLanguageInconsistentTitle"));
     }
 
     private AppearanceRollbackStatus RollbackAcrylicOpacity(
@@ -1728,95 +1734,106 @@ public sealed partial class SettingsViewModel : ObservableObject
         AppearanceRollbackStatus rollbackStatus,
         bool wasCanceled)
     {
-        string message = GetRollbackMessage(wasCanceled);
-        message += rollbackStatus switch
+        string resourceId = rollbackStatus switch
         {
-            AppearanceRollbackStatus.Restored => string.Empty,
+            AppearanceRollbackStatus.Restored =>
+                wasCanceled
+                    ? "SettingsSaveCanceled"
+                    : "SettingsSaveFailure",
             AppearanceRollbackStatus.Unknown =>
-                " テーマの実際の表示状態を確認できません。"
-                + "アプリを再起動してください。",
+                wasCanceled
+                    ? "SettingsThemeRollbackUnknownAfterCancel"
+                    : "SettingsThemeRollbackUnknown",
             _ =>
-                " テーマ表示を以前に戻せないため、"
-                + "アプリを再起動してください。",
+                wasCanceled
+                    ? "SettingsThemeRollbackFailedAfterCancel"
+                    : "SettingsThemeRollbackFailed",
         };
 
-        ShowMessage(message, InfoBarSeverity.Error);
+        ShowMessage(
+            _appResourceService.GetString(resourceId),
+            InfoBarSeverity.Error);
     }
 
     private void ShowBackdropRollbackMessage(
         AppearanceRollbackStatus rollbackStatus,
         bool wasCanceled)
     {
-        string message = GetRollbackMessage(wasCanceled);
-        message += rollbackStatus switch
+        string resourceId = rollbackStatus switch
         {
-            AppearanceRollbackStatus.Restored => string.Empty,
+            AppearanceRollbackStatus.Restored =>
+                wasCanceled
+                    ? "SettingsSaveCanceled"
+                    : "SettingsSaveFailure",
             AppearanceRollbackStatus.SafeFallback =>
-                " 背景は安全な単色表示へ切り替わりました。",
+                wasCanceled
+                    ? "SettingsBackdropRollbackSafeFallbackAfterCancel"
+                    : "SettingsBackdropRollbackSafeFallback",
             AppearanceRollbackStatus.Unknown =>
-                " 背景の実際の表示状態を確認できません。"
-                + "アプリを再起動してください。",
+                wasCanceled
+                    ? "SettingsBackdropRollbackUnknownAfterCancel"
+                    : "SettingsBackdropRollbackUnknown",
             _ =>
-                " 背景表示を以前に戻せないため、"
-                + "アプリを再起動してください。",
+                wasCanceled
+                    ? "SettingsBackdropRollbackFailedAfterCancel"
+                    : "SettingsBackdropRollbackFailed",
         };
 
-        ShowMessage(message, InfoBarSeverity.Error);
+        ShowMessage(
+            _appResourceService.GetString(resourceId),
+            InfoBarSeverity.Error);
     }
 
     private void ShowAcrylicOpacityFailure(
-        BackdropResult? result,
         AppearanceRollbackStatus rollbackStatus)
     {
-        string message = result?.ErrorMessage
-            ?? "Acrylic の不透明度を適用できませんでした。";
-        message += rollbackStatus switch
+        string resourceId = rollbackStatus switch
         {
             AppearanceRollbackStatus.Restored =>
-                " 直前に適用できた値へ戻しました。",
+                "SettingsAcrylicOpacityFailureRestored",
             AppearanceRollbackStatus.SafeFallback =>
-                " 背景は安全な単色表示へ切り替わりました。"
-                + "アプリを再起動してください。",
+                "SettingsAcrylicOpacityFailureSafeFallback",
             AppearanceRollbackStatus.Unknown =>
-                " 背景の実際の表示状態を確認できません。"
-                + "アプリを再起動してください。",
+                "SettingsAcrylicOpacityFailureUnknown",
             _ =>
-                " 背景表示を以前に戻せないため、"
-                + "アプリを再起動してください。",
+                "SettingsAcrylicOpacityFailureRollbackFailed",
         };
         ShowMessage(
-            message,
+            _appResourceService.GetString(resourceId),
             rollbackStatus == AppearanceRollbackStatus.Restored
                 ? InfoBarSeverity.Warning
                 : InfoBarSeverity.Error,
-            "Acrylic の不透明度を変更できませんでした");
+            _appResourceService.GetString(
+                "SettingsAcrylicOpacityFailureTitle"));
     }
 
     private void ShowAcrylicOpacityRollbackMessage(
         AppearanceRollbackStatus rollbackStatus,
         bool wasCanceled)
     {
-        string message = GetRollbackMessage(wasCanceled);
-        message += rollbackStatus switch
+        string resourceId = rollbackStatus switch
         {
-            AppearanceRollbackStatus.Restored => string.Empty,
+            AppearanceRollbackStatus.Restored =>
+                wasCanceled
+                    ? "SettingsSaveCanceled"
+                    : "SettingsSaveFailure",
             AppearanceRollbackStatus.SafeFallback =>
-                " 背景は安全な単色表示へ切り替わりました。"
-                + "アプリを再起動してください。",
+                wasCanceled
+                    ? "SettingsAcrylicOpacityRollbackSafeFallbackAfterCancel"
+                    : "SettingsAcrylicOpacityRollbackSafeFallback",
             AppearanceRollbackStatus.Unknown =>
-                " 背景の実際の表示状態を確認できません。"
-                + "アプリを再起動してください。",
+                wasCanceled
+                    ? "SettingsAcrylicOpacityRollbackUnknownAfterCancel"
+                    : "SettingsAcrylicOpacityRollbackUnknown",
             _ =>
-                " 背景表示を以前に戻せないため、"
-                + "アプリを再起動してください。",
+                wasCanceled
+                    ? "SettingsAcrylicOpacityRollbackFailedAfterCancel"
+                    : "SettingsAcrylicOpacityRollbackFailed",
         };
-        ShowMessage(message, InfoBarSeverity.Error);
+        ShowMessage(
+            _appResourceService.GetString(resourceId),
+            InfoBarSeverity.Error);
     }
-
-    private static string GetRollbackMessage(bool wasCanceled) =>
-        wasCanceled
-            ? "設定の保存がキャンセルされました。以前の設定に戻しました。"
-            : SaveFailureMessage;
 
     private bool EnsureReady()
     {
@@ -1840,14 +1857,16 @@ public sealed partial class SettingsViewModel : ObservableObject
             ShowMessage(
                 InitializationFailureMessage,
                 InfoBarSeverity.Error,
-                "設定を読み込めませんでした");
+                _appResourceService.GetString(
+                    "SettingsInitializationFailureTitle"));
         }
         else
         {
             ShowMessage(
                 NotReadyMessage,
                 InfoBarSeverity.Warning,
-                "設定を変更できません");
+                _appResourceService.GetString(
+                    "SettingsNotReadyTitle"));
         }
 
         return false;

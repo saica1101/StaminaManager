@@ -235,4 +235,72 @@
   <data name="GameEditorImageValidationError" xml:space="preserve"><value>画像を使用できません。PNG/JPEG、4096×4096以下のファイルを選んでください。</value></data>
   <data name="GameEditorImageLoadError" xml:space="preserve"><value>画像を読み込めませんでした。別のファイルを選んでください。</value></data>
   <data name="GameEditorAlreadyDeletedError" xml:space="preserve"><value>ゲームは既に削除されています。画面を閉じて一覧を確認してください。</value></data>
+  <data name="SettingsSaveFailure" xml:space="preserve"><value>設定を保存できませんでした。以前の設定に戻しました。もう一度お試しください。</value></data>
+  <data name="SettingsSaveCanceled" xml:space="preserve"><value>設定の保存がキャンセルされました。以前の設定に戻しました。</value></data>
+  <data name="SettingsNotReady" xml:space="preserve"><value>設定を読み込み中です。完了してからもう一度お試しください。</value></data>
+  <data name="SettingsNotReadyTitle" xml:space="preserve"><value>設定を変更できません</value></data>
+  <data name="SettingsInitializationFailure" xml:space="preserve"><value>設定を読み込めませんでした。アプリを再起動してください。</value></data>
+  <data name="SettingsInitializationFailureTitle" xml:space="preserve"><value>設定を読み込めませんでした</value></data>
+  <data name="SettingsUnexpectedFailure" xml:space="preserve"><value>設定を変更できませんでした。もう一度お試しください。</value></data>
+  <data name="SettingsLanguageSaveFailure" xml:space="preserve"><value>言語設定を保存できませんでした。以前の設定に戻しました。もう一度お試しください。</value></data>
+  <data name="SettingsLanguageRestartRequired" xml:space="preserve"><value>言語を変更しました。アプリを再起動すると表示へ反映されます。</value></data>
+  <data name="SettingsLanguageInconsistent" xml:space="preserve"><value>言語設定は保存しましたが、Windowsの言語を適用できませんでした。次回起動時に再試行します。</value></data>
+  <data name="SettingsLanguageInconsistentTitle" xml:space="preserve"><value>言語の同期が完了していません</value></data>
+  <data name="SettingsLanguageUnsupported" xml:space="preserve"><value>選択した言語は利用できません。</value></data>
+  <data name="SettingsLanguageUnsupportedRestore" xml:space="preserve"><value>選択した言語は利用できません。以前の設定に戻しました。</value></data>
+  <data name="SettingsLanguageUnsupportedSaved" xml:space="preserve"><value>保存済みの言語はこのバージョンでは利用できません。</value></data>
+  <data name="SettingsLanguageApplyFailureRestore" xml:space="preserve"><value>Windowsの言語を変更できませんでした。以前の設定に戻しました。もう一度お試しください。</value></data>
+  <data name="SettingsLanguageApplyFailureSaved" xml:space="preserve"><value>保存済みの言語をWindowsへ適用できませんでした。次回起動時に再試行します。</value></data>
+  <data name="SettingsRestartRequiredTitle" xml:space="preserve"><value>再起動が必要です</value></data>
+  <data name="SettingsThemeApplyFailure" xml:space="preserve"><value>テーマを適用できませんでした。以前のテーマを使用します。</value></data>
+  <data name="SettingsBackdropFallbackTitle" xml:space="preserve"><value>背景を単色表示へ切り替えました</value></data>
+  <data name="SettingsBackdropFallbackHighContrast" xml:space="preserve"><value>ハイ コントラストでは単色背景を使用します。Windowsのコントラスト テーマ設定を確認するか、単色表示を続けてください。</value></data>
+  <data name="SettingsBackdropFallbackTransparencyDisabled" xml:space="preserve"><value>Windowsの透明効果設定を確認するか、単色表示を続けてください。</value></data>
+  <data name="SettingsBackdropFallbackRemoteSession" xml:space="preserve"><value>リモート接続を終了後に再確認するか、単色表示を続けてください。</value></data>
+  <data name="SettingsBackdropFallbackUnsupported" xml:space="preserve"><value>単色表示を続けるか、別の背景を選択してください。</value></data>
+  <data name="SettingsBackdropFallbackApplyFailed" xml:space="preserve"><value>単色表示を続けるか、別の背景を選択して再試行してください。</value></data>
+  <data name="SettingsBackdropFallbackSolidFailed" xml:space="preserve"><value>単色背景も適用できないため、アプリを再起動してください。</value></data>
+  <data name="SettingsBackdropFallbackDefault" xml:space="preserve"><value>選択した背景を使用できないため、単色背景を使用します。</value></data>
+  <data name="SettingsAcrylicOpacityInvalid" xml:space="preserve"><value>Acrylic の不透明度は0～100%の整数で入力してください。</value></data>
+  <data name="SettingsCloseBehaviorInvalid" xml:space="preserve"><value>閉じる操作の設定が正しくありません。</value></data>
+  <data name="SettingsStartupChangeFailure" xml:space="preserve"><value>Windowsログイン時起動を変更できませんでした。</value></data>
+  <data name="SettingsStartupDisabledByUser" xml:space="preserve"><value>ユーザーがWindowsのスタートアップ設定で無効にしています。Windowsの設定から有効にしてください。</value></data>
+  <data name="SettingsStartupDisabledByPolicy" xml:space="preserve"><value>組織のポリシーによりWindowsログイン時起動を有効にできません。必要な場合は組織の管理者へ確認してください。</value></data>
+  <data name="SettingsStartupEnabledByPolicy" xml:space="preserve"><value>組織のポリシーによりWindowsログイン時起動を無効にできません。必要な場合は組織の管理者へ確認してください。</value></data>
+  <data name="SettingsStartupSaveFailureActualState" xml:space="preserve"><value>設定を保存できませんでした。以前の設定に戻しました。Windowsの実際の状態は画面へ反映しました。</value></data>
+  <data name="SettingsStartupStatusCheckFailure" xml:space="preserve"><value>Windowsログイン時起動の実際の状態を確認できませんでした。Settingsを開き直して再試行してください。</value></data>
+  <data name="SettingsStartupStatusSaveFailure" xml:space="preserve"><value>Windowsログイン時起動の実際の状態は画面へ反映しましたが、設定を保存できませんでした。再試行してください。</value></data>
+  <data name="SettingsNotificationLeadInvalid" xml:space="preserve"><value>通知時間は0～525,600分の整数で入力してください。</value></data>
+  <data name="SettingsNotificationAvailabilityCheckFailure" xml:space="preserve"><value>Windowsの通知状態を確認できませんでした。Windowsの通知設定を確認してから再試行してください。</value></data>
+  <data name="SettingsNotificationSettingsLaunchFailure" xml:space="preserve"><value>Windowsの通知設定を開けませんでした。Windowsの設定から通知を手動で確認してください。</value></data>
+  <data name="SettingsNotificationReconcileFailure" xml:space="preserve"><value>設定は保存しましたが、一部のWindows通知を同期できませんでした。設定を変更して再試行してください。</value></data>
+  <data name="SettingsNotificationReconcileInvalidSchedule" xml:space="preserve"><value>通知時刻を計算できませんでした。通知する分数またはゲーム設定を見直してください。</value></data>
+  <data name="SettingsNotificationReconcileTitle" xml:space="preserve"><value>通知の同期が完了していません</value></data>
+  <data name="SettingsNotificationPermissionDisabled" xml:space="preserve"><value>Windows通知が無効です。Windowsの通知設定を開いて有効にしてください。</value></data>
+  <data name="SettingsNotificationPermissionPolicy" xml:space="preserve"><value>組織のポリシーによりWindows通知を利用できません。必要な場合は管理者へ確認してください。</value></data>
+  <data name="SettingsNotificationPermissionManifest" xml:space="preserve"><value>Windows通知のアプリ構成を利用できません。通知をオフにしてスタミナをアプリで確認してください。</value></data>
+  <data name="SettingsNotificationPermissionUnsupported" xml:space="preserve"><value>この環境ではWindows通知を利用できません。通知をオフにしてスタミナをアプリで確認してください。</value></data>
+  <data name="SettingsNotificationPermissionTitle" xml:space="preserve"><value>Windows通知を利用できません</value></data>
+  <data name="SettingsSavedTitle" xml:space="preserve"><value>設定を保存しました</value></data>
+  <data name="SettingsThemeRollbackUnknown" xml:space="preserve"><value>設定を保存できませんでした。以前の設定に戻しました。テーマの実際の表示状態を確認できません。アプリを再起動してください。</value></data>
+  <data name="SettingsThemeRollbackUnknownAfterCancel" xml:space="preserve"><value>設定の保存がキャンセルされました。以前の設定に戻しました。テーマの実際の表示状態を確認できません。アプリを再起動してください。</value></data>
+  <data name="SettingsThemeRollbackFailed" xml:space="preserve"><value>設定を保存できませんでした。テーマ表示を以前に戻せないため、アプリを再起動してください。</value></data>
+  <data name="SettingsThemeRollbackFailedAfterCancel" xml:space="preserve"><value>設定の保存がキャンセルされました。テーマ表示を以前に戻せないため、アプリを再起動してください。</value></data>
+  <data name="SettingsBackdropRollbackSafeFallback" xml:space="preserve"><value>設定を保存できませんでした。以前の設定に戻しました。背景は安全な単色表示へ切り替わりました。</value></data>
+  <data name="SettingsBackdropRollbackSafeFallbackAfterCancel" xml:space="preserve"><value>設定の保存がキャンセルされました。以前の設定に戻しました。背景は安全な単色表示へ切り替わりました。</value></data>
+  <data name="SettingsBackdropRollbackUnknown" xml:space="preserve"><value>設定を保存できませんでした。以前の設定に戻しました。背景の実際の表示状態を確認できません。アプリを再起動してください。</value></data>
+  <data name="SettingsBackdropRollbackUnknownAfterCancel" xml:space="preserve"><value>設定の保存がキャンセルされました。以前の設定に戻しました。背景の実際の表示状態を確認できません。アプリを再起動してください。</value></data>
+  <data name="SettingsBackdropRollbackFailed" xml:space="preserve"><value>設定を保存できませんでした。背景表示を以前に戻せないため、アプリを再起動してください。</value></data>
+  <data name="SettingsBackdropRollbackFailedAfterCancel" xml:space="preserve"><value>設定の保存がキャンセルされました。背景表示を以前に戻せないため、アプリを再起動してください。</value></data>
+  <data name="SettingsAcrylicOpacityFailureTitle" xml:space="preserve"><value>Acrylic の不透明度を変更できませんでした</value></data>
+  <data name="SettingsAcrylicOpacityFailureRestored" xml:space="preserve"><value>Acrylic の不透明度を適用できませんでした。直前に適用できた値へ戻しました。</value></data>
+  <data name="SettingsAcrylicOpacityFailureSafeFallback" xml:space="preserve"><value>Acrylic の不透明度を適用できませんでした。背景は安全な単色表示へ切り替わりました。アプリを再起動してください。</value></data>
+  <data name="SettingsAcrylicOpacityFailureUnknown" xml:space="preserve"><value>Acrylic の不透明度を適用できませんでした。背景の実際の表示状態を確認できません。アプリを再起動してください。</value></data>
+  <data name="SettingsAcrylicOpacityFailureRollbackFailed" xml:space="preserve"><value>Acrylic の不透明度を適用できませんでした。背景表示を以前に戻せないため、アプリを再起動してください。</value></data>
+  <data name="SettingsAcrylicOpacityRollbackSafeFallback" xml:space="preserve"><value>設定を保存できませんでした。以前の設定に戻しました。背景は安全な単色表示へ切り替わりました。アプリを再起動してください。</value></data>
+  <data name="SettingsAcrylicOpacityRollbackSafeFallbackAfterCancel" xml:space="preserve"><value>設定の保存がキャンセルされました。以前の設定に戻しました。背景は安全な単色表示へ切り替わりました。アプリを再起動してください。</value></data>
+  <data name="SettingsAcrylicOpacityRollbackUnknown" xml:space="preserve"><value>設定を保存できませんでした。以前の設定に戻しました。背景の実際の表示状態を確認できません。アプリを再起動してください。</value></data>
+  <data name="SettingsAcrylicOpacityRollbackUnknownAfterCancel" xml:space="preserve"><value>設定の保存がキャンセルされました。以前の設定に戻しました。背景の実際の表示状態を確認できません。アプリを再起動してください。</value></data>
+  <data name="SettingsAcrylicOpacityRollbackFailed" xml:space="preserve"><value>設定を保存できませんでした。背景表示を以前に戻せないため、アプリを再起動してください。</value></data>
+  <data name="SettingsAcrylicOpacityRollbackFailedAfterCancel" xml:space="preserve"><value>設定の保存がキャンセルされました。背景表示を以前に戻せないため、アプリを再起動してください。</value></data>
 </root>

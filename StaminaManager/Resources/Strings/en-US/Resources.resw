@@ -235,4 +235,72 @@
   <data name="GameEditorImageValidationError" xml:space="preserve"><value>This image cannot be used. Choose a PNG or JPEG file no larger than 4096×4096.</value></data>
   <data name="GameEditorImageLoadError" xml:space="preserve"><value>The image could not be loaded. Choose a different file.</value></data>
   <data name="GameEditorAlreadyDeletedError" xml:space="preserve"><value>The game has already been deleted. Close this dialog and check the game list.</value></data>
+  <data name="SettingsSaveFailure" xml:space="preserve"><value>Could not save the setting. The previous setting was restored. Try again.</value></data>
+  <data name="SettingsSaveCanceled" xml:space="preserve"><value>Saving the setting was canceled. The previous setting was restored.</value></data>
+  <data name="SettingsNotReady" xml:space="preserve"><value>Settings are still loading. Try again when loading is complete.</value></data>
+  <data name="SettingsNotReadyTitle" xml:space="preserve"><value>Settings are not ready</value></data>
+  <data name="SettingsInitializationFailure" xml:space="preserve"><value>Settings could not be loaded. Restart the app.</value></data>
+  <data name="SettingsInitializationFailureTitle" xml:space="preserve"><value>Could not load settings</value></data>
+  <data name="SettingsUnexpectedFailure" xml:space="preserve"><value>The setting could not be changed. Try again.</value></data>
+  <data name="SettingsLanguageSaveFailure" xml:space="preserve"><value>Could not save the language setting. The previous setting was restored. Try again.</value></data>
+  <data name="SettingsLanguageRestartRequired" xml:space="preserve"><value>The language changed. Restart the app to apply it.</value></data>
+  <data name="SettingsLanguageInconsistent" xml:space="preserve"><value>The language setting was saved, but Windows could not apply it. It will be retried at the next startup.</value></data>
+  <data name="SettingsLanguageInconsistentTitle" xml:space="preserve"><value>Language synchronization is incomplete</value></data>
+  <data name="SettingsLanguageUnsupported" xml:space="preserve"><value>The selected language is not available.</value></data>
+  <data name="SettingsLanguageUnsupportedRestore" xml:space="preserve"><value>The selected language is not available. The previous setting was restored.</value></data>
+  <data name="SettingsLanguageUnsupportedSaved" xml:space="preserve"><value>The saved language is not available in this version.</value></data>
+  <data name="SettingsLanguageApplyFailureRestore" xml:space="preserve"><value>Windows could not change the language. The previous setting was restored. Try again.</value></data>
+  <data name="SettingsLanguageApplyFailureSaved" xml:space="preserve"><value>Windows could not apply the saved language. It will be retried at the next startup.</value></data>
+  <data name="SettingsRestartRequiredTitle" xml:space="preserve"><value>Restart required</value></data>
+  <data name="SettingsThemeApplyFailure" xml:space="preserve"><value>The theme could not be applied. The previous theme is being used.</value></data>
+  <data name="SettingsBackdropFallbackTitle" xml:space="preserve"><value>Switched to a solid background</value></data>
+  <data name="SettingsBackdropFallbackHighContrast" xml:space="preserve"><value>The background cannot be used in high contrast. Review contrast settings or keep a solid background.</value></data>
+  <data name="SettingsBackdropFallbackTransparencyDisabled" xml:space="preserve"><value>Transparency effects are disabled in Windows. Review the setting or keep a solid background.</value></data>
+  <data name="SettingsBackdropFallbackRemoteSession" xml:space="preserve"><value>Backdrops are unavailable in a remote session. Recheck after disconnecting or keep a solid background.</value></data>
+  <data name="SettingsBackdropFallbackUnsupported" xml:space="preserve"><value>Keep a solid background or choose a different background.</value></data>
+  <data name="SettingsBackdropFallbackApplyFailed" xml:space="preserve"><value>Keep a solid background or choose a different background and try again.</value></data>
+  <data name="SettingsBackdropFallbackSolidFailed" xml:space="preserve"><value>The solid background could not be applied. Restart the app.</value></data>
+  <data name="SettingsBackdropFallbackDefault" xml:space="preserve"><value>The selected background is unavailable, so a solid background is being used.</value></data>
+  <data name="SettingsAcrylicOpacityInvalid" xml:space="preserve"><value>Enter Acrylic opacity as an integer from 0% to 100%.</value></data>
+  <data name="SettingsCloseBehaviorInvalid" xml:space="preserve"><value>The close behavior setting is invalid.</value></data>
+  <data name="SettingsStartupChangeFailure" xml:space="preserve"><value>Windows startup could not be changed.</value></data>
+  <data name="SettingsStartupDisabledByUser" xml:space="preserve"><value>Windows startup is disabled in your startup settings. Enable it in Windows Settings.</value></data>
+  <data name="SettingsStartupDisabledByPolicy" xml:space="preserve"><value>Windows startup cannot be enabled because of an organization policy. Contact your administrator if needed.</value></data>
+  <data name="SettingsStartupEnabledByPolicy" xml:space="preserve"><value>Windows startup cannot be disabled because of an organization policy. Contact your administrator if needed.</value></data>
+  <data name="SettingsStartupSaveFailureActualState" xml:space="preserve"><value>Could not save the setting. The previous setting was restored. The actual Windows state is shown.</value></data>
+  <data name="SettingsStartupStatusCheckFailure" xml:space="preserve"><value>The actual Windows startup state could not be checked. Reopen Settings and try again.</value></data>
+  <data name="SettingsStartupStatusSaveFailure" xml:space="preserve"><value>The actual Windows startup state is shown, but the setting could not be saved. Try again.</value></data>
+  <data name="SettingsNotificationLeadInvalid" xml:space="preserve"><value>Enter notification time as an integer from 0 to 525,600 minutes.</value></data>
+  <data name="SettingsNotificationAvailabilityCheckFailure" xml:space="preserve"><value>Windows notification status could not be checked. Check Windows notification settings and try again.</value></data>
+  <data name="SettingsNotificationSettingsLaunchFailure" xml:space="preserve"><value>Windows notification settings could not be opened. Check notifications manually in Windows Settings.</value></data>
+  <data name="SettingsNotificationReconcileFailure" xml:space="preserve"><value>Settings were saved, but some Windows notifications could not be synchronized. Change the setting and try again.</value></data>
+  <data name="SettingsNotificationReconcileInvalidSchedule" xml:space="preserve"><value>Notification times could not be calculated. Review the notification lead time or game settings.</value></data>
+  <data name="SettingsNotificationReconcileTitle" xml:space="preserve"><value>Notification synchronization is incomplete</value></data>
+  <data name="SettingsNotificationPermissionDisabled" xml:space="preserve"><value>Windows notifications are disabled. Open Windows notification settings and enable them.</value></data>
+  <data name="SettingsNotificationPermissionPolicy" xml:space="preserve"><value>Windows notifications are unavailable because of an organization policy. Contact your administrator if needed.</value></data>
+  <data name="SettingsNotificationPermissionManifest" xml:space="preserve"><value>The app notification configuration is unavailable. Turn notifications off and check stamina in the app.</value></data>
+  <data name="SettingsNotificationPermissionUnsupported" xml:space="preserve"><value>Windows notifications are unavailable in this environment. Turn notifications off and check stamina in the app.</value></data>
+  <data name="SettingsNotificationPermissionTitle" xml:space="preserve"><value>Windows notifications are unavailable</value></data>
+  <data name="SettingsSavedTitle" xml:space="preserve"><value>Setting saved</value></data>
+  <data name="SettingsThemeRollbackUnknown" xml:space="preserve"><value>Could not save the setting. The previous setting was restored. The actual theme state could not be verified. Restart the app.</value></data>
+  <data name="SettingsThemeRollbackUnknownAfterCancel" xml:space="preserve"><value>Saving the setting was canceled. The previous setting was restored. The actual theme state could not be verified. Restart the app.</value></data>
+  <data name="SettingsThemeRollbackFailed" xml:space="preserve"><value>Could not save the setting. The theme could not be restored. Restart the app.</value></data>
+  <data name="SettingsThemeRollbackFailedAfterCancel" xml:space="preserve"><value>Saving the setting was canceled. The theme could not be restored. Restart the app.</value></data>
+  <data name="SettingsBackdropRollbackSafeFallback" xml:space="preserve"><value>Could not save the setting. The previous setting was restored. The background was switched to a safe solid background.</value></data>
+  <data name="SettingsBackdropRollbackSafeFallbackAfterCancel" xml:space="preserve"><value>Saving the setting was canceled. The previous setting was restored. The background was switched to a safe solid background.</value></data>
+  <data name="SettingsBackdropRollbackUnknown" xml:space="preserve"><value>Could not save the setting. The previous setting was restored. The actual background state could not be verified. Restart the app.</value></data>
+  <data name="SettingsBackdropRollbackUnknownAfterCancel" xml:space="preserve"><value>Saving the setting was canceled. The previous setting was restored. The actual background state could not be verified. Restart the app.</value></data>
+  <data name="SettingsBackdropRollbackFailed" xml:space="preserve"><value>Could not save the setting. The background could not be restored. Restart the app.</value></data>
+  <data name="SettingsBackdropRollbackFailedAfterCancel" xml:space="preserve"><value>Saving the setting was canceled. The background could not be restored. Restart the app.</value></data>
+  <data name="SettingsAcrylicOpacityFailureTitle" xml:space="preserve"><value>Acrylic tint opacity could not be changed</value></data>
+  <data name="SettingsAcrylicOpacityFailureRestored" xml:space="preserve"><value>Acrylic tint opacity could not be applied. The previous value was restored.</value></data>
+  <data name="SettingsAcrylicOpacityFailureSafeFallback" xml:space="preserve"><value>Acrylic tint opacity could not be applied. The background was switched to a safe solid background. Restart the app.</value></data>
+  <data name="SettingsAcrylicOpacityFailureUnknown" xml:space="preserve"><value>Acrylic tint opacity could not be applied. The actual background state could not be verified. Restart the app.</value></data>
+  <data name="SettingsAcrylicOpacityFailureRollbackFailed" xml:space="preserve"><value>Acrylic tint opacity could not be applied. The background could not be restored. Restart the app.</value></data>
+  <data name="SettingsAcrylicOpacityRollbackSafeFallback" xml:space="preserve"><value>Acrylic tint opacity could not be saved. The background was switched to a safe solid background. Restart the app.</value></data>
+  <data name="SettingsAcrylicOpacityRollbackSafeFallbackAfterCancel" xml:space="preserve"><value>Saving the setting was canceled. The background was switched to a safe solid background. Restart the app.</value></data>
+  <data name="SettingsAcrylicOpacityRollbackUnknown" xml:space="preserve"><value>Could not save the setting. The actual background state could not be verified. Restart the app.</value></data>
+  <data name="SettingsAcrylicOpacityRollbackUnknownAfterCancel" xml:space="preserve"><value>Saving the setting was canceled. The actual background state could not be verified. Restart the app.</value></data>
+  <data name="SettingsAcrylicOpacityRollbackFailed" xml:space="preserve"><value>Could not save the setting. The background could not be restored. Restart the app.</value></data>
+  <data name="SettingsAcrylicOpacityRollbackFailedAfterCancel" xml:space="preserve"><value>Saving the setting was canceled. The background could not be restored. Restart the app.</value></data>
 </root>

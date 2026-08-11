@@ -19,7 +19,8 @@ public sealed class NotificationSettingsViewModelTests
     {
         RecordingNotificationReconciler reconciler = new();
         SettingsViewModel viewModel = await CreateViewModelAsync(
-            reconciler: reconciler);
+            reconciler: reconciler,
+            resources: CreateEnglishSettingsResources());
 
         bool changed = await viewModel.SetNotificationsEnabledAsync(false);
 
@@ -41,7 +42,8 @@ public sealed class NotificationSettingsViewModelTests
                     "InvalidOperationException"))),
         };
         SettingsViewModel viewModel = await CreateViewModelAsync(
-            reconciler: reconciler);
+            reconciler: reconciler,
+            resources: CreateEnglishSettingsResources());
 
         bool changed = await viewModel.SetNotificationLeadMinutesAsync(30);
 
@@ -52,6 +54,10 @@ public sealed class NotificationSettingsViewModelTests
             reconciler.SettingsAtReconcile?.NotificationLeadMinutes);
         Assert.IsTrue(viewModel.IsInfoBarOpen);
         Assert.AreEqual(InfoBarSeverity.Warning, viewModel.InfoBarSeverity);
+        Assert.AreEqual(
+            "Settings were saved, but some Windows notifications could not "
+            + "be synchronized. Change the setting and try again.",
+            viewModel.InfoBarMessage);
     }
 
     [TestMethod]
@@ -59,7 +65,8 @@ public sealed class NotificationSettingsViewModelTests
     {
         SettingsViewModel viewModel = await CreateViewModelAsync(
             permissionState:
-                NotificationPermissionState.DisabledForApplication);
+                NotificationPermissionState.DisabledForApplication,
+            resources: CreateEnglishSettingsResources());
 
         await viewModel.RefreshNotificationAvailabilityAsync();
 
@@ -67,14 +74,17 @@ public sealed class NotificationSettingsViewModelTests
         Assert.AreEqual(
             Visibility.Visible,
             viewModel.OpenWindowsNotificationSettingsVisibility);
-        StringAssert.Contains(
-            viewModel.NotificationAvailabilityText,
-            "アプリごとの設定");
+        Assert.AreEqual(
+            "Notifications are disabled for this app in Windows settings.",
+            viewModel.NotificationAvailabilityText);
         Assert.IsTrue(viewModel.IsInfoBarOpen);
         Assert.AreEqual(
             InfoBarSeverity.Warning,
             viewModel.InfoBarSeverity);
-        StringAssert.Contains(viewModel.InfoBarMessage, "通知設定");
+        Assert.AreEqual(
+            "Windows notifications are disabled. Open Windows notification "
+            + "settings and enable them.",
+            viewModel.InfoBarMessage);
     }
 
     [TestMethod]
@@ -82,7 +92,8 @@ public sealed class NotificationSettingsViewModelTests
     {
         RecordingSettingsLauncher launcher = new() { Result = false };
         SettingsViewModel viewModel = await CreateViewModelAsync(
-            settingsLauncher: launcher);
+            settingsLauncher: launcher,
+            resources: CreateEnglishSettingsResources());
 
         bool opened =
             await viewModel.OpenWindowsNotificationSettingsAsync();
@@ -91,13 +102,18 @@ public sealed class NotificationSettingsViewModelTests
         Assert.AreEqual(1, launcher.CallCount);
         Assert.IsTrue(viewModel.IsInfoBarOpen);
         Assert.AreEqual(InfoBarSeverity.Error, viewModel.InfoBarSeverity);
+        Assert.AreEqual(
+            "Windows notification settings could not be opened. "
+            + "Check notifications manually in Windows Settings.",
+            viewModel.InfoBarMessage);
     }
 
     private static async Task<SettingsViewModel> CreateViewModelAsync(
         RecordingNotificationReconciler? reconciler = null,
         NotificationPermissionState permissionState =
             NotificationPermissionState.Enabled,
-        RecordingSettingsLauncher? settingsLauncher = null)
+        RecordingSettingsLauncher? settingsLauncher = null,
+        IAppResourceService? resources = null)
     {
         AppSettings settings = AppSettings.CreateDefault(AppTheme.Light);
         InMemoryDataStore store = new();
@@ -119,7 +135,7 @@ public sealed class NotificationSettingsViewModelTests
             reconciler ?? new RecordingNotificationReconciler(),
             new FixedPermissionService(permissionState),
             settingsLauncher ?? new RecordingSettingsLauncher(),
-            new AppResourceService(resourceId => resourceId switch
+            resources ?? new AppResourceService(resourceId => resourceId switch
             {
                 "NotificationAvailabilityDisabledForApplication" =>
                     "Windowsのアプリごとの設定で通知が無効です。",
@@ -128,6 +144,26 @@ public sealed class NotificationSettingsViewModelTests
         viewModel.MarkReady();
         return viewModel;
     }
+
+    private static AppResourceService CreateEnglishSettingsResources() => new(
+        resourceId => resourceId switch
+        {
+            "NotificationAvailabilityDisabledForApplication" =>
+                "Notifications are disabled for this app in Windows settings.",
+            "SettingsNotificationPermissionDisabled" =>
+                "Windows notifications are disabled. Open Windows notification "
+                + "settings and enable them.",
+            "SettingsNotificationSettingsLaunchFailure" =>
+                "Windows notification settings could not be opened. "
+                + "Check notifications manually in Windows Settings.",
+            "SettingsNotificationReconcileFailure" =>
+                "Settings were saved, but some Windows notifications could not "
+                + "be synchronized. Change the setting and try again.",
+            "SettingsNotificationReconcileTitle" =>
+                "Notification synchronization is incomplete",
+            "SettingsErrorTitle" => "Could not complete the setting",
+            _ => resourceId,
+        });
 
     private sealed class RecordingNotificationReconciler
         : INotificationReconciler

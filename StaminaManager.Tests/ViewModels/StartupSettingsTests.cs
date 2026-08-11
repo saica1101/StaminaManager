@@ -12,8 +12,8 @@ namespace StaminaManager.Tests.ViewModels;
 [TestClass]
 public sealed class StartupSettingsTests
 {
-    private static readonly AppResourceService TestResources = new(
-        resourceId => resourceId);
+    private static readonly AppResourceService TestResources =
+        CreateJapaneseSettingsResources();
 
     [TestMethod]
     public async Task SetStartupEnabledAsync_ユーザー拒否時は実状態へ戻す()
@@ -47,7 +47,8 @@ public sealed class StartupSettingsTests
             new StartupStatus(StartupState.DisabledByPolicy),
             IsApplied: false,
             StartupFailureReason.DisabledByPolicy));
-        SettingsViewModel viewModel = context.CreateViewModel();
+        SettingsViewModel viewModel = context.CreateViewModel(
+            CreateEnglishSettingsResources());
 
         bool changed = await viewModel.SetStartupEnabledAsync(
             isEnabled: true,
@@ -56,8 +57,10 @@ public sealed class StartupSettingsTests
         Assert.IsFalse(changed);
         Assert.IsFalse(viewModel.IsStartupEnabled);
         Assert.AreEqual(0, context.Store.SaveCount);
-        StringAssert.Contains(viewModel.InfoBarMessage, "ポリシー");
-        StringAssert.Contains(viewModel.InfoBarMessage, "管理者");
+        Assert.AreEqual(
+            "Windows startup cannot be enabled because of an organization "
+            + "policy. Contact your administrator if needed.",
+            viewModel.InfoBarMessage);
     }
 
     [TestMethod]
@@ -198,18 +201,54 @@ public sealed class StartupSettingsTests
                 new RecordingStartupService());
         }
 
-        public SettingsViewModel CreateViewModel()
+        public SettingsViewModel CreateViewModel(
+            IAppResourceService? resources = null)
         {
             SettingsViewModel viewModel = new(
                 Manager,
                 new PassThroughThemeService(),
                 new PassThroughBackdropService(),
                 StartupService,
-                TestResources);
+                resources ?? TestResources);
             viewModel.MarkReady();
             return viewModel;
         }
     }
+
+    private static AppResourceService CreateEnglishSettingsResources() => new(
+        resourceId => resourceId switch
+        {
+            "SettingsErrorTitle" => "Could not complete the setting",
+            "SettingsStartupDisabledByPolicy" =>
+                "Windows startup cannot be enabled because of an organization "
+                + "policy. Contact your administrator if needed.",
+            _ => resourceId,
+        });
+
+    private static AppResourceService CreateJapaneseSettingsResources() => new(
+        resourceId => resourceId switch
+        {
+            "SettingsErrorTitle" => "設定を完了できませんでした",
+            "SettingsStartupDisabledByUser" =>
+                "ユーザーがWindowsのスタートアップ設定で無効にしています。"
+                + "Windowsの設定から有効にしてください。",
+            "SettingsStartupDisabledByPolicy" =>
+                "組織のポリシーによりWindowsログイン時起動を有効にできません。"
+                + "必要な場合は組織の管理者へ確認してください。",
+            "SettingsStartupEnabledByPolicy" =>
+                "組織のポリシーによりWindowsログイン時起動を無効にできません。"
+                + "必要な場合は組織の管理者へ確認してください。",
+            "SettingsStartupSaveFailureActualState" =>
+                "設定を保存できませんでした。以前の設定に戻しました。"
+                + " Windowsの実際の状態は画面へ反映しました。",
+            "SettingsStartupStatusCheckFailure" =>
+                "Windowsログイン時起動の実際の状態を確認できませんでした。"
+                + "Settingsを開き直して再試行してください。",
+            "SettingsStartupStatusSaveFailure" =>
+                "Windowsログイン時起動の実際の状態は画面へ反映しましたが、"
+                + "設定を保存できませんでした。再試行してください。",
+            _ => resourceId,
+        });
 
     private sealed class RecordingStartupService : IStartupService
     {

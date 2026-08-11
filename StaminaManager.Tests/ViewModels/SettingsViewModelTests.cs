@@ -15,8 +15,8 @@ namespace StaminaManager.Tests.ViewModels;
 [TestClass]
 public sealed class SettingsViewModelTests
 {
-    private static readonly AppResourceService TestResources = new(
-        resourceId => resourceId);
+    private static readonly AppResourceService TestResources =
+        CreateJapaneseSettingsResources();
 
     [TestMethod]
     public async Task DynamicAccessibilityAndAvailabilityText_UsesResources()
@@ -154,7 +154,8 @@ public sealed class SettingsViewModelTests
     public async Task SettingChanges_BeforeReadyAreRejectedWithoutSideEffects()
     {
         Context context = await Context.CreateAsync();
-        SettingsViewModel viewModel = context.CreateNotReadyViewModel();
+        SettingsViewModel viewModel = context.CreateNotReadyViewModel(
+            CreateEnglishSettingsResources());
 
         bool[] results =
         [
@@ -174,7 +175,9 @@ public sealed class SettingsViewModelTests
         Assert.IsEmpty(context.BackdropService.Requests);
         Assert.AreEqual(0, context.Store.SaveCount);
         Assert.IsTrue(viewModel.IsInfoBarOpen);
-        StringAssert.Contains(viewModel.InfoBarMessage, "読み込み");
+        Assert.AreEqual(
+            "Settings are still loading. Try again when loading is complete.",
+            viewModel.InfoBarMessage);
     }
 
     [TestMethod]
@@ -231,7 +234,8 @@ public sealed class SettingsViewModelTests
     public async Task UnexpectedThemeServiceException_IsSafelyReported()
     {
         Context context = await Context.CreateAsync();
-        SettingsViewModel viewModel = context.CreateViewModel();
+        SettingsViewModel viewModel = context.CreateViewModel(
+            CreateEnglishSettingsResources());
         context.ThemeService.ApplyException =
             new InvalidOperationException("service implementation detail");
         int synchronizationCount = 0;
@@ -246,7 +250,9 @@ public sealed class SettingsViewModelTests
 
         Assert.AreEqual(1, synchronizationCount);
         Assert.IsTrue(viewModel.IsInfoBarOpen);
-        StringAssert.Contains(viewModel.InfoBarMessage, "設定を変更");
+        Assert.AreEqual(
+            "The setting could not be changed. Try again.",
+            viewModel.InfoBarMessage);
         Assert.IsFalse(viewModel.InfoBarMessage.Contains(
             "service implementation detail",
             StringComparison.Ordinal));
@@ -280,7 +286,8 @@ public sealed class SettingsViewModelTests
             BackdropKind.Solid,
             BackdropFallbackReason.HighContrast,
             "ハイ コントラストでは単色背景を使用します。");
-        SettingsViewModel viewModel = context.CreateViewModel();
+        SettingsViewModel viewModel = context.CreateViewModel(
+            CreateEnglishSettingsResources());
 
         bool applied = await viewModel.SetBackdropAsync(
             BackdropKind.Acrylic,
@@ -294,6 +301,10 @@ public sealed class SettingsViewModelTests
         Assert.AreEqual(BackdropKind.Solid, viewModel.ActualBackdrop);
         Assert.AreEqual(0, context.Store.SaveCount);
         Assert.IsTrue(viewModel.IsInfoBarOpen);
+        Assert.AreEqual(
+            "The background cannot be used in high contrast. "
+            + "Review contrast settings or keep a solid background.",
+            viewModel.InfoBarMessage);
     }
 
     [TestMethod]
@@ -303,7 +314,8 @@ public sealed class SettingsViewModelTests
         await context.Manager.UpdateSettingsAsync(
             settings => settings with { AcrylicTintOpacityPercent = 55 },
             CancellationToken.None);
-        SettingsViewModel viewModel = context.CreateViewModel();
+        SettingsViewModel viewModel = context.CreateViewModel(
+            CreateEnglishSettingsResources());
 
         bool applied = await viewModel.SetBackdropAsync(
             BackdropKind.Acrylic,
@@ -485,7 +497,8 @@ public sealed class SettingsViewModelTests
         Context context = await Context.CreateAsync(
             BackdropKind.Acrylic,
             80);
-        SettingsViewModel viewModel = context.CreateViewModel();
+        SettingsViewModel viewModel = context.CreateViewModel(
+            CreateEnglishSettingsResources());
         Assert.IsTrue(await viewModel.PreviewAcrylicTintOpacityAsync(50));
         context.Store.SaveException = new IOException("save failure");
         context.BackdropService.RollbackException =
@@ -503,8 +516,11 @@ public sealed class SettingsViewModelTests
             },
             context.BackdropService.Requests);
         Assert.AreEqual(BackdropKind.Solid, viewModel.ActualBackdrop);
-        StringAssert.Contains(viewModel.InfoBarMessage, "単色");
-        StringAssert.Contains(viewModel.InfoBarMessage, "再起動");
+        Assert.AreEqual(
+            "Acrylic tint opacity could not be saved. "
+            + "The background was switched to a safe solid background. "
+            + "Restart the app.",
+            viewModel.InfoBarMessage);
     }
 
     [TestMethod]
@@ -592,6 +608,108 @@ public sealed class SettingsViewModelTests
             _ when resourceId.StartsWith(
                 "NotificationAvailability",
                 StringComparison.Ordinal) => $"localized-{resourceId}",
+            _ => resourceId,
+        });
+
+    private static AppResourceService CreateEnglishSettingsResources() => new(
+        resourceId => resourceId switch
+        {
+            "SettingsErrorTitle" => "Could not complete the setting",
+            "SettingsUnexpectedFailure" =>
+                "The setting could not be changed. Try again.",
+            "SettingsNotReady" =>
+                "Settings are still loading. "
+                + "Try again when loading is complete.",
+            "SettingsBackdropFallbackHighContrast" =>
+                "The background cannot be used in high contrast. "
+                + "Review contrast settings or keep a solid background.",
+            "SettingsBackdropFallbackTitle" =>
+                "Switched to a solid background",
+            "SettingsAcrylicOpacityFailureRollbackFailed" =>
+                "Acrylic tint opacity could not be changed. "
+                + "The background could not be restored, so restart the app.",
+            "SettingsAcrylicOpacityRollbackSafeFallback" =>
+                "Acrylic tint opacity could not be saved. "
+                + "The background was switched to a safe solid background. "
+                + "Restart the app.",
+            "SettingsLanguageRestartRequired" =>
+                "The language changed. Restart the app to apply it.",
+            "SettingsLanguageInconsistent" =>
+                "The language setting was saved, but Windows could not apply it. "
+                + "It will be retried at the next startup.",
+            _ => resourceId,
+        });
+
+    private static AppResourceService CreateJapaneseSettingsResources() => new(
+        resourceId => resourceId switch
+        {
+            "SettingsErrorTitle" => "設定を完了できませんでした",
+            "SettingsSaveFailure" =>
+                "設定を保存できませんでした。以前の設定に戻しました。"
+                + "もう一度お試しください。",
+            "SettingsSaveCanceled" =>
+                "設定の保存がキャンセルされました。以前の設定に戻しました。",
+            "SettingsNotReady" =>
+                "設定を読み込み中です。完了してからもう一度お試しください。",
+            "SettingsUnexpectedFailure" =>
+                "設定を変更できませんでした。もう一度お試しください。",
+            "SettingsBackdropFallbackHighContrast" =>
+                "ハイ コントラストでは単色背景を使用します。Windowsの"
+                + "コントラスト テーマ設定を確認するか、単色表示を続けてください。",
+            "SettingsBackdropFallbackTransparencyDisabled" =>
+                "Windowsの透明効果設定を確認するか、単色表示を続けてください。",
+            "SettingsBackdropFallbackRemoteSession" =>
+                "リモート接続を終了後に再確認するか、単色表示を続けてください。",
+            "SettingsBackdropFallbackUnsupported" =>
+                "単色表示を続けるか、別の背景を選択してください。",
+            "SettingsBackdropFallbackApplyFailed" =>
+                "単色表示を続けるか、別の背景を選択して再試行してください。",
+            "SettingsBackdropFallbackSolidFailed" =>
+                "単色背景も適用できないため、アプリを再起動してください。",
+            "SettingsBackdropFallbackDefault" =>
+                "選択した背景を使用できないため、単色背景を使用します。",
+            "SettingsBackdropFallbackTitle" =>
+                "背景を単色表示へ切り替えました",
+            "SettingsBackdropRollbackSafeFallback" =>
+                "設定を保存できませんでした。以前の設定に戻しました。"
+                + " 背景は安全な単色表示へ切り替わりました。",
+            "SettingsBackdropRollbackUnknown" =>
+                "設定を保存できませんでした。以前の設定に戻しました。"
+                + " 背景の実際の表示状態を確認できません。"
+                + "アプリを再起動してください。",
+            "SettingsThemeRollbackUnknownAfterCancel" =>
+                "設定の保存がキャンセルされました。以前の設定に戻しました。"
+                + " テーマの実際の表示状態を確認できません。"
+                + "アプリを再起動してください。",
+            "SettingsAcrylicOpacityRollbackSafeFallback" =>
+                "設定を保存できませんでした。以前の設定に戻しました。"
+                + " 背景は安全な単色表示へ切り替わりました。"
+                + "アプリを再起動してください。",
+            "SettingsNotificationReconcileFailure" =>
+                "設定は保存しましたが、一部のWindows通知を同期できませんでした。"
+                + "設定を変更して再試行してください。",
+            "SettingsNotificationReconcileTitle" =>
+                "通知の同期が完了していません",
+            "SettingsLanguageApplyFailureSaved" =>
+                "保存済みの言語をWindowsへ適用できませんでした。"
+                + "次回起動時に再試行します。",
+            "SettingsLanguageInconsistentTitle" =>
+                "言語の同期が完了していません",
+            "SettingsStartupDisabledByUser" =>
+                "ユーザーがWindowsのスタートアップ設定で無効にしています。"
+                + "Windowsの設定から有効にしてください。",
+            "SettingsStartupDisabledByPolicy" =>
+                "組織のポリシーによりWindowsログイン時起動を有効にできません。"
+                + "必要な場合は組織の管理者へ確認してください。",
+            "SettingsStartupEnabledByPolicy" =>
+                "組織のポリシーによりWindowsログイン時起動を無効にできません。"
+                + "必要な場合は組織の管理者へ確認してください。",
+            "SettingsStartupSaveFailureActualState" =>
+                "設定を保存できませんでした。以前の設定に戻しました。"
+                + " Windowsの実際の状態は画面へ反映しました。",
+            "SettingsStartupStatusSaveFailure" =>
+                "Windowsログイン時起動の実際の状態は画面へ反映しましたが、"
+                + "設定を保存できませんでした。再試行してください。",
             _ => resourceId,
         });
 
@@ -983,7 +1101,8 @@ public sealed class SettingsViewModelTests
     public async Task SetLanguageAsync_SavesOverridesThenReconcilesNotifications()
     {
         Context context = await Context.CreateAsync();
-        SettingsViewModel viewModel = context.CreateLanguageViewModel();
+        SettingsViewModel viewModel = context.CreateLanguageViewModel(
+            resources: CreateEnglishSettingsResources());
 
         bool changed = await viewModel.SetLanguageAsync(
             AppLanguage.English,
@@ -1002,6 +1121,9 @@ public sealed class SettingsViewModelTests
         Assert.AreEqual(
             AppLanguage.English,
             context.NotificationReconciler.LastSettings!.Language);
+        Assert.AreEqual(
+            "The language changed. Restart the app to apply it.",
+            viewModel.InfoBarMessage);
     }
 
     [TestMethod]
@@ -1062,7 +1184,8 @@ public sealed class SettingsViewModelTests
             LanguageFailureReason.PlatformError);
         context.Store.SaveExceptions.Enqueue(null);
         context.Store.SaveExceptions.Enqueue(new IOException("rollback detail"));
-        SettingsViewModel viewModel = context.CreateLanguageViewModel();
+        SettingsViewModel viewModel = context.CreateLanguageViewModel(
+            resources: CreateEnglishSettingsResources());
 
         bool changed = await viewModel.SetLanguageAsync(
             AppLanguage.English,
@@ -1078,6 +1201,10 @@ public sealed class SettingsViewModelTests
             viewModel.LanguageConsistencyState);
         Assert.IsTrue(viewModel.IsLanguageRestartRequired);
         Assert.IsTrue(viewModel.IsInfoBarOpen);
+        Assert.AreEqual(
+            "The language setting was saved, but Windows could not apply it. "
+            + "It will be retried at the next startup.",
+            viewModel.InfoBarMessage);
         Assert.IsFalse(viewModel.InfoBarMessage.Contains(
             "rollback detail",
             StringComparison.Ordinal));
@@ -1332,7 +1459,8 @@ public sealed class SettingsViewModelTests
             resources ?? TestResources);
 
         public SettingsViewModel CreateLanguageViewModel(
-            AppLanguage sessionLanguage = AppLanguage.Japanese)
+            AppLanguage sessionLanguage = AppLanguage.Japanese,
+            IAppResourceService? resources = null)
         {
             SettingsViewModel viewModel = new(
                 Manager,
@@ -1342,7 +1470,7 @@ public sealed class SettingsViewModelTests
                 NotificationReconciler,
                 new PassThroughPermissionService(),
                 new PassThroughSettingsLauncher(),
-                TestResources,
+                resources ?? TestResources,
                 appLanguageService: LanguageService,
                 sessionLanguage: sessionLanguage);
             viewModel.MarkReady();
