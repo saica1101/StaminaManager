@@ -288,7 +288,9 @@ public partial class App : Microsoft.UI.Xaml.Application
             return true;
         }
 
-        LaunchFailureText text = LoadLaunchFailureText(_appResourceService);
+        LaunchFailureText text = LoadLaunchFailureText(
+            _appResourceService,
+            _sessionLanguage);
         Window fallbackWindow = new()
         {
             Title = text.WindowTitle,
@@ -338,14 +340,22 @@ public partial class App : Microsoft.UI.Xaml.Application
         return true;
     }
 
-    private static LaunchFailureText LoadLaunchFailureText(
-        IAppResourceService resources)
+    internal static LaunchFailureText LoadLaunchFailureText(
+        IAppResourceService resources,
+        AppLanguage sessionLanguage)
     {
-        LaunchFailureText fallback = new(
-            "Stamina Manager",
-            "Stamina Managerを起動できませんでした",
-            "起動中に問題が発生しました。アプリを閉じて、もう一度お試しください。",
-            "閉じる");
+        ArgumentNullException.ThrowIfNull(resources);
+        LaunchFailureText fallback = sessionLanguage == AppLanguage.English
+            ? new(
+                "Stamina Manager",
+                "Could not start Stamina Manager",
+                "A problem occurred during startup. Close the app and try again.",
+                "Close")
+            : new(
+                "Stamina Manager",
+                "Stamina Managerを起動できませんでした",
+                "起動中に問題が発生しました。アプリを閉じて、もう一度お試しください。",
+                "閉じる");
 
         return new LaunchFailureText(
             GetResourceOrFallback(
@@ -371,11 +381,21 @@ public partial class App : Microsoft.UI.Xaml.Application
         string resourceId,
         string fallback)
     {
-        string value = resources.GetString(resourceId);
-        return string.IsNullOrWhiteSpace(value)
-            || string.Equals(value, resourceId, StringComparison.Ordinal)
-            ? fallback
-            : value;
+        try
+        {
+            string value = resources.GetString(resourceId);
+            return string.IsNullOrWhiteSpace(value)
+                || string.Equals(value, resourceId, StringComparison.Ordinal)
+                ? fallback
+                : value;
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Startup failure resource resolution failed: "
+                + exception.GetType().Name);
+            return fallback;
+        }
     }
 
     private void CreateCompositionRoot()
@@ -492,7 +512,10 @@ public partial class App : Microsoft.UI.Xaml.Application
             _appResourceService);
         _startupStage = "AboutPage";
         AboutPage aboutPage = new(
-            new AboutViewModel(versionProvider, externalUriLauncher));
+            new AboutViewModel(
+                versionProvider,
+                externalUriLauncher,
+                _appResourceService));
         _startupStage = "CompactPage";
         CompactPage compactPage = new(
             _compactViewModel,
@@ -512,7 +535,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             versionProvider);
         _mainPage = mainPage;
         _startupStage = "MainWindow";
-        _window = new MainWindow(mainPage);
+        _window = new MainWindow(mainPage, _appResourceService);
         _window.ConfigureLifecycle(
             _windowStateService,
             _trayService,
@@ -697,7 +720,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             or CannotUnloadAppDomainException
             or InvalidProgramException;
 
-    private sealed record LaunchFailureText(
+    internal sealed record LaunchFailureText(
         string WindowTitle,
         string Heading,
         string Message,

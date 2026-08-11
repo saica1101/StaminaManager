@@ -1,5 +1,6 @@
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
+using StaminaManager.Infrastructure.Resources;
 using StaminaManager.ViewModels;
 
 namespace StaminaManager.Tests.ViewModels;
@@ -56,7 +57,11 @@ public sealed class AboutViewModelTests
         RecordingLauncher launcher = new() { Result = false };
         AboutViewModel viewModel = new(
             new FixedVersionProvider(new AppVersionInfo(1, 2, 3, 0)),
-            launcher);
+            launcher,
+            new AppResourceService(resourceId =>
+                resourceId == "AboutInfoBar.Message"
+                    ? "Could not open the link in the default browser."
+                    : resourceId));
 
         await viewModel.OpenGitHubCommand.ExecuteAsync(null);
 
@@ -73,12 +78,38 @@ public sealed class AboutViewModelTests
         };
         AboutViewModel viewModel = new(
             new FixedVersionProvider(new AppVersionInfo(1, 2, 3, 0)),
-            launcher);
+            launcher,
+            new AppResourceService(resourceId =>
+                resourceId == "AboutInfoBar.Message"
+                    ? "Could not open the link in the default browser."
+                    : resourceId));
 
         await viewModel.OpenReadmeCommand.ExecuteAsync(null);
 
         Assert.IsTrue(viewModel.IsInfoBarOpen);
-        Assert.IsFalse(string.IsNullOrWhiteSpace(viewModel.InfoBarMessage));
+        Assert.AreEqual(
+            "Could not open the link in the default browser.",
+            viewModel.InfoBarMessage);
+        Assert.DoesNotContain("not for UI", viewModel.InfoBarMessage);
+    }
+
+    [TestMethod]
+    public async Task OpenLink_WhenLauncherFails_UsesSessionResourceText()
+    {
+        RecordingLauncher launcher = new() { Result = false };
+        AboutViewModel viewModel = new(
+            new FixedVersionProvider(new AppVersionInfo(1, 2, 3, 0)),
+            launcher,
+            new AppResourceService(resourceId =>
+                resourceId == "AboutInfoBar.Message"
+                    ? "リンクを既定のブラウザーで開けませんでした。"
+                    : resourceId));
+
+        await viewModel.OpenGitHubCommand.ExecuteAsync(null);
+
+        Assert.AreEqual(
+            "リンクを既定のブラウザーで開けませんでした。",
+            viewModel.InfoBarMessage);
     }
 
     private sealed class FixedVersionProvider(AppVersionInfo version)

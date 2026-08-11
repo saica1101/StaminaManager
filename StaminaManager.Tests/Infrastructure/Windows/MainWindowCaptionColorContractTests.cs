@@ -1,3 +1,6 @@
+using StaminaManager.Core.Abstractions;
+using StaminaManager.Infrastructure.Resources;
+
 namespace StaminaManager.Tests.Infrastructure.Windows;
 
 [TestClass]
@@ -52,6 +55,28 @@ public sealed class MainWindowCaptionColorContractTests
         StringAssert.Contains(method, "or ArgumentException");
         StringAssert.Contains(method, "or InvalidOperationException");
         StringAssert.Contains(method, "exception.GetType().Name");
+    }
+
+    [TestMethod]
+    public void ResolveAppTitle_UsesInjectedResource()
+    {
+        IAppResourceService resources = new AppResourceService(
+            resourceId => resourceId == "AppTitle"
+                ? "Localized title"
+                : resourceId);
+
+        Assert.AreEqual("Localized title", MainWindow.ResolveAppTitle(resources));
+    }
+
+    [TestMethod]
+    public void ResolveAppTitle_UsesBrandFallbackWhenResourceIsMissingOrThrows()
+    {
+        IAppResourceService missing = new AppResourceService(_ => string.Empty);
+        IAppResourceService throwing = new AppResourceService(
+            _ => throw new InvalidOperationException("private loader detail"));
+
+        Assert.AreEqual("Stamina Manager", MainWindow.ResolveAppTitle(missing));
+        Assert.AreEqual("Stamina Manager", MainWindow.ResolveAppTitle(throwing));
     }
 
     private static string ExtractMethod(

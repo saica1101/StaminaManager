@@ -2,21 +2,39 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
+using StaminaManager.Infrastructure.Resources;
 using System.Diagnostics;
 
 namespace StaminaManager.ViewModels;
 
 public sealed partial class AboutViewModel : ObservableObject
 {
+    private const string LaunchFailureResourceId = "AboutInfoBar.Message";
+    private const string LaunchFailureFallback =
+        "The link could not be opened in the default browser.";
     private readonly IExternalUriLauncher _uriLauncher;
+    private readonly IAppResourceService _appResourceService;
 
     public AboutViewModel(
         IAppVersionProvider versionProvider,
         IExternalUriLauncher uriLauncher)
+        : this(
+            versionProvider,
+            uriLauncher,
+            new AppResourceService())
+    {
+    }
+
+    public AboutViewModel(
+        IAppVersionProvider versionProvider,
+        IExternalUriLauncher uriLauncher,
+        IAppResourceService appResourceService)
     {
         ArgumentNullException.ThrowIfNull(versionProvider);
         ArgumentNullException.ThrowIfNull(uriLauncher);
+        ArgumentNullException.ThrowIfNull(appResourceService);
         _uriLauncher = uriLauncher;
+        _appResourceService = appResourceService;
         VersionText = versionProvider.GetVersion().DisplayVersion;
     }
 
@@ -53,8 +71,31 @@ public sealed partial class AboutViewModel : ObservableObject
                 + exception.GetType().Name);
         }
 
-        InfoBarMessage = "リンクを既定のブラウザーで開けませんでした。";
+        InfoBarMessage = ResolveLaunchFailureMessage();
         IsInfoBarOpen = true;
+    }
+
+    private string ResolveLaunchFailureMessage()
+    {
+        try
+        {
+            string message = _appResourceService.GetString(
+                LaunchFailureResourceId);
+            return string.IsNullOrWhiteSpace(message)
+                || string.Equals(
+                    message,
+                    LaunchFailureResourceId,
+                    StringComparison.Ordinal)
+                ? LaunchFailureFallback
+                : message;
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "About resource resolution failed: "
+                + exception.GetType().Name);
+            return LaunchFailureFallback;
+        }
     }
 
     private static bool IsProcessFatal(Exception exception) =>

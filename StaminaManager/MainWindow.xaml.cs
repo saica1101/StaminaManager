@@ -4,11 +4,11 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.Windows.ApplicationModel.Resources;
 using StaminaManager.Application;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Calculations;
 using StaminaManager.Core.Models;
+using StaminaManager.Infrastructure.Resources;
 using StaminaManager.Infrastructure.Windows;
 using System.Diagnostics;
 using System.Globalization;
@@ -53,8 +53,16 @@ public sealed class MainWindow : WinUIEx.WindowEx
     private readonly CoalescingUiAction _captionColorUpdate;
 
     public MainWindow(MainPage mainPage)
+        : this(mainPage, new AppResourceService())
+    {
+    }
+
+    public MainWindow(
+        MainPage mainPage,
+        IAppResourceService appResourceService)
     {
         ArgumentNullException.ThrowIfNull(mainPage);
+        ArgumentNullException.ThrowIfNull(appResourceService);
         _windowContent = new MainWindowContent();
         Content = _windowContent;
         _captionColorUpdate = new CoalescingUiAction(
@@ -62,7 +70,7 @@ public sealed class MainWindow : WinUIEx.WindowEx
             ApplyCaptionButtonColors);
         SystemBackdrop = new MicaBackdrop();
 
-        string appTitle = ResolveAppTitle();
+        string appTitle = ResolveAppTitle(appResourceService);
         Title = appTitle;
         _windowContent.TitleBarControl.Title = appTitle;
         ExtendsContentIntoTitleBar = true;
@@ -338,20 +346,22 @@ public sealed class MainWindow : WinUIEx.WindowEx
             diagnostic);
     }
 
-    private static string ResolveAppTitle()
+    internal static string ResolveAppTitle(IAppResourceService resources)
     {
+        ArgumentNullException.ThrowIfNull(resources);
+
         try
         {
-            string title = new ResourceLoader().GetString(
-                AppTitleResourceId);
+            string title = resources.GetString(AppTitleResourceId);
             return string.IsNullOrWhiteSpace(title)
+                || string.Equals(
+                    title,
+                    AppTitleResourceId,
+                    StringComparison.Ordinal)
                 ? FallbackAppTitle
                 : title;
         }
-        catch (Exception exception) when (
-            exception is COMException
-                or ArgumentException
-                or InvalidOperationException)
+        catch (Exception exception) when (!IsProcessFatal(exception))
         {
             System.Diagnostics.Debug.WriteLine(
                 "タイトル リソースの解決に失敗しました: "
@@ -359,4 +369,13 @@ public sealed class MainWindow : WinUIEx.WindowEx
             return FallbackAppTitle;
         }
     }
+
+    private static bool IsProcessFatal(Exception exception) =>
+        exception is OutOfMemoryException
+            or StackOverflowException
+            or AccessViolationException
+            or AppDomainUnloadedException
+            or BadImageFormatException
+            or CannotUnloadAppDomainException
+            or InvalidProgramException;
 }
