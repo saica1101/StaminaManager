@@ -1,10 +1,9 @@
 using Microsoft.Windows.AppNotifications;
 using Microsoft.Windows.AppNotifications.Builder;
-using Microsoft.Windows.ApplicationModel.Resources;
 using StaminaManager.Core.Abstractions;
+using StaminaManager.Infrastructure.Resources;
 using System.Diagnostics;
 using System.Globalization;
-using System.Runtime.InteropServices;
 using Windows.ApplicationModel;
 using Windows.Data.Xml.Dom;
 using Windows.UI.Notifications;
@@ -363,43 +362,78 @@ internal sealed class WindowsNotificationPlatformAdapter
     private static AppNotification BuildNotification(
         NotificationRequest request)
     {
-        string detailFormat = GetResourceText(
-            "StaminaNotificationDetailFormat",
-            "全回復予定: {0:g}");
-        string detail = string.Format(
-            CultureInfo.CurrentCulture,
-            detailFormat,
-            request.FullAtUtc.ToLocalTime());
-        return new AppNotificationBuilder()
+        AppNotificationBuilder builder = new AppNotificationBuilder()
             .AddArgument("gameId", request.GameId.ToString("N"))
-            .AddText(request.GameName)
-            .AddText(detail)
-            .BuildNotification();
+            .AddText(request.GameName);
+        string? detail = TryFormatDetail(
+            request.FullAtUtc,
+            resourceId => LateBoundResourceText.TryGet(
+                resourceId,
+                "Notification"));
+        if (detail is not null)
+        {
+            builder.AddText(detail);
+        }
+
+        return builder.BuildNotification();
     }
+
+    internal static string? TryFormatDetail(
+        DateTimeOffset fullAtUtc,
+        Func<string, string?> resolveResource)
+    {
+        ArgumentNullException.ThrowIfNull(resolveResource);
+        string? detailFormat;
+        try
+        {
+            detailFormat = resolveResource(
+                "StaminaNotificationDetailFormat");
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Notification resource resolution failed: "
+                + exception.GetType().Name);
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(detailFormat)
+            || string.Equals(
+                detailFormat,
+                "StaminaNotificationDetailFormat",
+                StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        try
+        {
+            string detail = string.Format(
+                CultureInfo.CurrentCulture,
+                detailFormat,
+                fullAtUtc.ToLocalTime());
+            return string.IsNullOrWhiteSpace(detail) ? null : detail;
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Notification resource formatting failed: "
+                + exception.GetType().Name);
+            return null;
+        }
+    }
+
+    private static bool IsProcessFatal(Exception exception) =>
+        exception is OutOfMemoryException
+            or StackOverflowException
+            or AccessViolationException
+            or AppDomainUnloadedException
+            or BadImageFormatException
+            or CannotUnloadAppDomainException
+            or InvalidProgramException;
 
     private void OnNotificationInvoked(
         AppNotificationManager sender,
         AppNotificationActivatedEventArgs args) =>
         ActivationReceived?.Invoke(this, args.Argument);
-
-    private static string GetResourceText(
-        string resourceId,
-        string fallback)
-    {
-        try
-        {
-            string value = new ResourceLoader().GetString(resourceId);
-            return string.IsNullOrWhiteSpace(value) ? fallback : value;
-        }
-        catch (Exception exception) when (
-            exception is COMException
-                or ArgumentException
-                or InvalidOperationException)
-        {
-            Debug.WriteLine(
-                "Notification resource resolution failed: "
-                + exception.GetType().Name);
-            return fallback;
-        }
-    }
 }

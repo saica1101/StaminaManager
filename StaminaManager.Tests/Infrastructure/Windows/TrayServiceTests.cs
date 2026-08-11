@@ -6,7 +6,36 @@ namespace StaminaManager.Tests.Infrastructure.Windows;
 public sealed class TrayServiceTests
 {
     [TestMethod]
-    public void CreateDefinitions_動的項目へ実値のAutomation情報を定義する()
+    public void CreateDefinitions_リソース文言とAutomationNameを使用する()
+    {
+        IReadOnlyList<TrayMenuItemDefinition> definitions =
+            TrayMenuItemFactory.CreateDefinitions(
+                (resourceId, _) => resourceId switch
+                {
+                    "TrayOpenText" => "Open",
+                    "TrayExitText" => "Exit",
+                    "TrayOpenAutomationName" => "Open Stamina Manager",
+                    "TrayExitAutomationName" => "Exit Stamina Manager",
+                    _ => resourceId,
+                });
+
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                new TrayMenuItemDefinition(
+                    "Open",
+                    "TrayOpenMenuItem",
+                    "Open Stamina Manager"),
+                new TrayMenuItemDefinition(
+                    "Exit",
+                    "TrayExitMenuItem",
+                    "Exit Stamina Manager"),
+            },
+            definitions.ToArray());
+    }
+
+    [TestMethod]
+    public void CreateDefinitions_リソース失敗時はリソースIDを使い日本語を混在させない()
     {
         IReadOnlyList<TrayMenuItemDefinition> definitions =
             TrayMenuItemFactory.CreateDefinitions(
@@ -16,13 +45,13 @@ public sealed class TrayServiceTests
             new[]
             {
                 new TrayMenuItemDefinition(
-                    "開く",
+                    "TrayOpenText",
                     "TrayOpenMenuItem",
-                    "Stamina Managerを開く"),
+                    "TrayOpenAutomationName"),
                 new TrayMenuItemDefinition(
-                    "終了",
+                    "TrayExitText",
                     "TrayExitMenuItem",
-                    "Stamina Managerを終了する"),
+                    "TrayExitAutomationName"),
             },
             definitions.ToArray());
     }

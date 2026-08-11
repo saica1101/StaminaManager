@@ -82,6 +82,54 @@ public sealed class WindowsNotificationSchedulerTests
     }
 
     [TestMethod]
+    public void NotificationDetail_ResolvesLocaleAtEachCall()
+    {
+        DateTimeOffset fullAtUtc = new(
+            2026,
+            7,
+            25,
+            1,
+            0,
+            0,
+            TimeSpan.Zero);
+        string language = "ja";
+        Func<string, string?> resolve = _ => language == "ja"
+            ? "JA {0:yyyy-MM-dd}"
+            : "EN {0:yyyy-MM-dd}";
+
+        Assert.AreEqual(
+            "JA 2026-07-25",
+            FormatNotificationDetail(fullAtUtc, resolve));
+
+        language = "en";
+
+        Assert.AreEqual(
+            "EN 2026-07-25",
+            FormatNotificationDetail(fullAtUtc, resolve));
+    }
+
+    [TestMethod]
+    public void NotificationDetail_ResourceOrFormatFailureOmitsRawDetail()
+    {
+        DateTimeOffset fullAtUtc = new(
+            2026,
+            7,
+            25,
+            1,
+            0,
+            0,
+            TimeSpan.Zero);
+
+        Assert.IsNull(FormatNotificationDetail(fullAtUtc, _ => null));
+        Assert.IsNull(
+            FormatNotificationDetail(
+                fullAtUtc,
+                _ => throw new InvalidOperationException("loader failure")));
+        Assert.IsNull(
+            FormatNotificationDetail(fullAtUtc, _ => "Broken {0"));
+    }
+
+    [TestMethod]
     public void Activation_OnlyRoutesSingleValidGameIdArgument()
     {
         Guid gameId = Guid.NewGuid();
@@ -175,6 +223,13 @@ public sealed class WindowsNotificationSchedulerTests
             45,
             0,
             TimeSpan.Zero));
+
+    private static string? FormatNotificationDetail(
+        DateTimeOffset fullAtUtc,
+        Func<string, string?> resolve)
+        => WindowsNotificationPlatformAdapter.TryFormatDetail(
+            fullAtUtc,
+            resolve);
 
     private sealed class FakeWindowsNotificationPlatformAdapter
         : IWindowsNotificationPlatformAdapter

@@ -1,9 +1,7 @@
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Automation;
-using Microsoft.Windows.ApplicationModel.Resources;
 using StaminaManager.Core.Abstractions;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
+using StaminaManager.Infrastructure.Resources;
 using WinUIEx;
 
 namespace StaminaManager.Infrastructure.Windows;
@@ -202,23 +200,7 @@ internal sealed class WinUiExTrayPlatformAdapter : ITrayPlatformAdapter
     private static string GetResourceText(
         string resourceId,
         string fallback)
-    {
-        try
-        {
-            string value = new ResourceLoader().GetString(resourceId);
-            return string.IsNullOrWhiteSpace(value) ? fallback : value;
-        }
-        catch (Exception exception) when (
-            exception is COMException
-                or ArgumentException
-                or InvalidOperationException)
-        {
-            Debug.WriteLine(
-                "Tray resource resolution failed: "
-                + exception.GetType().Name);
-            return fallback;
-        }
-    }
+        => LateBoundResourceText.TryGet(resourceId, "Tray") ?? fallback;
 }
 
 internal sealed record TrayMenuItemDefinition(
@@ -235,13 +217,17 @@ internal static class TrayMenuItemFactory
         return
         [
             new TrayMenuItemDefinition(
-                resolveText("TrayOpenText", "開く"),
+                resolveText("TrayOpenText", "TrayOpenText"),
                 "TrayOpenMenuItem",
-                "Stamina Managerを開く"),
+                resolveText(
+                    "TrayOpenAutomationName",
+                    "TrayOpenAutomationName")),
             new TrayMenuItemDefinition(
-                resolveText("TrayExitText", "終了"),
+                resolveText("TrayExitText", "TrayExitText"),
                 "TrayExitMenuItem",
-                "Stamina Managerを終了する"),
+                resolveText(
+                    "TrayExitAutomationName",
+                    "TrayExitAutomationName")),
         ];
     }
 

@@ -117,3 +117,42 @@ public sealed class AppResourceService : IAppResourceService
             or CannotUnloadAppDomainException
             or InvalidProgramException;
 }
+
+internal static class LateBoundResourceText
+{
+    internal static string? TryGet(
+        string resourceId,
+        string consumer)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(consumer);
+
+        try
+        {
+            string value = new ResourceLoader().GetString(resourceId);
+            return string.IsNullOrWhiteSpace(value)
+                || string.Equals(
+                    value,
+                    resourceId,
+                    StringComparison.Ordinal)
+                ? null
+                : value;
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                $"{consumer} resource resolution failed: "
+                + exception.GetType().Name);
+            return null;
+        }
+    }
+
+    private static bool IsProcessFatal(Exception exception) =>
+        exception is OutOfMemoryException
+            or StackOverflowException
+            or AccessViolationException
+            or AppDomainUnloadedException
+            or BadImageFormatException
+            or CannotUnloadAppDomainException
+            or InvalidProgramException;
+}

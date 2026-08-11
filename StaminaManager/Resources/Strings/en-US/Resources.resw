@@ -160,6 +160,8 @@
   <data name="CompactEditButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Edit the selected game</value></data>
   <data name="TrayOpenText" xml:space="preserve"><value>Open</value></data>
   <data name="TrayExitText" xml:space="preserve"><value>Exit</value></data>
+  <data name="TrayOpenAutomationName" xml:space="preserve"><value>Open Stamina Manager</value></data>
+  <data name="TrayExitAutomationName" xml:space="preserve"><value>Exit Stamina Manager</value></data>
   <data name="StaminaNotificationDetailFormat" xml:space="preserve"><value>Full recovery scheduled for: {0:g}</value></data>
   <data name="AboutAppIcon.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Stamina Manager app icon</value></data>
   <data name="AboutAppName.Text" xml:space="preserve"><value>Stamina Manager</value></data>
