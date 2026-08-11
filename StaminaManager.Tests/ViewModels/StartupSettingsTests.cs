@@ -2,7 +2,6 @@ using StaminaManager.Application;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
 using StaminaManager.Core.Persistence;
-using StaminaManager.Infrastructure.Resources;
 using StaminaManager.Tests.TestDoubles;
 using StaminaManager.ViewModels;
 using System.Collections.Immutable;
@@ -12,8 +11,7 @@ namespace StaminaManager.Tests.ViewModels;
 [TestClass]
 public sealed class StartupSettingsTests
 {
-    private static readonly AppResourceService TestResources =
-        CreateJapaneseSettingsResources();
+    private static readonly RecordingResourceService TestResources = new();
 
     [TestMethod]
     public async Task SetStartupEnabledAsync_ユーザー拒否時は実状態へ戻す()
@@ -36,7 +34,9 @@ public sealed class StartupSettingsTests
         CollectionAssert.AreEqual(
             new[] { true },
             context.StartupService.Requests);
-        StringAssert.Contains(viewModel.InfoBarMessage, "ユーザー");
+        Assert.AreEqual(
+            "SettingsStartupDisabledByUser",
+            viewModel.InfoBarMessage);
     }
 
     [TestMethod]
@@ -48,7 +48,7 @@ public sealed class StartupSettingsTests
             IsApplied: false,
             StartupFailureReason.DisabledByPolicy));
         SettingsViewModel viewModel = context.CreateViewModel(
-            CreateEnglishSettingsResources());
+            SettingsEnglishResourceFixture.Create());
 
         bool changed = await viewModel.SetStartupEnabledAsync(
             isEnabled: true,
@@ -60,6 +60,27 @@ public sealed class StartupSettingsTests
         Assert.AreEqual(
             "Windows startup cannot be enabled because of an organization "
             + "policy. Contact your administrator if needed.",
+            viewModel.InfoBarMessage);
+    }
+
+    [TestMethod]
+    public async Task SetStartupEnabledAsync_OperationFailedShowsRetryGuidance()
+    {
+        Context context = await Context.CreateAsync();
+        context.StartupService.Results.Enqueue(new StartupChangeResult(
+            new StartupStatus(StartupState.Disabled),
+            IsApplied: false,
+            StartupFailureReason.None));
+        SettingsViewModel viewModel = context.CreateViewModel(
+            SettingsEnglishResourceFixture.Create());
+
+        bool changed = await viewModel.SetStartupEnabledAsync(
+            isEnabled: true,
+            CancellationToken.None);
+
+        Assert.IsFalse(changed);
+        Assert.AreEqual(
+            "Windows startup could not be changed. Try again later.",
             viewModel.InfoBarMessage);
     }
 
@@ -80,7 +101,9 @@ public sealed class StartupSettingsTests
         Assert.IsFalse(changed);
         Assert.IsTrue(viewModel.IsStartupEnabled);
         Assert.AreEqual(0, context.Store.SaveCount);
-        StringAssert.Contains(viewModel.InfoBarMessage, "管理者");
+        Assert.AreEqual(
+            "SettingsStartupEnabledByPolicy",
+            viewModel.InfoBarMessage);
     }
 
     [TestMethod]
@@ -144,7 +167,8 @@ public sealed class StartupSettingsTests
             IsApplied: false,
             StartupFailureReason.EnabledByPolicy));
         context.Store.SaveException = new IOException("save detail");
-        SettingsViewModel viewModel = context.CreateViewModel();
+        SettingsViewModel viewModel = context.CreateViewModel(
+            SettingsEnglishResourceFixture.Create());
 
         bool changed = await viewModel.SetStartupEnabledAsync(
             isEnabled: true,
@@ -153,7 +177,10 @@ public sealed class StartupSettingsTests
         Assert.IsFalse(changed);
         Assert.IsTrue(viewModel.IsStartupEnabled);
         Assert.IsFalse(context.Manager.CurrentData.Settings.StartupEnabled);
-        StringAssert.Contains(viewModel.InfoBarMessage, "実際の状態");
+        Assert.AreEqual(
+            "Could not save the setting. The previous setting was restored. "
+            + "The actual Windows state is shown. Try again.",
+            viewModel.InfoBarMessage);
     }
 
     [TestMethod]
@@ -172,7 +199,9 @@ public sealed class StartupSettingsTests
 
         Assert.IsFalse(viewModel.IsStartupEnabled);
         Assert.IsTrue(viewModel.IsInfoBarOpen);
-        StringAssert.Contains(viewModel.InfoBarMessage, "再試行");
+        Assert.AreEqual(
+            "SettingsStartupStatusSaveFailure",
+            viewModel.InfoBarMessage);
     }
 
     private sealed record Context(
@@ -214,41 +243,6 @@ public sealed class StartupSettingsTests
             return viewModel;
         }
     }
-
-    private static AppResourceService CreateEnglishSettingsResources() => new(
-        resourceId => resourceId switch
-        {
-            "SettingsErrorTitle" => "Could not complete the setting",
-            "SettingsStartupDisabledByPolicy" =>
-                "Windows startup cannot be enabled because of an organization "
-                + "policy. Contact your administrator if needed.",
-            _ => resourceId,
-        });
-
-    private static AppResourceService CreateJapaneseSettingsResources() => new(
-        resourceId => resourceId switch
-        {
-            "SettingsErrorTitle" => "設定を完了できませんでした",
-            "SettingsStartupDisabledByUser" =>
-                "ユーザーがWindowsのスタートアップ設定で無効にしています。"
-                + "Windowsの設定から有効にしてください。",
-            "SettingsStartupDisabledByPolicy" =>
-                "組織のポリシーによりWindowsログイン時起動を有効にできません。"
-                + "必要な場合は組織の管理者へ確認してください。",
-            "SettingsStartupEnabledByPolicy" =>
-                "組織のポリシーによりWindowsログイン時起動を無効にできません。"
-                + "必要な場合は組織の管理者へ確認してください。",
-            "SettingsStartupSaveFailureActualState" =>
-                "設定を保存できませんでした。以前の設定に戻しました。"
-                + " Windowsの実際の状態は画面へ反映しました。",
-            "SettingsStartupStatusCheckFailure" =>
-                "Windowsログイン時起動の実際の状態を確認できませんでした。"
-                + "Settingsを開き直して再試行してください。",
-            "SettingsStartupStatusSaveFailure" =>
-                "Windowsログイン時起動の実際の状態は画面へ反映しましたが、"
-                + "設定を保存できませんでした。再試行してください。",
-            _ => resourceId,
-        });
 
     private sealed class RecordingStartupService : IStartupService
     {

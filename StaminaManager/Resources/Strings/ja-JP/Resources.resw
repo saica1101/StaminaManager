@@ -255,19 +255,19 @@
   <data name="SettingsThemeApplyFailure" xml:space="preserve"><value>テーマを適用できませんでした。以前のテーマを使用します。</value></data>
   <data name="SettingsBackdropFallbackTitle" xml:space="preserve"><value>背景を単色表示へ切り替えました</value></data>
   <data name="SettingsBackdropFallbackHighContrast" xml:space="preserve"><value>ハイ コントラストでは単色背景を使用します。Windowsのコントラスト テーマ設定を確認するか、単色表示を続けてください。</value></data>
-  <data name="SettingsBackdropFallbackTransparencyDisabled" xml:space="preserve"><value>Windowsの透明効果設定を確認するか、単色表示を続けてください。</value></data>
-  <data name="SettingsBackdropFallbackRemoteSession" xml:space="preserve"><value>リモート接続を終了後に再確認するか、単色表示を続けてください。</value></data>
-  <data name="SettingsBackdropFallbackUnsupported" xml:space="preserve"><value>単色表示を続けるか、別の背景を選択してください。</value></data>
-  <data name="SettingsBackdropFallbackApplyFailed" xml:space="preserve"><value>単色表示を続けるか、別の背景を選択して再試行してください。</value></data>
+  <data name="SettingsBackdropFallbackTransparencyDisabled" xml:space="preserve"><value>Windowsの透明効果が無効なため、単色背景を使用します。Windowsの透明効果設定を確認するか、単色表示を続けてください。</value></data>
+  <data name="SettingsBackdropFallbackRemoteSession" xml:space="preserve"><value>リモート セッションでは単色背景を使用します。リモート接続を終了してから再確認するか、単色表示を続けてください。</value></data>
+  <data name="SettingsBackdropFallbackUnsupported" xml:space="preserve"><value>この環境では選択した背景を使用できないため、単色背景を使用します。単色表示を続けるか、別の背景を選択してください。</value></data>
+  <data name="SettingsBackdropFallbackApplyFailed" xml:space="preserve"><value>選択した背景を適用できないため、単色背景を使用します。単色表示を続けるか、別の背景を選択して再試行してください。</value></data>
   <data name="SettingsBackdropFallbackSolidFailed" xml:space="preserve"><value>単色背景を適用できませんでした。アプリを再起動してください。</value></data>
   <data name="SettingsBackdropFallbackDefault" xml:space="preserve"><value>選択した背景を使用できないため、単色背景を使用します。</value></data>
   <data name="SettingsAcrylicOpacityInvalid" xml:space="preserve"><value>Acrylic の不透明度は0～100%の整数で入力してください。</value></data>
   <data name="SettingsCloseBehaviorInvalid" xml:space="preserve"><value>閉じる操作の設定が正しくありません。</value></data>
-  <data name="SettingsStartupChangeFailure" xml:space="preserve"><value>Windowsログイン時起動を変更できませんでした。</value></data>
+  <data name="SettingsStartupChangeFailure" xml:space="preserve"><value>Windowsログイン時起動を変更できませんでした。時間をおいて再試行してください。</value></data>
   <data name="SettingsStartupDisabledByUser" xml:space="preserve"><value>ユーザーがWindowsのスタートアップ設定で無効にしています。Windowsの設定から有効にしてください。</value></data>
   <data name="SettingsStartupDisabledByPolicy" xml:space="preserve"><value>組織のポリシーによりWindowsログイン時起動を有効にできません。必要な場合は組織の管理者へ確認してください。</value></data>
   <data name="SettingsStartupEnabledByPolicy" xml:space="preserve"><value>組織のポリシーによりWindowsログイン時起動を無効にできません。必要な場合は組織の管理者へ確認してください。</value></data>
-  <data name="SettingsStartupSaveFailureActualState" xml:space="preserve"><value>設定を保存できませんでした。以前の設定に戻しました。Windowsの実際の状態は画面へ反映しました。</value></data>
+  <data name="SettingsStartupSaveFailureActualState" xml:space="preserve"><value>設定を保存できませんでした。以前の設定に戻しました。Windowsの実際の状態は画面へ反映しました。再試行してください。</value></data>
   <data name="SettingsStartupStatusCheckFailure" xml:space="preserve"><value>Windowsログイン時起動の実際の状態を確認できませんでした。Settingsを開き直して再試行してください。</value></data>
   <data name="SettingsStartupStatusSaveFailure" xml:space="preserve"><value>Windowsログイン時起動の実際の状態は画面へ反映しましたが、設定を保存できませんでした。再試行してください。</value></data>
   <data name="SettingsNotificationLeadInvalid" xml:space="preserve"><value>通知時間は0～525,600分の整数で入力してください。</value></data>
