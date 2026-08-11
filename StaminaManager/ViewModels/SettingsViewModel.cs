@@ -456,11 +456,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             if (!result.IsRequestedBackdropApplied)
             {
                 SelectedBackdrop = previousBackdrop;
-                ShowMessage(
-                    GetBackdropFallbackMessage(result),
-                    InfoBarSeverity.Warning,
-                    _appResourceService.GetString(
-                        "SettingsBackdropFallbackTitle"));
+                ShowBackdropFallbackMessage(result);
                 return false;
             }
 
@@ -1277,11 +1273,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         if (backdropResult is { IsRequestedBackdropApplied: false })
         {
-            ShowMessage(
-                GetBackdropFallbackMessage(backdropResult),
-                InfoBarSeverity.Warning,
-                _appResourceService.GetString(
-                    "SettingsBackdropFallbackTitle"));
+            ShowBackdropFallbackMessage(backdropResult);
             return;
         }
 
@@ -1554,6 +1546,21 @@ public sealed partial class SettingsViewModel : ObservableObject
             _ => "SettingsBackdropFallbackDefault",
         };
         return _appResourceService.GetString(resourceId);
+    }
+
+    private void ShowBackdropFallbackMessage(BackdropResult result)
+    {
+        bool isSolidFallbackFailed =
+            result.FallbackReason == BackdropFallbackReason.SolidFallbackFailed;
+        ShowMessage(
+            GetBackdropFallbackMessage(result),
+            isSolidFallbackFailed
+                ? InfoBarSeverity.Error
+                : InfoBarSeverity.Warning,
+            _appResourceService.GetString(
+                isSolidFallbackFailed
+                    ? "SettingsErrorTitle"
+                    : "SettingsBackdropFallbackTitle"));
     }
 
     private static bool IsPersistenceFailure(Exception exception) =>

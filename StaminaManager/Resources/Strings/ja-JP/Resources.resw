@@ -259,7 +259,7 @@
   <data name="SettingsBackdropFallbackRemoteSession" xml:space="preserve"><value>リモート接続を終了後に再確認するか、単色表示を続けてください。</value></data>
   <data name="SettingsBackdropFallbackUnsupported" xml:space="preserve"><value>単色表示を続けるか、別の背景を選択してください。</value></data>
   <data name="SettingsBackdropFallbackApplyFailed" xml:space="preserve"><value>単色表示を続けるか、別の背景を選択して再試行してください。</value></data>
-  <data name="SettingsBackdropFallbackSolidFailed" xml:space="preserve"><value>単色背景も適用できないため、アプリを再起動してください。</value></data>
+  <data name="SettingsBackdropFallbackSolidFailed" xml:space="preserve"><value>単色背景を適用できませんでした。アプリを再起動してください。</value></data>
   <data name="SettingsBackdropFallbackDefault" xml:space="preserve"><value>選択した背景を使用できないため、単色背景を使用します。</value></data>
   <data name="SettingsAcrylicOpacityInvalid" xml:space="preserve"><value>Acrylic の不透明度は0～100%の整数で入力してください。</value></data>
   <data name="SettingsCloseBehaviorInvalid" xml:space="preserve"><value>閉じる操作の設定が正しくありません。</value></data>

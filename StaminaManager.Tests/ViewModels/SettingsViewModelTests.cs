@@ -623,6 +623,8 @@ public sealed class SettingsViewModelTests
             "SettingsBackdropFallbackHighContrast" =>
                 "The background cannot be used in high contrast. "
                 + "Review contrast settings or keep a solid background.",
+            "SettingsBackdropFallbackSolidFailed" =>
+                "The solid background could not be applied. Restart the app.",
             "SettingsBackdropFallbackTitle" =>
                 "Switched to a solid background",
             "SettingsAcrylicOpacityFailureRollbackFailed" =>
@@ -665,7 +667,7 @@ public sealed class SettingsViewModelTests
             "SettingsBackdropFallbackApplyFailed" =>
                 "単色表示を続けるか、別の背景を選択して再試行してください。",
             "SettingsBackdropFallbackSolidFailed" =>
-                "単色背景も適用できないため、アプリを再起動してください。",
+                "単色背景を適用できませんでした。アプリを再起動してください。",
             "SettingsBackdropFallbackDefault" =>
                 "選択した背景を使用できないため、単色背景を使用します。",
             "SettingsBackdropFallbackTitle" =>
@@ -719,30 +721,84 @@ public sealed class SettingsViewModelTests
     [DataRow(BackdropFallbackReason.RemoteSession, "リモート接続を終了")]
     [DataRow(BackdropFallbackReason.Unsupported, "別の背景")]
     [DataRow(BackdropFallbackReason.ApplyFailed, "再試行")]
+    [DataRow(BackdropFallbackReason.SolidFallbackFailed, "solid background")]
     public async Task SetBackdropAsync_Fallback理由別の次アクションを案内して保存設定を維持する(
         BackdropFallbackReason reason,
         string expectedAction)
     {
         Context context = await Context.CreateAsync();
+        BackdropKind expectedBackdrop =
+            reason == BackdropFallbackReason.SolidFallbackFailed
+                ? BackdropKind.Mica
+                : BackdropKind.Solid;
         context.BackdropService.NextResult = new BackdropResult(
             BackdropKind.Acrylic,
-            BackdropKind.Solid,
+            expectedBackdrop,
             reason,
             "選択した背景を適用できませんでした。");
-        SettingsViewModel viewModel = context.CreateViewModel();
+        SettingsViewModel viewModel = context.CreateViewModel(
+            reason == BackdropFallbackReason.SolidFallbackFailed
+                ? CreateEnglishSettingsResources()
+                : null);
 
         bool applied = await viewModel.SetBackdropAsync(
             BackdropKind.Acrylic,
             CancellationToken.None);
 
         Assert.IsFalse(applied);
-        StringAssert.Contains(viewModel.InfoBarMessage, expectedAction);
+        if (reason == BackdropFallbackReason.SolidFallbackFailed)
+        {
+            Assert.AreEqual(
+                Microsoft.UI.Xaml.Controls.InfoBarSeverity.Error,
+                viewModel.InfoBarSeverity);
+            Assert.AreEqual(
+                "Could not complete the setting",
+                viewModel.InfoBarTitle);
+            Assert.AreEqual(
+                "The solid background could not be applied. Restart the app.",
+                viewModel.InfoBarMessage);
+        }
+        else
+        {
+            Assert.AreEqual(
+                Microsoft.UI.Xaml.Controls.InfoBarSeverity.Warning,
+                viewModel.InfoBarSeverity);
+            Assert.AreEqual(
+                "背景を単色表示へ切り替えました",
+                viewModel.InfoBarTitle);
+            StringAssert.Contains(viewModel.InfoBarMessage, expectedAction);
+        }
         Assert.AreEqual(
             BackdropKind.Mica,
             context.Manager.CurrentData.Settings.Backdrop);
         Assert.AreEqual(BackdropKind.Mica, viewModel.SelectedBackdrop);
-        Assert.AreEqual(BackdropKind.Solid, viewModel.ActualBackdrop);
+        Assert.AreEqual(expectedBackdrop, viewModel.ActualBackdrop);
         Assert.AreEqual(0, context.Store.SaveCount);
+    }
+
+    [TestMethod]
+    public async Task SynchronizeFromCurrentSettings_SolidFallbackFailureShowsError()
+    {
+        Context context = await Context.CreateAsync();
+        SettingsViewModel viewModel = context.CreateViewModel(
+            CreateEnglishSettingsResources());
+
+        viewModel.SynchronizeFromCurrentSettings(
+            backdropResult: new BackdropResult(
+                BackdropKind.Acrylic,
+                BackdropKind.Mica,
+                BackdropFallbackReason.SolidFallbackFailed,
+                "solid fallback implementation detail"));
+
+        Assert.AreEqual(
+            Microsoft.UI.Xaml.Controls.InfoBarSeverity.Error,
+            viewModel.InfoBarSeverity);
+        Assert.AreEqual(
+            "Could not complete the setting",
+            viewModel.InfoBarTitle);
+        Assert.AreEqual(
+            "The solid background could not be applied. Restart the app.",
+            viewModel.InfoBarMessage);
     }
 
     [TestMethod]
