@@ -515,7 +515,8 @@ public partial class App : Microsoft.UI.Xaml.Application
             new AboutViewModel(
                 versionProvider,
                 externalUriLauncher,
-                _appResourceService));
+                _appResourceService,
+                _sessionLanguage));
         _startupStage = "CompactPage";
         CompactPage compactPage = new(
             _compactViewModel,

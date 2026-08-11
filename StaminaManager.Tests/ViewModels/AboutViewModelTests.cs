@@ -112,6 +112,84 @@ public sealed class AboutViewModelTests
             viewModel.InfoBarMessage);
     }
 
+    [TestMethod]
+    public async Task OpenLink_WhenResourceIsMissing_UsesSessionFallback()
+    {
+        await AssertSessionFallbackAsync(
+            new AppResourceService(_ => string.Empty),
+            launcherThrows: false);
+    }
+
+    [TestMethod]
+    public async Task OpenLink_WhenResourceReturnsId_UsesSessionFallback()
+    {
+        await AssertSessionFallbackAsync(
+            new AppResourceService(resourceId => resourceId),
+            launcherThrows: false);
+    }
+
+    [TestMethod]
+    public async Task OpenLink_WhenResourceLoaderThrows_UsesSessionFallback()
+    {
+        await AssertSessionFallbackAsync(
+            new ThrowingResourceService("private loader detail"),
+            launcherThrows: false);
+    }
+
+    [TestMethod]
+    public async Task OpenLink_WhenLauncherThrows_UsesSessionFallback()
+    {
+        await AssertSessionFallbackAsync(
+            new ThrowingResourceService("private loader detail"),
+            launcherThrows: true);
+    }
+
+    private static async Task AssertSessionFallbackAsync(
+        IAppResourceService resources,
+        bool launcherThrows)
+    {
+        foreach ((AppLanguage language, string expectedMessage) in new[]
+        {
+            (AppLanguage.Japanese, "リンクを既定のブラウザーで開けませんでした。"),
+            (AppLanguage.English, "The link could not be opened in the default browser."),
+        })
+        {
+            RecordingLauncher launcher = launcherThrows
+                ? new()
+                {
+                    Exception = new InvalidOperationException(
+                        "private launcher detail"),
+                }
+                : new() { Result = false };
+            AboutViewModel viewModel = CreateViewModel(
+                launcher,
+                resources,
+                language);
+
+            await viewModel.OpenReadmeCommand.ExecuteAsync(null);
+
+            Assert.AreEqual(expectedMessage, viewModel.InfoBarMessage);
+            Assert.DoesNotContain(
+                "AboutInfoBar.Message",
+                viewModel.InfoBarMessage);
+            Assert.DoesNotContain(
+                "private launcher detail",
+                viewModel.InfoBarMessage);
+            Assert.DoesNotContain(
+                "private loader detail",
+                viewModel.InfoBarMessage);
+        }
+    }
+
+    private static AboutViewModel CreateViewModel(
+        RecordingLauncher launcher,
+        IAppResourceService resources,
+        AppLanguage language) => new(
+            new FixedVersionProvider(new AppVersionInfo(1, 2, 3, 0)),
+            launcher,
+            resources,
+            language);
+
     private sealed class FixedVersionProvider(AppVersionInfo version)
         : IAppVersionProvider
     {
@@ -139,5 +217,15 @@ public sealed class AboutViewModelTests
 
             return Task.FromResult(Result);
         }
+    }
+
+    private sealed class ThrowingResourceService(string detail)
+        : IAppResourceService
+    {
+        public string GetString(string resourceId) => throw new InvalidOperationException(
+            detail);
+
+        public string Format(string resourceId, params object?[] args) =>
+            throw new InvalidOperationException(detail);
     }
 }

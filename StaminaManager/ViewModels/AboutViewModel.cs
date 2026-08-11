@@ -10,10 +10,13 @@ namespace StaminaManager.ViewModels;
 public sealed partial class AboutViewModel : ObservableObject
 {
     private const string LaunchFailureResourceId = "AboutInfoBar.Message";
-    private const string LaunchFailureFallback =
+    private const string JapaneseLaunchFailureFallback =
+        "リンクを既定のブラウザーで開けませんでした。";
+    private const string EnglishLaunchFailureFallback =
         "The link could not be opened in the default browser.";
     private readonly IExternalUriLauncher _uriLauncher;
     private readonly IAppResourceService _appResourceService;
+    private readonly AppLanguage _sessionLanguage;
 
     public AboutViewModel(
         IAppVersionProvider versionProvider,
@@ -21,7 +24,21 @@ public sealed partial class AboutViewModel : ObservableObject
         : this(
             versionProvider,
             uriLauncher,
-            new AppResourceService())
+            CreateSessionResources())
+    {
+    }
+
+    private AboutViewModel(
+        IAppVersionProvider versionProvider,
+        IExternalUriLauncher uriLauncher,
+        (
+            IAppResourceService ResourceService,
+            AppLanguage SessionLanguage) session)
+        : this(
+            versionProvider,
+            uriLauncher,
+            session.ResourceService,
+            session.SessionLanguage)
     {
     }
 
@@ -29,13 +46,38 @@ public sealed partial class AboutViewModel : ObservableObject
         IAppVersionProvider versionProvider,
         IExternalUriLauncher uriLauncher,
         IAppResourceService appResourceService)
+        : this(
+            versionProvider,
+            uriLauncher,
+            appResourceService,
+            AppResourceService.GetEffectiveLanguageOrDefault())
+    {
+    }
+
+    public AboutViewModel(
+        IAppVersionProvider versionProvider,
+        IExternalUriLauncher uriLauncher,
+        IAppResourceService appResourceService,
+        AppLanguage sessionLanguage)
     {
         ArgumentNullException.ThrowIfNull(versionProvider);
         ArgumentNullException.ThrowIfNull(uriLauncher);
         ArgumentNullException.ThrowIfNull(appResourceService);
         _uriLauncher = uriLauncher;
         _appResourceService = appResourceService;
+        _sessionLanguage = sessionLanguage;
         VersionText = versionProvider.GetVersion().DisplayVersion;
+    }
+
+    private static (
+        IAppResourceService ResourceService,
+        AppLanguage SessionLanguage) CreateSessionResources()
+    {
+        AppLanguage sessionLanguage =
+            AppResourceService.GetEffectiveLanguageOrDefault();
+        return (
+            new AppResourceService(sessionLanguage),
+            sessionLanguage);
     }
 
     public string VersionText { get; }
@@ -86,7 +128,7 @@ public sealed partial class AboutViewModel : ObservableObject
                     message,
                     LaunchFailureResourceId,
                     StringComparison.Ordinal)
-                ? LaunchFailureFallback
+                ? GetLaunchFailureFallback(_sessionLanguage)
                 : message;
         }
         catch (Exception exception) when (!IsProcessFatal(exception))
@@ -94,9 +136,14 @@ public sealed partial class AboutViewModel : ObservableObject
             Debug.WriteLine(
                 "About resource resolution failed: "
                 + exception.GetType().Name);
-            return LaunchFailureFallback;
+            return GetLaunchFailureFallback(_sessionLanguage);
         }
     }
+
+    private static string GetLaunchFailureFallback(AppLanguage language) =>
+        language == AppLanguage.English
+            ? EnglishLaunchFailureFallback
+            : JapaneseLaunchFailureFallback;
 
     private static bool IsProcessFatal(Exception exception) =>
         exception is OutOfMemoryException
