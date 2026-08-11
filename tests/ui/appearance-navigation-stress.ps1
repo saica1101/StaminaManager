@@ -387,6 +387,17 @@ function Write-Result {
     Publish-ResultAtomically (New-StressResult $false)
 }
 
+function Assert-NonStoreTestPackage {
+    param([Parameter(Mandatory)][object]$Package)
+
+    $installLocation = [IO.Path]::GetFullPath($Package.InstallLocation)
+    if ([string]$Package.SignatureKind -eq 'Store' -or
+        $installLocation -match '(?i)\\WindowsApps(?:\\|$)') {
+        throw 'Store版のPIDはUIテスト対象外です。' +
+            '開発用packageをBuildAndRun.ps1で起動してください。'
+    }
+}
+
 try {
     $inputProcess = Get-Process -Id $AppPid -ErrorAction Stop
     if ($inputProcess.ProcessName -ne 'StaminaManager') {
@@ -402,6 +413,7 @@ try {
     if ($null -eq $package) {
         throw 'Registered debug package was not found.'
     }
+    Assert-NonStoreTestPackage $package
 
     $packageFamilyName = $package.PackageFamilyName
     $packageInstallLocation = [IO.Path]::GetFullPath(

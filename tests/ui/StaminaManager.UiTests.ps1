@@ -212,6 +212,8 @@ Add-Type -AssemblyName UIAutomationClient
 
 $requiredAutomationIds = @(
     'ShellContentFrame',
+    'VersionFooterBand',
+    'VersionFooterText',
     'AboutPageRoot',
     'AboutVersionText',
     'OpenGitHubButton',
@@ -220,6 +222,7 @@ $requiredAutomationIds = @(
     'AboutReadmeDescription',
     'NavOverview',
     'NavSettings',
+    'NavAbout',
     'OverviewScrollViewer',
     'SettingsScrollViewer',
     'OverviewItems',
@@ -247,6 +250,7 @@ $requiredAutomationIds = @(
     'BackdropSelector',
     'AcrylicOpacitySlider',
     'AcrylicOpacityValue',
+    'LanguageSelector',
     'CloseBehaviorSelector',
     'StartupToggle',
     'NotificationsToggle',
@@ -512,6 +516,8 @@ function Get-VerifiedAppIdentity {
         throw 'The running executable does not belong to a registered package.'
     }
 
+    Assert-NonStoreTestPackage $package
+
     $appxDirectory = Split-Path -Parent $processPath
     if ((Split-Path -Leaf $appxDirectory) -ne 'AppX') {
         throw "The executable parent is not AppX: $appxDirectory"
@@ -520,7 +526,20 @@ function Get-VerifiedAppIdentity {
     return [pscustomobject]@{
         ProcessPath = $processPath
         PackageFamilyName = $package.PackageFamilyName
+        PackageInstallLocation = [IO.Path]::GetFullPath(
+            $package.InstallLocation)
         AppOutputDirectory = Split-Path -Parent $appxDirectory
+    }
+}
+
+function Assert-NonStoreTestPackage {
+    param([Parameter(Mandatory)][object]$Package)
+
+    $installLocation = [IO.Path]::GetFullPath($Package.InstallLocation)
+    if ([string]$Package.SignatureKind -eq 'Store' -or
+        $installLocation -match '(?i)\\WindowsApps(?:\\|$)') {
+        throw 'Store版のPIDはUIテスト対象外です。' +
+            '開発用packageをBuildAndRun.ps1で起動してください。'
     }
 }
 
@@ -771,6 +790,145 @@ function Get-ControlValue {
     ).text
 }
 
+function Get-ResourceValue {
+    param(
+        [Parameter(Mandatory)][ValidateSet('ja-JP', 'en-US')]
+        [string]$Language,
+        [Parameter(Mandatory)][string]$Key)
+
+    $resourcePath = Join-Path $PSScriptRoot (
+        "..\..\StaminaManager\Resources\Strings\$Language\Resources.resw")
+    $document = [xml][IO.File]::ReadAllText(
+        [IO.Path]::GetFullPath($resourcePath))
+    $value = $document.SelectSingleNode(
+        "/root/data[@name='$Key']/value")
+    if ($null -eq $value) {
+        throw "Resource key '$Key' was not found for $Language."
+    }
+
+    return [string]$value.InnerText
+}
+
+function Get-AppVersionDisplay {
+    $manifest = [xml][IO.File]::ReadAllText(
+        [IO.Path]::GetFullPath((Join-Path $PSScriptRoot `
+            '..\..\StaminaManager\Package.appxmanifest')))
+    $versionText = [string]$manifest.Package.Identity.Version
+    $version = [Version]$versionText
+    if ($version.Revision -ne 0) {
+        return "$($version.Major).$($version.Minor).$($version.Build).$($version.Revision)"
+    }
+
+    return "$($version.Major).$($version.Minor).$($version.Build)"
+}
+
+function Wait-UiPropertyValue {
+    param(
+        [Parameter(Mandatory)][string]$AutomationId,
+        [Parameter(Mandatory)][string]$Property,
+        [Parameter(Mandatory)][string]$ExpectedValue,
+        [int]$TimeoutMilliseconds = 5000)
+
+    $deadline = [DateTime]::UtcNow.AddMilliseconds($TimeoutMilliseconds)
+    $actual = $null
+    do {
+        try {
+            $properties = Invoke-WinApp ui get-property $AutomationId `
+                -a $AppPid -p $Property --json | ConvertFrom-Json
+            $actual = [string]$properties.properties.$Property
+            if ($actual -eq $ExpectedValue) {
+                return
+            }
+        }
+        catch {
+        }
+
+        Start-Sleep -Milliseconds 100
+    } while ([DateTime]::UtcNow -lt $deadline)
+
+    throw "$AutomationId $Property expected '$ExpectedValue', actual '$actual'."
+}
+
+function Wait-PersistedLanguage {
+    param(
+        [Parameter(Mandatory)][string]$ExpectedLanguage,
+        [int]$TimeoutMilliseconds = 5000)
+
+    $dataPath = Join-Path $dataDirectory 'data.json'
+    $deadline = [DateTime]::UtcNow.AddMilliseconds($TimeoutMilliseconds)
+    $actual = $null
+    do {
+        try {
+            $data = [IO.File]::ReadAllText($dataPath) | ConvertFrom-Json
+            $actual = [string]$data.settings.language
+            if ($actual -eq $ExpectedLanguage) {
+                return
+            }
+        }
+        catch {
+        }
+
+        Start-Sleep -Milliseconds 100
+    } while ([DateTime]::UtcNow -lt $deadline)
+
+    throw "Expected persisted language '$ExpectedLanguage', actual '$actual'."
+}
+
+function Restart-TestPackage {
+    Stop-VerifiedAppProcess $AppPid $expectedProcessPath
+    Start-PackagedApp | Out-Null
+}
+
+function Assert-LanguageSurface {
+    param([Parameter(Mandatory)][ValidateSet('ja-JP', 'en-US')]
+        [string]$Language)
+
+    $aboutName = Get-ResourceValue $Language `
+        'NavAbout.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name'
+    $settingsName = Get-ResourceValue $Language `
+        'NavSettings.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name'
+    $versionFormat = Get-ResourceValue $Language `
+        'VersionFooterAutomationNameFormat'
+    $expectedVersionName = $versionFormat -f (Get-AppVersionDisplay)
+
+    Wait-UiPropertyValue NavAbout Name $aboutName
+    Wait-UiPropertyValue NavSettings Name $settingsName
+    Wait-UiPropertyValue VersionFooterText Name $expectedVersionName
+
+    Invoke-WinApp ui invoke NavSettings -a $AppPid | Out-Null
+    Invoke-WinApp ui wait-for LanguageSelector -a $AppPid -t 5000 |
+        Out-Null
+    $languageHelp = Get-ResourceValue $Language `
+        'LanguageSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText'
+    Wait-UiPropertyValue LanguageSelector HelpText $languageHelp
+    Invoke-WinApp ui invoke NavOverview -a $AppPid | Out-Null
+    Invoke-WinApp ui wait-for OverviewScrollViewer -a $AppPid -t 5000 |
+        Out-Null
+}
+
+function Ensure-TestLanguageJapanese {
+    Invoke-WinApp ui invoke NavSettings -a $AppPid | Out-Null
+    Invoke-WinApp ui wait-for LanguageSelector -a $AppPid -t 5000 |
+        Out-Null
+    if ((Get-ControlValue LanguageSelector) -ne '日本語') {
+        Select-ComboItem LanguageSelector '日本語'
+        Wait-PersistedLanguage 'Japanese'
+        Restart-TestPackage
+        Invoke-WinApp ui wait-for NavOverview -a $AppPid -t 5000 |
+            Out-Null
+        Invoke-WinApp ui invoke NavSettings -a $AppPid | Out-Null
+        Invoke-WinApp ui wait-for LanguageSelector -a $AppPid -t 5000 |
+            Out-Null
+        Wait-UiPropertyValue LanguageSelector HelpText `
+            (Get-ResourceValue 'ja-JP' `
+                'LanguageSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText')
+    }
+
+    Invoke-WinApp ui invoke NavOverview -a $AppPid | Out-Null
+    Invoke-WinApp ui wait-for OverviewScrollViewer -a $AppPid -t 5000 |
+        Out-Null
+}
+
 function Get-RawBackdropDiagnostic {
     $root = [System.Windows.Automation.AutomationElement]::RootElement
     $processCondition =
@@ -966,7 +1124,7 @@ function Save-Screenshot {
             '06-theme-off',
             '06-theme-on',
             '07-backdrop-acrylic',
-            '07-backdrop-transparent')) {
+            '07-backdrop-solid')) {
         Invoke-WinApp ui screenshot -a $AppPid -o $path `
             --capture-screen | Out-Null
         return
@@ -1120,11 +1278,13 @@ function Collect-AuditSnapshot {
                 'ShellContentFrame',
                 'NavOverview',
                 'NavSettings',
+                'NavAbout',
                 'SettingsScrollViewer',
                 'ThemeToggle',
                 'BackdropSelector',
                 'AcrylicOpacitySlider',
                 'AcrylicOpacityValue',
+                'LanguageSelector',
                 'CloseBehaviorSelector',
                 'StartupToggle',
                 'NotificationsToggle',
@@ -1135,6 +1295,9 @@ function Collect-AuditSnapshot {
         'About*' {
             @(
                 'ShellContentFrame',
+                'VersionFooterBand',
+                'VersionFooterText',
+                'NavAbout',
                 'AboutScrollViewer',
                 'AboutPageRoot',
                 'AboutVersionText',
@@ -1828,6 +1991,14 @@ function Invoke-AboutUiAudit {
             Invoke-WinApp ui wait-for $automationId -a $AppPid -t 5000 |
                 Out-Null
         }
+        if ($State -eq 'About') {
+            $versionBand = Get-ElementMatch VersionFooterBand
+            $aboutItem = Get-ElementMatch NavAbout
+            $versionBottom = [int]$versionBand.y + [int]$versionBand.height
+            if ($versionBottom -gt [int]$aboutItem.y) {
+                throw 'Version footer must be above the About navigation item.'
+            }
+        }
         Assert-AboutButtonAccessibility
 
         $savedBounds = Get-MainWindowInfo
@@ -1989,6 +2160,7 @@ try {
 
     Invoke-WinApp ui wait-for NavOverview -a $AppPid -t 5000 |
         Out-Null
+    Ensure-TestLanguageJapanese
     $appliedFixtureState = Wait-EmptyFixtureApplied `
         $writtenFixtureState.Fingerprint '起動後'
     Add-Result Safety '起動後の空games fixture反映' PASS `
@@ -2284,6 +2456,15 @@ try {
                 -t 5000 | Out-Null
             if ($isAcrylicAvailable) {
                 Wait-PersistedAcrylicOpacity 100
+                Restart-TestPackage
+                Invoke-WinApp ui wait-for NavOverview -a $AppPid `
+                    -t 5000 | Out-Null
+                Invoke-WinApp ui invoke NavSettings -a $AppPid | Out-Null
+                Invoke-WinApp ui wait-for AcrylicOpacitySlider `
+                    -a $AppPid -t 5000 | Out-Null
+                Invoke-WinApp ui wait-for AcrylicOpacitySlider `
+                    -a $AppPid -p Value --value 100 -t 5000 | Out-Null
+                Wait-PersistedAcrylicOpacity 100
             }
         }
         finally {
@@ -2426,6 +2607,30 @@ try {
             Start-Sleep -Milliseconds 300
         }
         Collect-AuditSnapshot SettingsData
+    }
+
+    Invoke-UiTest Language 'Englishと日本語の再起動反映' {
+        Invoke-WinApp ui invoke NavSettings -a $AppPid | Out-Null
+        Invoke-WinApp ui wait-for LanguageSelector -a $AppPid -t 5000 |
+            Out-Null
+        Select-ComboItem LanguageSelector 'English'
+        Wait-PersistedLanguage 'English'
+        Restart-TestPackage
+        Invoke-WinApp ui wait-for NavOverview -a $AppPid -t 5000 |
+            Out-Null
+        Assert-LanguageSurface 'en-US'
+        Save-Screenshot '09-language-english'
+
+        Invoke-WinApp ui invoke NavSettings -a $AppPid | Out-Null
+        Invoke-WinApp ui wait-for LanguageSelector -a $AppPid -t 5000 |
+            Out-Null
+        Select-ComboItem LanguageSelector '日本語'
+        Wait-PersistedLanguage 'Japanese'
+        Restart-TestPackage
+        Invoke-WinApp ui wait-for NavOverview -a $AppPid -t 5000 |
+            Out-Null
+        Assert-LanguageSurface 'ja-JP'
+        Save-Screenshot '10-language-japanese'
     }
 
     Invoke-UiTest Accessibility 'app-owned interactive UIAのIDとName' {

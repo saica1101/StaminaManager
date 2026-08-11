@@ -18,6 +18,35 @@ function Invoke-WinApp {
     return $output
 }
 
+function Assert-NonStoreTestPackage {
+    $process = Get-Process -Id $AppPid -ErrorAction Stop
+    if ($process.ProcessName -ne 'StaminaManager') {
+        throw "PID $AppPid is not StaminaManager."
+    }
+
+    $processPath = [IO.Path]::GetFullPath($process.Path)
+    $package = Get-AppxPackage | Where-Object {
+        if ([string]::IsNullOrWhiteSpace($_.InstallLocation)) {
+            return $false
+        }
+
+        $installLocation = [IO.Path]::GetFullPath($_.InstallLocation).TrimEnd('\')
+        $processPath.StartsWith(
+            "$installLocation\",
+            [StringComparison]::OrdinalIgnoreCase)
+    } | Select-Object -First 1
+    if ($null -eq $package) {
+        throw 'The running executable does not belong to a registered package.'
+    }
+
+    $installLocation = [IO.Path]::GetFullPath($package.InstallLocation)
+    if ([string]$package.SignatureKind -eq 'Store' -or
+        $installLocation -match '(?i)\\WindowsApps(?:\\|$)') {
+        throw 'Store版のPIDはUIテスト対象外です。' +
+            '開発用packageをBuildAndRun.ps1で起動してください。'
+    }
+}
+
 function Select-ComboItem {
     param(
         [Parameter(Mandatory)]
@@ -128,6 +157,8 @@ function Restore-InitialSettings {
 
 New-Item -ItemType Directory -Force -Path $OutputDirectory |
     Out-Null
+
+Assert-NonStoreTestPackage
 
 Invoke-WinApp ui wait-for NavSettings -a $AppPid -t 5000 |
     Out-Null

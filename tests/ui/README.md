@@ -9,7 +9,7 @@
 
 - 対話可能でロックされていない Windows デスクトップで実行する。
 - `winapp` を PATH から実行できるようにする。
-- 対象アプリをデバッグ package として登録し、起動しておく。
+- 対象アプリを開発用（Store署名ではない）package として登録し、起動しておく。
 - 実行中は対象アプリを操作しない。
 
 ```powershell
@@ -19,6 +19,9 @@
 
 `AppPid` は必須です。PowerShell の読み取り専用自動変数 `$Pid` と衝突しない
 名前を使用しています。
+
+Store版（`SignatureKind=Store` または `WindowsApps` 配下）のPIDは安全ガードで
+拒否します。Store版のプロセスやLocalStateをUIテストへ指定しないでください。
 
 ## 安全性
 
@@ -59,6 +62,8 @@ settings を保持した `games=[]` fixture と空の通知 ledger を書き、�
   （UI Automation の物理pxをウィンドウDPIで換算）
 - コンパクト表示、選択ゲームと bounds の再起動永続化、通常 bounds の復帰
 - Light / Dark と Mica / Acrylic / Solid
+- Acrylic 0% / 50% / 100% の適用、永続化、再起動後の復元
+- English選択→再起動→英語表示、日本語選択→再起動→日本語表示
 - 閉じる動作の selector と、WM_CLOSE による tray 格納・redirect 起動復帰
 - 通知 wrapper の `NotificationLeadInput`、内部 `InputBox` の操作、通知 ledger の
   `Suppressed` → `Scheduled`、通知リード変更による再予約
