@@ -2,6 +2,7 @@ using StaminaManager.Application;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
 using StaminaManager.Core.Persistence;
+using StaminaManager.Infrastructure.Resources;
 using StaminaManager.Tests.TestDoubles;
 using StaminaManager.ViewModels;
 using StaminaManager.Views;
@@ -14,6 +15,61 @@ namespace StaminaManager.Tests.ViewModels;
 [TestClass]
 public sealed class SettingsViewModelTests
 {
+    private static readonly AppResourceService TestResources = new(
+        resourceId => resourceId);
+
+    [TestMethod]
+    public async Task DynamicAccessibilityAndAvailabilityText_UsesResources()
+    {
+        Context context = await Context.CreateAsync();
+        AppResourceService resources = new(resourceId => resourceId switch
+        {
+            "SettingsErrorTitle" => "localized-error-title",
+            "AcrylicOpacityAutomationNameFormat" => "opacity={0}%",
+            "AcrylicOpacityHelpTextDisabledFormat" =>
+                "disabled-opacity={0}%",
+            "NotificationAvailabilityEnabled" =>
+                "localized-notifications-enabled",
+            "NotificationAvailabilityDisabledForApplication" =>
+                "localized-notifications-disabled-for-app",
+            _ => resourceId,
+        });
+        SettingsViewModel viewModel = new(
+            context.Manager,
+            context.ThemeService,
+            context.BackdropService,
+            new PassThroughStartupService(),
+            context.NotificationReconciler,
+            new PassThroughPermissionService(),
+            new PassThroughSettingsLauncher(),
+            resources);
+        viewModel.MarkReady();
+
+        Assert.AreEqual("localized-error-title", viewModel.InfoBarTitle);
+        Assert.AreEqual(
+            $"opacity={AppSettings.DefaultAcrylicTintOpacityPercent}%",
+            viewModel.AcrylicOpacityValueAutomationName);
+        Assert.AreEqual(
+            $"disabled-opacity={AppSettings.DefaultAcrylicTintOpacityPercent}%",
+            viewModel.AcrylicOpacityHelpText);
+        Assert.AreEqual(
+            "localized-notifications-enabled",
+            viewModel.NotificationAvailabilityText);
+
+        viewModel.SetWindowsNotificationAvailability(isAvailable: false);
+        Assert.AreEqual(
+            "localized-notifications-disabled-for-app",
+            viewModel.NotificationAvailabilityText);
+
+        context.ThemeService.NextResult = new ThemeResult(
+            AppTheme.Light,
+            AppTheme.Light,
+            IsApplied: false,
+            ErrorMessage: null);
+        Assert.IsFalse(await viewModel.SetThemeAsync(AppTheme.Dark));
+        Assert.AreEqual("localized-error-title", viewModel.InfoBarTitle);
+    }
+
     [TestMethod]
     public async Task SettingChanges_BeforeReadyAreRejectedWithoutSideEffects()
     {
@@ -1136,12 +1192,11 @@ public sealed class SettingsViewModelTests
             BackdropKind backdrop = BackdropKind.Mica,
             int acrylicOpacity = AppSettings.DefaultAcrylicTintOpacityPercent)
         {
-            AppSettings settings = AppSettings.CreateDefault(AppTheme.Light)
-                with
-                {
-                    Backdrop = backdrop,
-                    AcrylicTintOpacityPercent = acrylicOpacity,
-                };
+            AppSettings settings = AppSettings.CreateDefault(AppTheme.Light) with
+            {
+                Backdrop = backdrop,
+                AcrylicTintOpacityPercent = acrylicOpacity,
+            };
             DataEnvelope envelope = new(
                 DataEnvelope.CurrentSchemaVersion,
                 ImmutableArray<GameEntry>.Empty,
@@ -1176,7 +1231,8 @@ public sealed class SettingsViewModelTests
         public SettingsViewModel CreateNotReadyViewModel() => new(
             Manager,
             ThemeService,
-            BackdropService);
+            BackdropService,
+            TestResources);
 
         public SettingsViewModel CreateLanguageViewModel(
             AppLanguage sessionLanguage = AppLanguage.Japanese)
@@ -1189,6 +1245,7 @@ public sealed class SettingsViewModelTests
                 NotificationReconciler,
                 new PassThroughPermissionService(),
                 new PassThroughSettingsLauncher(),
+                TestResources,
                 appLanguageService: LanguageService,
                 sessionLanguage: sessionLanguage);
             viewModel.MarkReady();

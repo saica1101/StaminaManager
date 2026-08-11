@@ -3,6 +3,7 @@ using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
 using StaminaManager.Core.Persistence;
 using StaminaManager.Infrastructure.Backup;
+using StaminaManager.Infrastructure.Resources;
 using StaminaManager.Tests.TestDoubles;
 using StaminaManager.ViewModels;
 using System.Collections.Immutable;
@@ -153,6 +154,7 @@ public sealed class PostCommitPartialRestoreTests
             services,
             services,
             services,
+            new AppResourceService(resourceId => resourceId),
             app);
         viewModel.MarkReady();
 

@@ -2,6 +2,7 @@ using StaminaManager.Application;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
 using StaminaManager.Core.Persistence;
+using StaminaManager.Infrastructure.Resources;
 using StaminaManager.Tests.TestDoubles;
 using StaminaManager.ViewModels;
 using System.Collections.Immutable;
@@ -11,6 +12,9 @@ namespace StaminaManager.Tests.ViewModels;
 [TestClass]
 public sealed class StartupSettingsTests
 {
+    private static readonly AppResourceService TestResources = new(
+        resourceId => resourceId);
+
     [TestMethod]
     public async Task SetStartupEnabledAsync_ユーザー拒否時は実状態へ戻す()
     {
@@ -200,7 +204,8 @@ public sealed class StartupSettingsTests
                 Manager,
                 new PassThroughThemeService(),
                 new PassThroughBackdropService(),
-                StartupService);
+                StartupService,
+                TestResources);
             viewModel.MarkReady();
             return viewModel;
         }

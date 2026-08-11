@@ -60,6 +60,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly INotificationPermissionService
         _notificationPermissionService;
     private readonly ISettingsLauncher _settingsLauncher;
+    private readonly IAppResourceService _appResourceService;
     private readonly IAppLanguageService _appLanguageService;
     private readonly AppCoordinator? _appCoordinator;
     private readonly AppLanguage _sessionLanguage;
@@ -69,7 +70,8 @@ public sealed partial class SettingsViewModel : ObservableObject
     public SettingsViewModel(
         GameManager gameManager,
         IThemeService themeService,
-        IBackdropService backdropService)
+        IBackdropService backdropService,
+        IAppResourceService appResourceService)
         : this(
             gameManager,
             themeService,
@@ -77,7 +79,8 @@ public sealed partial class SettingsViewModel : ObservableObject
             new PassThroughStartupService(),
             new PassThroughNotificationReconciler(),
             new PassThroughPermissionService(),
-            new PassThroughSettingsLauncher())
+            new PassThroughSettingsLauncher(),
+            appResourceService)
     {
     }
 
@@ -85,7 +88,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         GameManager gameManager,
         IThemeService themeService,
         IBackdropService backdropService,
-        IStartupService startupService)
+        IStartupService startupService,
+        IAppResourceService appResourceService)
         : this(
             gameManager,
             themeService,
@@ -93,7 +97,8 @@ public sealed partial class SettingsViewModel : ObservableObject
             startupService,
             new PassThroughNotificationReconciler(),
             new PassThroughPermissionService(),
-            new PassThroughSettingsLauncher())
+            new PassThroughSettingsLauncher(),
+            appResourceService)
     {
     }
 
@@ -105,6 +110,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         INotificationReconciler notificationReconciler,
         INotificationPermissionService notificationPermissionService,
         ISettingsLauncher settingsLauncher,
+        IAppResourceService appResourceService,
         AppCoordinator? appCoordinator = null,
         IAppLanguageService? appLanguageService = null,
         AppLanguage? sessionLanguage = null)
@@ -116,6 +122,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(notificationReconciler);
         ArgumentNullException.ThrowIfNull(notificationPermissionService);
         ArgumentNullException.ThrowIfNull(settingsLauncher);
+        ArgumentNullException.ThrowIfNull(appResourceService);
 
         _gameManager = gameManager;
         _themeService = themeService;
@@ -124,11 +131,13 @@ public sealed partial class SettingsViewModel : ObservableObject
         _notificationReconciler = notificationReconciler;
         _notificationPermissionService = notificationPermissionService;
         _settingsLauncher = settingsLauncher;
+        _appResourceService = appResourceService;
         _appCoordinator = appCoordinator;
         _appLanguageService = appLanguageService
             ?? new PassThroughLanguageService();
         _sessionLanguage = sessionLanguage
             ?? _appLanguageService.GetEffectiveLanguage();
+        InfoBarTitle = _appResourceService.GetString("SettingsErrorTitle");
         AppSettings settings = gameManager.CurrentData.Settings;
         Theme = settings.Theme;
         Language = settings.Language;
@@ -226,8 +235,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     public partial string InfoBarMessage { get; private set; } = string.Empty;
 
     [ObservableProperty]
-    public partial string InfoBarTitle { get; private set; } =
-        "設定を完了できませんでした";
+    public partial string InfoBarTitle { get; private set; } = string.Empty;
 
     [ObservableProperty]
     public partial InfoBarSeverity InfoBarSeverity { get; private set; } =
@@ -281,14 +289,17 @@ public sealed partial class SettingsViewModel : ObservableObject
         $"{AcrylicTintOpacityPercent}%";
 
     public string AcrylicOpacityValueAutomationName =>
-        $"Acrylic の不透明度、現在値 {AcrylicTintOpacityPercent}%";
+        _appResourceService.Format(
+            "AcrylicOpacityAutomationNameFormat",
+            AcrylicTintOpacityPercent);
 
     public string AcrylicOpacityHelpText => IsAcrylicOpacityEnabled
-        ? $"Acrylic の色調の濃さを調整します。現在値は"
-            + $"{AcrylicTintOpacityPercent}%です。"
-        : "Acrylic の色調の濃さを調整します。"
-            + "背景が Acrylic の場合のみ変更できます。"
-            + $"現在値は{AcrylicTintOpacityPercent}%です。";
+        ? _appResourceService.Format(
+            "AcrylicOpacityHelpTextEnabledFormat",
+            AcrylicTintOpacityPercent)
+        : _appResourceService.Format(
+            "AcrylicOpacityHelpTextDisabledFormat",
+            AcrylicTintOpacityPercent);
 
     public bool IsLoading =>
         InitializationState == SettingsInitializationState.Loading;
@@ -333,16 +344,22 @@ public sealed partial class SettingsViewModel : ObservableObject
         WindowsNotificationState switch
         {
             NotificationPermissionState.Enabled =>
-                "Windowsの通知は利用できます。",
+                _appResourceService.GetString(
+                    "NotificationAvailabilityEnabled"),
             NotificationPermissionState.DisabledForApplication =>
-                "Windowsのアプリごとの設定で通知が無効です。",
+                _appResourceService.GetString(
+                    "NotificationAvailabilityDisabledForApplication"),
             NotificationPermissionState.DisabledForUser =>
-                "Windows全体の通知が無効です。",
+                _appResourceService.GetString(
+                    "NotificationAvailabilityDisabledForUser"),
             NotificationPermissionState.DisabledByPolicy =>
-                "組織のポリシーにより通知が無効です。",
+                _appResourceService.GetString(
+                    "NotificationAvailabilityDisabledByPolicy"),
             NotificationPermissionState.DisabledByManifest =>
-                "アプリの通知構成が無効です。",
-            _ => "この環境ではWindows通知を利用できません。",
+                _appResourceService.GetString(
+                    "NotificationAvailabilityDisabledByManifest"),
+            _ => _appResourceService.GetString(
+                "NotificationAvailabilityUnsupported"),
         };
 
     public async Task<bool> SetThemeAsync(
@@ -1839,9 +1856,10 @@ public sealed partial class SettingsViewModel : ObservableObject
     private void ShowMessage(
         string message,
         InfoBarSeverity severity,
-        string title = "設定を完了できませんでした")
+        string? title = null)
     {
-        InfoBarTitle = title;
+        InfoBarTitle = title
+            ?? _appResourceService.GetString("SettingsErrorTitle");
         InfoBarMessage = message;
         InfoBarSeverity = severity;
         IsInfoBarOpen = true;

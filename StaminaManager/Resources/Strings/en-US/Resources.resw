@@ -144,6 +144,16 @@
   <data name="OverviewRecoveryDiagnosticPreserved" xml:space="preserve"><value>Recovered from the last known good data and preserved the damaged source for diagnostics. Review the data, then export a backup.</value></data>
   <data name="OverviewRecoveryPromoted" xml:space="preserve"><value>Recovered from the last known good data and restored normal saving. Review the data, then export a backup.</value></data>
   <data name="OverviewSchemaWritebackWarning" xml:space="preserve"><value>The data was updated to the latest format but could not be saved again. Change a setting once to save it again.</value></data>
+  <data name="SettingsErrorTitle" xml:space="preserve"><value>Could not complete the setting</value></data>
+  <data name="AcrylicOpacityAutomationNameFormat" xml:space="preserve"><value>Acrylic opacity, current value {0}%</value></data>
+  <data name="AcrylicOpacityHelpTextEnabledFormat" xml:space="preserve"><value>Adjusts the Acrylic tint intensity. The current value is {0}%.</value></data>
+  <data name="AcrylicOpacityHelpTextDisabledFormat" xml:space="preserve"><value>Adjusts the Acrylic tint intensity. This can only be changed when the background is Acrylic. The current value is {0}%.</value></data>
+  <data name="NotificationAvailabilityEnabled" xml:space="preserve"><value>Windows notifications are available.</value></data>
+  <data name="NotificationAvailabilityDisabledForApplication" xml:space="preserve"><value>Notifications are disabled for this app in Windows settings.</value></data>
+  <data name="NotificationAvailabilityDisabledForUser" xml:space="preserve"><value>Notifications are disabled in Windows.</value></data>
+  <data name="NotificationAvailabilityDisabledByPolicy" xml:space="preserve"><value>Notifications are disabled by your organization's policy.</value></data>
+  <data name="NotificationAvailabilityDisabledByManifest" xml:space="preserve"><value>The app's notification configuration is unavailable.</value></data>
+  <data name="NotificationAvailabilityUnsupported" xml:space="preserve"><value>Windows notifications are not available in this environment.</value></data>
   <data name="CompactUpdateButton.Content" xml:space="preserve"><value>Update current value</value></data>
   <data name="CompactUpdateButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Update the current value of the selected game</value></data>
   <data name="CompactEditButton.Content" xml:space="preserve"><value>Edit game</value></data>

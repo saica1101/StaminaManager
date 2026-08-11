@@ -4,6 +4,7 @@ using StaminaManager.Application;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
 using StaminaManager.Core.Persistence;
+using StaminaManager.Infrastructure.Resources;
 using StaminaManager.Tests.TestDoubles;
 using StaminaManager.ViewModels;
 using System.Collections.Immutable;
@@ -117,7 +118,13 @@ public sealed class NotificationSettingsViewModelTests
             new PassThroughStartupService(),
             reconciler ?? new RecordingNotificationReconciler(),
             new FixedPermissionService(permissionState),
-            settingsLauncher ?? new RecordingSettingsLauncher());
+            settingsLauncher ?? new RecordingSettingsLauncher(),
+            new AppResourceService(resourceId => resourceId switch
+            {
+                "NotificationAvailabilityDisabledForApplication" =>
+                    "Windowsのアプリごとの設定で通知が無効です。",
+                _ => resourceId,
+            }));
         viewModel.MarkReady();
         return viewModel;
     }

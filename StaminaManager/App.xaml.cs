@@ -430,6 +430,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             notificationCoordinator,
             notificationPermissionService,
             settingsLauncher,
+            _appResourceService,
             _coordinator,
             appLanguageService,
             sessionLanguage);

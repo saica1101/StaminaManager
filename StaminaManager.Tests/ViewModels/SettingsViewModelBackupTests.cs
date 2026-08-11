@@ -2,6 +2,7 @@ using StaminaManager.Application;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
 using StaminaManager.Core.Persistence;
+using StaminaManager.Infrastructure.Resources;
 using StaminaManager.Tests.Backup;
 using StaminaManager.Tests.TestDoubles;
 using StaminaManager.ViewModels;
@@ -163,6 +164,7 @@ public sealed class SettingsViewModelBackupTests
                 services,
                 services,
                 services,
+                new AppResourceService(resourceId => resourceId),
                 app);
             viewModel.MarkReady();
             return new PreviewContext(testStore, store, backup, viewModel);

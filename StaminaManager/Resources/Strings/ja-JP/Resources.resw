@@ -144,6 +144,16 @@
   <data name="OverviewRecoveryDiagnosticPreserved" xml:space="preserve"><value>前回正常データで回復しました。破損元は診断用に保全しました。内容を確認した後、バックアップを書き出してください。</value></data>
   <data name="OverviewRecoveryPromoted" xml:space="preserve"><value>前回正常データで回復し、通常保存へ戻しました。内容を確認した後、バックアップを書き出してください。</value></data>
   <data name="OverviewSchemaWritebackWarning" xml:space="preserve"><value>データを最新形式へ更新しましたが、再保存できませんでした。設定を一度変更して保存し直してください。</value></data>
+  <data name="SettingsErrorTitle" xml:space="preserve"><value>設定を完了できませんでした</value></data>
+  <data name="AcrylicOpacityAutomationNameFormat" xml:space="preserve"><value>Acrylic の不透明度、現在値 {0}%</value></data>
+  <data name="AcrylicOpacityHelpTextEnabledFormat" xml:space="preserve"><value>Acrylic の色調の濃さを調整します。現在値は{0}%です。</value></data>
+  <data name="AcrylicOpacityHelpTextDisabledFormat" xml:space="preserve"><value>Acrylic の色調の濃さを調整します。背景が Acrylic の場合のみ変更できます。現在値は{0}%です。</value></data>
+  <data name="NotificationAvailabilityEnabled" xml:space="preserve"><value>Windowsの通知は利用できます。</value></data>
+  <data name="NotificationAvailabilityDisabledForApplication" xml:space="preserve"><value>Windowsのアプリごとの設定で通知が無効です。</value></data>
+  <data name="NotificationAvailabilityDisabledForUser" xml:space="preserve"><value>Windows全体の通知が無効です。</value></data>
+  <data name="NotificationAvailabilityDisabledByPolicy" xml:space="preserve"><value>組織のポリシーにより通知が無効です。</value></data>
+  <data name="NotificationAvailabilityDisabledByManifest" xml:space="preserve"><value>アプリの通知構成が無効です。</value></data>
+  <data name="NotificationAvailabilityUnsupported" xml:space="preserve"><value>この環境ではWindows通知を利用できません。</value></data>
   <data name="CompactUpdateButton.Content" xml:space="preserve"><value>現在値を更新</value></data>
   <data name="CompactUpdateButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>選択中のゲームの現在値を更新</value></data>
   <data name="CompactEditButton.Content" xml:space="preserve"><value>ゲームを編集</value></data>
