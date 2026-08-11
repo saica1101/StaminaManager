@@ -90,6 +90,21 @@ public sealed class SettingsBackupLocalizationContractTests
             && handlerEnd > handlerIndex
             && applyIndex > handlerIndex
             && applyIndex < handlerEnd);
+
+        string styles = Read(root, "StaminaManager", "Resources", "Styles.xaml");
+        int primaryStart = styles.IndexOf(
+            "x:Key=\"RestoreDialogPrimaryButtonStyle\"",
+            StringComparison.Ordinal);
+        int cancelStart = styles.IndexOf(
+            "x:Key=\"RestoreDialogCancelButtonStyle\"",
+            StringComparison.Ordinal);
+        Assert.IsTrue(primaryStart >= 0 && cancelStart > primaryStart);
+        StringAssert.Contains(
+            styles[primaryStart..cancelStart],
+            "BasedOn=\"{StaticResource DefaultButtonStyle}\"");
+        StringAssert.Contains(
+            styles[cancelStart..],
+            "BasedOn=\"{StaticResource AccentButtonStyle}\"");
     }
     [TestMethod]
     public void RestoreDialog_CancelFailureHasOnePhaseOwner()
