@@ -166,6 +166,7 @@ New-Item -ItemType Directory -Force -Path $OutputDirectory |
     Out-Null
 
 $package = Get-VerifiedTestPackage
+Assert-NonStoreTestPackage $package
 
 Invoke-WinApp ui wait-for NavSettings -a $AppPid -t 5000 |
     Out-Null

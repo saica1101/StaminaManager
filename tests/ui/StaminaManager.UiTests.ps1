@@ -533,6 +533,7 @@ function Get-VerifiedAppIdentity {
         PackageFamilyName = $package.PackageFamilyName
         PackageInstallLocation = [IO.Path]::GetFullPath(
             $package.InstallLocation)
+        SignatureKind = [string]$package.SignatureKind
         AppOutputDirectory = Split-Path -Parent $appxDirectory
     }
 }
@@ -2286,6 +2287,10 @@ $accessibilityDisplayState = Get-AccessibilityDisplayState
 
 try {
     $identity = Get-VerifiedAppIdentity $AppPid
+    Assert-NonStoreTestPackage ([pscustomobject]@{
+        SignatureKind = $identity.SignatureKind
+        InstallLocation = $identity.PackageInstallLocation
+    })
     $expectedProcessPath = $identity.ProcessPath
     $packageFamilyName = $identity.PackageFamilyName
     $appOutputDirectory = $identity.AppOutputDirectory

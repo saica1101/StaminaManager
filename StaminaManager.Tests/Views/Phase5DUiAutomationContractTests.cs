@@ -185,6 +185,51 @@ $variables = @($ast.FindAll({{
 if ($variables.Count -lt 1) {{
     throw 'Language restore error is not represented in the report state.'
 }}
+
+$uiDirectory = Split-Path -Parent $scriptPath
+foreach ($fileName in @(
+        'StaminaManager.UiTests.ps1',
+        'appearance-navigation-stress.ps1',
+        'task9-appearance-integration.ps1')) {{
+    $uiPath = Join-Path $uiDirectory $fileName
+    $uiTokens = $null
+    $uiParseErrors = $null
+    $uiSource = Get-Content -LiteralPath $uiPath -Raw -Encoding UTF8
+    $uiAst = [System.Management.Automation.Language.Parser]::ParseInput(
+        $uiSource, $uiPath, [ref]$uiTokens, [ref]$uiParseErrors)
+    if ($uiParseErrors.Count -gt 0) {{
+        throw ('PowerShell parse failed: ' + $uiParseErrors[0].Message)
+    }}
+    $functionRanges = @($uiAst.FindAll({{
+        param($item)
+        $item -is [System.Management.Automation.Language.FunctionDefinitionAst]
+    }}, $true))
+    $topLevelCommands = @($uiAst.FindAll({{
+        param($item)
+        $item -is [System.Management.Automation.Language.CommandAst]
+    }}, $true) | Where-Object {{
+        $command = $_
+        $insideFunction = @($functionRanges | Where-Object {{
+            $command.Extent.StartOffset -ge $_.Extent.StartOffset -and
+                $command.Extent.EndOffset -le $_.Extent.EndOffset
+        }}).Count -gt 0
+        -not $insideFunction
+    }} | Sort-Object Extent.StartOffset)
+    $guardCalls = @($topLevelCommands | Where-Object {{
+        $_.GetCommandName() -eq 'Assert-NonStoreTestPackage'
+    }})
+    if ($guardCalls.Count -lt 1) {{
+        throw ('No top-level package guard call in ' + $fileName)
+    }}
+    $localStateCalls = @($topLevelCommands | Where-Object {{
+        $_.Extent.Text.Contains('LocalState')
+    }})
+    if ($localStateCalls.Count -gt 0 -and
+        $guardCalls[0].Extent.StartOffset -ge
+            $localStateCalls[0].Extent.StartOffset) {{
+        throw ('Package guard occurs after LocalState access in ' + $fileName)
+    }}
+}}
 'PASS'
 ", scriptPath);
     }
