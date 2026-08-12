@@ -809,6 +809,73 @@ function Get-ResourceValue {
     return [string]$value.InnerText
 }
 
+function Wait-UiResourceText {
+    param(
+        [Parameter(Mandatory)][ValidateSet('ja-JP', 'en-US')]
+        [string]$Language,
+        [Parameter(Mandatory)][string]$Key,
+        [Parameter(Mandatory)][ValidateSet('ja-JP', 'en-US')]
+        [string]$OppositeLanguage,
+        [int]$TimeoutMilliseconds = 5000)
+
+    $expected = Get-ResourceValue $Language $Key
+    $opposite = Get-ResourceValue $OppositeLanguage $Key
+    $deadline = [DateTime]::UtcNow.AddMilliseconds($TimeoutMilliseconds)
+    $names = @()
+    do {
+        try {
+            $names = @(Get-RawUiElements | ForEach-Object {
+                [string]$_.Current.Name
+            })
+            if ($names -contains $expected) {
+                if ($expected -ne $opposite -and $names -contains $opposite) {
+                    throw "Opposite-language resource '$opposite' remained " +
+                        "while '$expected' was expected."
+                }
+
+                return
+            }
+        }
+        catch {
+            if ($_.Exception.Message -like 'Opposite-language resource*') {
+                throw
+            }
+        }
+
+        Start-Sleep -Milliseconds 100
+    } while ([DateTime]::UtcNow -lt $deadline)
+
+    throw "Resource '$Key' expected '$expected', actual names did not contain it."
+}
+
+function Wait-UiLocalizedProperty {
+    param(
+        [Parameter(Mandatory)][ValidateSet('ja-JP', 'en-US')]
+        [string]$Language,
+        [Parameter(Mandatory)][ValidateSet('ja-JP', 'en-US')]
+        [string]$OppositeLanguage,
+        [Parameter(Mandatory)][string]$AutomationId,
+        [Parameter(Mandatory)][string]$Property,
+        [Parameter(Mandatory)][string]$Key)
+
+    $expected = Get-ResourceValue $Language $Key
+    $opposite = Get-ResourceValue $OppositeLanguage $Key
+    Wait-UiPropertyValue $AutomationId $Property $expected
+    if ($expected -eq $opposite) {
+        return
+    }
+
+    $properties = (
+        Invoke-WinApp ui get-property $AutomationId -a $AppPid --json |
+            ConvertFrom-Json
+    ).properties
+    $actual = [string]$properties.$Property
+    if ($actual -eq $opposite) {
+        throw "$AutomationId $Property still uses opposite-language resource " +
+            "'$opposite'."
+    }
+}
+
 function Get-AppVersionDisplay {
     $manifest = [xml][IO.File]::ReadAllText(
         [IO.Path]::GetFullPath((Join-Path $PSScriptRoot `
@@ -883,24 +950,64 @@ function Assert-LanguageSurface {
     param([Parameter(Mandatory)][ValidateSet('ja-JP', 'en-US')]
         [string]$Language)
 
-    $aboutName = Get-ResourceValue $Language `
-        'NavAbout.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name'
-    $settingsName = Get-ResourceValue $Language `
-        'NavSettings.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name'
+    $oppositeLanguage = if ($Language -eq 'ja-JP') { 'en-US' } else { 'ja-JP' }
     $versionFormat = Get-ResourceValue $Language `
         'VersionFooterAutomationNameFormat'
     $expectedVersionName = $versionFormat -f (Get-AppVersionDisplay)
 
-    Wait-UiPropertyValue NavAbout Name $aboutName
-    Wait-UiPropertyValue NavSettings Name $settingsName
+    Wait-UiLocalizedProperty $Language $oppositeLanguage NavAbout Name `
+        'NavAbout.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name'
+    Wait-UiLocalizedProperty $Language $oppositeLanguage NavSettings Name `
+        'NavSettings.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name'
     Wait-UiPropertyValue VersionFooterText Name $expectedVersionName
+    Wait-UiResourceText $Language 'OverviewPageTitle.Text' $oppositeLanguage
+    Wait-UiResourceText $Language 'OverviewPageDescription.Text' `
+        $oppositeLanguage
+    Wait-UiLocalizedProperty $Language $oppositeLanguage CompactModeButton `
+        Name 'CompactModeButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name'
 
     Invoke-WinApp ui invoke NavSettings -a $AppPid | Out-Null
     Invoke-WinApp ui wait-for LanguageSelector -a $AppPid -t 5000 |
         Out-Null
-    $languageHelp = Get-ResourceValue $Language `
-        'LanguageSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText'
-    Wait-UiPropertyValue LanguageSelector HelpText $languageHelp
+    foreach ($key in @(
+            'SettingsPageTitle.Text',
+            'SettingsPageDescription.Text',
+            'SettingsAppearanceHeading.Text',
+            'SettingsLanguageHeading.Text',
+            'SettingsGeneralHeading.Text',
+            'SettingsNotificationsHeading.Text',
+            'SettingsDataHeading.Text')) {
+        Wait-UiResourceText $Language $key $oppositeLanguage
+    }
+    Wait-UiLocalizedProperty $Language $oppositeLanguage ThemeToggle Name `
+        'ThemeToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name'
+    Wait-UiLocalizedProperty $Language $oppositeLanguage AcrylicOpacitySlider `
+        Name 'AcrylicOpacitySlider.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name'
+    Wait-UiLocalizedProperty $Language $oppositeLanguage ExportBackupButton `
+        Name 'ExportBackupButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name'
+    Wait-UiLocalizedProperty $Language $oppositeLanguage ImportBackupButton `
+        Name 'ImportBackupButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name'
+    Wait-UiLocalizedProperty $Language $oppositeLanguage LanguageSelector `
+        HelpText 'LanguageSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText'
+
+    Invoke-WinApp ui invoke NavAbout -a $AppPid | Out-Null
+    Invoke-WinApp ui wait-for AboutPageRoot -a $AppPid -t 5000 | Out-Null
+    foreach ($key in @(
+            'AboutAppName.Text',
+            'AboutDescription.Text',
+            'AboutLinksHeading.Text',
+            'AboutReadmeHeading.Text',
+            'AboutReadmeDescription.Text',
+            'AboutTechnologyHeading.Text',
+            'AboutPrivacyHeading.Text',
+            'AboutLicenseHeading.Text')) {
+        Wait-UiResourceText $Language $key $oppositeLanguage
+    }
+    Wait-UiLocalizedProperty $Language $oppositeLanguage OpenGitHubButton `
+        Name 'OpenGitHubButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name'
+    Wait-UiLocalizedProperty $Language $oppositeLanguage OpenReadmeButton `
+        Name 'OpenReadmeButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name'
+
     Invoke-WinApp ui invoke NavOverview -a $AppPid | Out-Null
     Invoke-WinApp ui wait-for OverviewScrollViewer -a $AppPid -t 5000 |
         Out-Null
@@ -929,7 +1036,7 @@ function Ensure-TestLanguageJapanese {
         Out-Null
 }
 
-function Get-RawBackdropDiagnostic {
+function Get-RawUiElements {
     $root = [System.Windows.Automation.AutomationElement]::RootElement
     $processCondition =
         [System.Windows.Automation.PropertyCondition]::new(
@@ -947,18 +1054,29 @@ function Get-RawBackdropDiagnostic {
     $elements =
         [System.Collections.Generic.Queue[
             System.Windows.Automation.AutomationElement]]::new()
+    $allElements =
+        [System.Collections.Generic.List[
+            System.Windows.Automation.AutomationElement]]::new()
     $elements.Enqueue($window)
     while ($elements.Count -gt 0) {
         $element = $elements.Dequeue()
-        if ($element.Current.AutomationId -eq
-            'ActualBackdropDiagnostic') {
-            return $element.Current.Name
-        }
+        [void]$allElements.Add($element)
 
         $child = $walker.GetFirstChild($element)
         while ($null -ne $child) {
             $elements.Enqueue($child)
             $child = $walker.GetNextSibling($child)
+        }
+    }
+
+    return $allElements.ToArray()
+}
+
+function Get-RawBackdropDiagnostic {
+    foreach ($element in @(Get-RawUiElements)) {
+        if ($element.Current.AutomationId -eq
+            'ActualBackdropDiagnostic') {
+            return $element.Current.Name
         }
     }
 
@@ -2419,13 +2537,40 @@ try {
 
             Scroll-ToSettingsControl AcrylicOpacitySlider
             $isAcrylicAvailable = $true
-            try {
-                Select-ComboItem BackdropSelector 'Acrylic'
-                Scroll-ToSettingsControl AcrylicOpacitySlider
+            Select-ComboItem BackdropSelector 'Acrylic'
+            Scroll-ToSettingsControl AcrylicOpacitySlider
+            $actualBackdrop = $null
+            $diagnosticDeadline = [DateTime]::UtcNow.AddSeconds(5)
+            do {
+                try {
+                    $actualBackdrop = Get-RawBackdropDiagnostic
+                }
+                catch {
+                    $actualBackdrop = $null
+                }
+
+                if ($actualBackdrop -eq 'Solid|SolidSurface=Visible' -or
+                    $actualBackdrop -match
+                    '^Acrylic\|TintOpacity=(0\.\d{2}|1\.00)\|SolidSurface=Collapsed$') {
+                    break
+                }
+
+                Start-Sleep -Milliseconds 100
+            } while ([DateTime]::UtcNow -lt $diagnosticDeadline)
+
+            if ($actualBackdrop -eq 'Solid|SolidSurface=Visible') {
+                $isAcrylicAvailable = $false
+                Add-Result Settings 'Acrylic fallback' SKIP `
+                    'ActualBackdropDiagnosticがSolid fallbackのためAcrylic操作を省略。'
+                Wait-ControlEnabled AcrylicOpacitySlider $false
+            }
+            elseif ($actualBackdrop -match
+                    '^Acrylic\|TintOpacity=(0\.\d{2}|1\.00)\|SolidSurface=Collapsed$') {
+                $isAcrylicAvailable = $true
                 Wait-ControlEnabled AcrylicOpacitySlider $true
             }
-            catch {
-                $isAcrylicAvailable = $false
+            else {
+                throw "Acrylic選択後のActualBackdropDiagnosticが不正です: $actualBackdrop"
             }
             Scroll-ToSettingsControl AcrylicOpacitySlider
 
@@ -2468,26 +2613,45 @@ try {
             }
         }
         finally {
+            $appearanceRestoreError = $null
+            $appearanceRestoreSkipped = $false
             try {
                 Invoke-WinApp ui invoke NavSettings -a $AppPid | Out-Null
                 Invoke-WinApp ui wait-for BackdropSelector -a $AppPid `
                     -t 5000 | Out-Null
-                try {
+                if ($initialBackdrop -eq 'Acrylic') {
                     Select-ComboItem BackdropSelector 'Acrylic'
                     Scroll-ToSettingsControl AcrylicOpacitySlider
-                    Wait-ControlEnabled AcrylicOpacitySlider $true
-                    Invoke-WinApp ui set-value AcrylicOpacitySlider `
-                        $initialOpacity -a $AppPid | Out-Null
-                    Invoke-WinApp ui wait-for AcrylicOpacitySlider `
-                        -a $AppPid -p Value --value "$initialOpacity" `
-                        -t 3000 | Out-Null
-                    Wait-PersistedAcrylicOpacity $initialOpacity
-                }
-                catch {
+                    $actualBackdrop = Get-RawBackdropDiagnostic
+                    if ($actualBackdrop -eq 'Solid|SolidSurface=Visible') {
+                        $appearanceRestoreSkipped = $true
+                        Add-Result Settings 'Acrylic設定のUI復元' SKIP `
+                            '初期AcrylicがSolid fallbackのため不透明度復元を省略。'
+                    }
+                    elseif ($actualBackdrop -match
+                            '^Acrylic\|TintOpacity=(0\.\d{2}|1\.00)\|SolidSurface=Collapsed$') {
+                        Wait-ControlEnabled AcrylicOpacitySlider $true
+                        Invoke-WinApp ui set-value AcrylicOpacitySlider `
+                            $initialOpacity -a $AppPid | Out-Null
+                        Invoke-WinApp ui wait-for AcrylicOpacitySlider `
+                            -a $AppPid -p Value --value "$initialOpacity" `
+                            -t 3000 | Out-Null
+                        Wait-PersistedAcrylicOpacity $initialOpacity
+                    }
+                    else {
+                        throw "復元時のActualBackdropDiagnosticが不正です: $actualBackdrop"
+                    }
                 }
                 Select-ComboItem BackdropSelector $initialBackdrop
             }
             catch {
+                $appearanceRestoreError = $_
+                Add-Result Settings 'Acrylic設定のUI復元' FAIL `
+                    $_.Exception.Message
+            }
+            if ($null -eq $appearanceRestoreError -and
+                -not $appearanceRestoreSkipped) {
+                Add-Result Settings 'Acrylic設定のUI復元' PASS
             }
         }
     }

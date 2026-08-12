@@ -94,6 +94,76 @@ public sealed class Phase5DUiAutomationContractTests
         Assert.IsGreaterThan(restartIndex, persistenceIndex);
     }
 
+    [TestMethod]
+    public void UiSuite_OnlySkipsAcrylicWhenDiagnosticReportsSolidFallback()
+    {
+        string suite = ReadUiScript("StaminaManager.UiTests.ps1");
+        int opacitySectionIndex = suite.IndexOf(
+            "Acrylic不透明度0/50/100",
+            StringComparison.Ordinal);
+        int acrylicSelectionIndex = suite.IndexOf(
+            "Select-ComboItem BackdropSelector 'Acrylic'",
+            opacitySectionIndex,
+            StringComparison.Ordinal);
+        int diagnosticIndex = suite.IndexOf(
+            "Get-RawBackdropDiagnostic",
+            acrylicSelectionIndex,
+            StringComparison.Ordinal);
+        int enabledIndex = suite.IndexOf(
+            "Wait-ControlEnabled AcrylicOpacitySlider $true",
+            acrylicSelectionIndex,
+            StringComparison.Ordinal);
+
+        Assert.IsGreaterThanOrEqualTo(0, acrylicSelectionIndex);
+        Assert.IsGreaterThanOrEqualTo(0, diagnosticIndex);
+        Assert.IsGreaterThanOrEqualTo(0, enabledIndex);
+        Assert.IsGreaterThan(acrylicSelectionIndex, diagnosticIndex);
+        Assert.IsGreaterThan(diagnosticIndex, enabledIndex);
+        StringAssert.Contains(suite, "Solid|SolidSurface=Visible");
+        StringAssert.Contains(suite, "Acrylic fallback");
+        Assert.DoesNotContain(
+            "catch {\n                $isAcrylicAvailable = $false\n            }",
+            suite);
+    }
+
+    [TestMethod]
+    public void UiSuite_ReportsAppearanceRestoreFailuresSeparately()
+    {
+        string suite = ReadUiScript("StaminaManager.UiTests.ps1");
+
+        StringAssert.Contains(suite, "appearanceRestoreError");
+        StringAssert.Contains(suite, "Acrylic設定のUI復元");
+        StringAssert.Contains(suite, "Add-Result Settings");
+        Assert.DoesNotContain(
+            "catch {\n                }\n                Select-ComboItem BackdropSelector $initialBackdrop",
+            suite);
+    }
+
+    [TestMethod]
+    public void UiSuite_ValidatesLocalizedOverviewSettingsAndAboutSurfaces()
+    {
+        string suite = ReadUiScript("StaminaManager.UiTests.ps1");
+
+        foreach (string fragment in new[]
+        {
+            "OverviewPageTitle.Text",
+            "CompactModeButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name",
+            "SettingsPageTitle.Text",
+            "ThemeToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name",
+            "AcrylicOpacitySlider.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name",
+            "ExportBackupButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name",
+            "OpenGitHubButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name",
+            "OpenReadmeButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name",
+            "AboutReadmeHeading.Text",
+            "AboutReadmeDescription.Text",
+            "$oppositeLanguage",
+            "Get-ResourceValue $OppositeLanguage",
+        })
+        {
+            StringAssert.Contains(suite, fragment);
+        }
+    }
+
     private static string ReadUiScript(string fileName) => File.ReadAllText(
         Path.Combine(
             FindRepositoryRoot(),
