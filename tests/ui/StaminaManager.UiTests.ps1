@@ -32,6 +32,11 @@ $isExecutionMutexAcquired = $false
 $isIdentityVerified = $false
 $isBackupVerified = $false
 $restoreError = $null
+$languageBaseline = $null
+$languageTestStart = $null
+$languageRestoreError = $null
+$languageRestoreAttempted = $false
+$languageRestoreSucceeded = $false
 $testGameId = $null
 $notificationTestGameId = $null
 $testGameName = "Codex UI $runId"
@@ -939,6 +944,84 @@ function Wait-PersistedLanguage {
     } while ([DateTime]::UtcNow -lt $deadline)
 
     throw "Expected persisted language '$ExpectedLanguage', actual '$actual'."
+}
+
+function Convert-LanguageSelectorValue {
+    param([Parameter(Mandatory)][string]$Value)
+
+    switch ($Value) {
+        '日本語' { return 'Japanese' }
+        'English' { return 'English' }
+        default { throw "Unsupported language selector value: $Value" }
+    }
+}
+
+function Get-LanguageSnapshot {
+    Invoke-WinApp ui invoke NavSettings -a $AppPid | Out-Null
+    Invoke-WinApp ui wait-for LanguageSelector -a $AppPid -t 5000 |
+        Out-Null
+    $selectorValue = [string](Get-ControlValue LanguageSelector)
+    $effectiveLanguage = Convert-LanguageSelectorValue $selectorValue
+    $dataPath = Join-Path $dataDirectory 'data.json'
+    $data = [IO.File]::ReadAllText($dataPath) | ConvertFrom-Json
+    $selectedLanguage = [string]$data.settings.language
+    if ($selectedLanguage -notin @('Japanese', 'English')) {
+        throw "Unsupported persisted language: $selectedLanguage"
+    }
+
+    $snapshot = [ordered]@{
+        selectorValue = $selectorValue
+        effectiveLanguage = $effectiveLanguage
+        selectedLanguage = $selectedLanguage
+        primaryLanguageOverride = if ($effectiveLanguage -eq 'Japanese') {
+            'ja-JP'
+        } else { 'en-US' }
+        primaryLanguageOverrideSource = 'Settingsの言語選択値から観測'
+    }
+    Invoke-WinApp ui invoke NavOverview -a $AppPid | Out-Null
+    Invoke-WinApp ui wait-for OverviewScrollViewer -a $AppPid -t 5000 |
+        Out-Null
+    return [pscustomobject]$snapshot
+}
+
+function Restore-TestLanguage {
+    param([Parameter(Mandatory)][object]$Snapshot)
+
+    $targetLanguage = [string]$Snapshot.selectedLanguage
+    if ($targetLanguage -notin @('Japanese', 'English')) {
+        throw "Cannot restore unsupported language: $targetLanguage"
+    }
+    $targetLabel = if ($targetLanguage -eq 'Japanese') {
+        '日本語'
+    } else { 'English' }
+    $temporaryLabel = if ($targetLanguage -eq 'Japanese') {
+        'English'
+    } else { '日本語' }
+    $temporaryLanguage = if ($targetLanguage -eq 'Japanese') {
+        'English'
+    } else { 'Japanese' }
+
+    Invoke-WinApp ui invoke NavSettings -a $AppPid | Out-Null
+    Invoke-WinApp ui wait-for LanguageSelector -a $AppPid -t 5000 |
+        Out-Null
+    Select-ComboItem LanguageSelector $temporaryLabel
+    Wait-PersistedLanguage $temporaryLanguage
+    Select-ComboItem LanguageSelector $targetLabel
+    Wait-PersistedLanguage $targetLanguage
+
+    # Settings保存経路がPrimaryLanguageOverrideを設定した後に再起動する。
+    Restart-TestPackage
+    Invoke-WinApp ui wait-for NavOverview -a $AppPid -t 5000 |
+        Out-Null
+    Invoke-WinApp ui invoke NavSettings -a $AppPid | Out-Null
+    Invoke-WinApp ui wait-for LanguageSelector -a $AppPid -t 5000 |
+        Out-Null
+    if ((Get-ControlValue LanguageSelector) -ne $targetLabel) {
+        throw "Language restoration did not apply: $targetLabel"
+    }
+    Invoke-WinApp ui invoke NavOverview -a $AppPid | Out-Null
+    Invoke-WinApp ui wait-for OverviewScrollViewer -a $AppPid -t 5000 |
+        Out-Null
 }
 
 function Restart-TestPackage {
@@ -2278,6 +2361,9 @@ try {
 
     Invoke-WinApp ui wait-for NavOverview -a $AppPid -t 5000 |
         Out-Null
+    $languageBaseline = Get-LanguageSnapshot
+    Add-Result Safety '言語テスト開始前の実効・選択言語記録' PASS `
+        ($languageBaseline | ConvertTo-Json -Compress)
     Ensure-TestLanguageJapanese
     $appliedFixtureState = Wait-EmptyFixtureApplied `
         $writtenFixtureState.Fingerprint '起動後'
@@ -2486,7 +2572,7 @@ try {
             'Standard'
     }
 
-    Invoke-UiTest Settings 'Light/Darkと5背景' {
+    Invoke-UiTest Settings 'Light/Darkと3背景' {
         Invoke-WinApp ui invoke NavSettings -a $AppPid | Out-Null
         Invoke-WinApp ui wait-for BackdropSelector -a $AppPid -t 5000 |
             Out-Null
@@ -2646,8 +2732,9 @@ try {
             }
             catch {
                 $appearanceRestoreError = $_
-                Add-Result Settings 'Acrylic設定のUI復元' FAIL `
-                    $_.Exception.Message
+            }
+            if ($null -ne $appearanceRestoreError) {
+                throw $appearanceRestoreError
             }
             if ($null -eq $appearanceRestoreError -and
                 -not $appearanceRestoreSkipped) {
@@ -2774,27 +2861,43 @@ try {
     }
 
     Invoke-UiTest Language 'Englishと日本語の再起動反映' {
-        Invoke-WinApp ui invoke NavSettings -a $AppPid | Out-Null
-        Invoke-WinApp ui wait-for LanguageSelector -a $AppPid -t 5000 |
-            Out-Null
-        Select-ComboItem LanguageSelector 'English'
-        Wait-PersistedLanguage 'English'
-        Restart-TestPackage
-        Invoke-WinApp ui wait-for NavOverview -a $AppPid -t 5000 |
-            Out-Null
-        Assert-LanguageSurface 'en-US'
-        Save-Screenshot '09-language-english'
+        try {
+            $script:languageTestStart = Get-LanguageSnapshot
+            Add-Result Language '言語テスト開始時の実効・選択言語' PASS `
+                ($script:languageTestStart | ConvertTo-Json -Compress)
+            Invoke-WinApp ui invoke NavSettings -a $AppPid | Out-Null
+            Invoke-WinApp ui wait-for LanguageSelector -a $AppPid -t 5000 |
+                Out-Null
+            Select-ComboItem LanguageSelector 'English'
+            Wait-PersistedLanguage 'English'
+            Restart-TestPackage
+            Invoke-WinApp ui wait-for NavOverview -a $AppPid -t 5000 |
+                Out-Null
+            Assert-LanguageSurface 'en-US'
+            Save-Screenshot '09-language-english'
 
-        Invoke-WinApp ui invoke NavSettings -a $AppPid | Out-Null
-        Invoke-WinApp ui wait-for LanguageSelector -a $AppPid -t 5000 |
-            Out-Null
-        Select-ComboItem LanguageSelector '日本語'
-        Wait-PersistedLanguage 'Japanese'
-        Restart-TestPackage
-        Invoke-WinApp ui wait-for NavOverview -a $AppPid -t 5000 |
-            Out-Null
-        Assert-LanguageSurface 'ja-JP'
-        Save-Screenshot '10-language-japanese'
+            Invoke-WinApp ui invoke NavSettings -a $AppPid | Out-Null
+            Invoke-WinApp ui wait-for LanguageSelector -a $AppPid -t 5000 |
+                Out-Null
+            Select-ComboItem LanguageSelector '日本語'
+            Wait-PersistedLanguage 'Japanese'
+            Restart-TestPackage
+            Invoke-WinApp ui wait-for NavOverview -a $AppPid -t 5000 |
+                Out-Null
+            Assert-LanguageSurface 'ja-JP'
+            Save-Screenshot '10-language-japanese'
+        }
+        finally {
+            $script:languageRestoreAttempted = $true
+            try {
+                Restore-TestLanguage $languageBaseline
+                $script:languageRestoreSucceeded = $true
+            }
+            catch {
+                $script:languageRestoreError = $_.Exception.Message
+                throw
+            }
+        }
     }
 
     Invoke-UiTest Accessibility 'app-owned interactive UIAのIDとName' {
@@ -2852,6 +2955,13 @@ $report = [ordered]@{
     dataDirectory = $dataDirectory
     settingsDirectory = $settingsDirectory
     executionMutexName = $executionMutexName
+    languageBaseline = $languageBaseline
+    languageTestStart = $languageTestStart
+    languageRestoreAttempted = $languageRestoreAttempted
+    languageRestoreError = $languageRestoreError
+    languageRestorePassed = if (-not $languageRestoreAttempted) {
+        $null
+    } else { $languageRestoreSucceeded }
     dataBackupDirectory = if (
         -not [string]::IsNullOrWhiteSpace($dataBackupDirectory) -and
         (Test-Path -LiteralPath $dataBackupDirectory) -and
@@ -2892,6 +3002,9 @@ $report = [ordered]@{
         failed = $failed
         skipped = $skipped
         restorePassed = $null -eq $restoreError -and $isBackupVerified
+        languageRestorePassed = if (-not $languageRestoreAttempted) {
+            $null
+        } else { $languageRestoreSucceeded }
     }
     results = $results
 }
@@ -2902,7 +3015,8 @@ $report = [ordered]@{
 
 Write-Host "Results: $resultPath"
 Write-Host "Passed: $passed | Failed: $failed | Skipped: $skipped"
-if ($failed -gt 0 -or $null -ne $restoreError) {
+if ($failed -gt 0 -or $null -ne $restoreError -or
+    ($languageRestoreAttempted -and -not $languageRestoreSucceeded)) {
     exit 1
 }
 
