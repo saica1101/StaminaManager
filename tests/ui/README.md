@@ -22,6 +22,9 @@
 
 Store版（`SignatureKind=Store` または `WindowsApps` 配下）のPIDは安全ガードで
 拒否します。Store版のプロセスやLocalStateをUIテストへ指定しないでください。
+このガードはプロセス停止やLocalState退避より前に評価され、対象外PIDはテストを
+開始せずエラー終了します。Store版を検証する結果として扱わず、開発用packageを
+指定し直してください。
 
 ## 安全性
 
@@ -63,7 +66,11 @@ settings を保持した `games=[]` fixture と空の通知 ledger を書き、�
 - コンパクト表示、選択ゲームと bounds の再起動永続化、通常 bounds の復帰
 - Light / Dark と Mica / Acrylic / Solid
 - Acrylic 0% / 50% / 100% の適用、永続化、再起動後の復元
+- 左ペインの `VersionFooterBand`／`VersionFooterText` と About の表示
+- About の GitHub／README リンクの固定URL、既定ブラウザー起動契約
 - English選択→再起動→英語表示、日本語選択→再起動→日本語表示
+- 言語テスト終了時の開始言語への復元と、復元失敗時の結果記録
+- バックアッププレビューの opacity／language と、復元後の次回起動反映
 - 閉じる動作の selector と、WM_CLOSE による tray 格納・redirect 起動復帰
 - 通知 wrapper の `NotificationLeadInput`、内部 `InputBox` の操作、通知 ledger の
   `Suppressed` → `Scheduled`、通知リード変更による再予約
@@ -80,6 +87,12 @@ Mica / Acrylic / Solid を切り替えながら、
 待機中も同じ PID と実行ファイルパスの生存をポーリングするため、背景変更後に遅れて
 発生するクラッシュも検出します。実際に適用された背景は、UI Automation の
 `ActualBackdropDiagnostic` で確認します。
+
+Acrylic を選択しても環境制約により `Solid|SolidSurface=Visible` になった場合、
+Acrylic の0／50／100%操作とAcrylic専用の永続化確認は理由付き `SKIP` になります。
+これはAcrylicの適用成功を意味しません。Mica／Solidの選択とSlider無効状態、
+Solid fallbackの診断は引き続き確認対象です。Acrylic選択後にSolidでもAcrylicでもない
+診断値になった場合は `FAIL` として扱います。
 
 起動済みアプリの PID を指定して実行します。同じ package の別UIテストとは named
 mutex で競合を防ぎます。
@@ -111,6 +124,10 @@ package、実行ファイル、`data.json` の各パスを記録します。次�
 `SettingsInfoBar`、`OpenWindowsNotificationSettingsButton`、各エラー InfoBar、
 復元確認ボタンなどは状態依存です。スクリプトは XAML source に宣言があることを
 確認し、実行中に非表示なら ID ごとの具体的理由とともに `SKIP` を記録します。
+
+言語テストは English へ変更して再起動し、主要画面のリソースと AutomationProperties を
+確認した後、日本語へ戻して再起動します。開始時の言語へ戻せない場合は、UIテスト自体が
+成功していても `languageRestorePassed=false` として終了コード1になります。
 
 ## 出力
 

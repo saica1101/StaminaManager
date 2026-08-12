@@ -11,10 +11,10 @@
 StaminaManager固有のソースコードとプロジェクト固有の素材は、
 `GPL-3.0-only`で公開します。ライセンス本文は[LICENSE](../LICENSE)を参照してください。
 
-Windows App SDKなど、Microsoftが別ライセンスで提供する再配布可能コンポーネントと
-組み合わせた成果物を配布できるよう、GPLv3第7条に基づく
-[Microsoft Components Exception](../LICENSE-EXCEPTION.md)を追加しています。この追加許可は
-Microsoft製コンポーネントをGPLへ変更するものではありません。
+Windows App SDKなど、Microsoftが別ライセンスで提供するコンポーネントについては、
+リポジトリの[Microsoft Components Exception](../LICENSE-EXCEPTION.md)に記載した
+プロジェクト側の取り扱いを確認してください。この文書はMicrosoft製コンポーネントを
+GPLへ再ライセンスするものではなく、個別コンポーネントの条件やStoreの要件に優先しません。
 
 ## 依存関係の監査結果
 
@@ -30,9 +30,9 @@ Microsoft製コンポーネントをGPLへ変更するものではありませ�
 | ビルド時 | Microsoft Windows SDK BuildTools | Microsoft Windows SDKのライセンス |
 | ビルド／テスト時 | BuildTools.WinApp、MSTest、Microsoft.NET.Test.Sdkなど | MITまたは各NuGetパッケージの条件 |
 
-MIT系の依存関係はGPLv3と組み合わせられます。Microsoft製の独自ライセンス部分はGPLへ
-再ライセンスせず、追加許可によってプロジェクト固有部分との結合・配布を認めています。
-実際に配布される通知と条件は[ThirdPartyNotices.txt](../ThirdPartyNotices.txt)へ収録しています。
+依存コンポーネントを含む配布物についての最終的な条件は、各コンポーネントのライセンス、
+通知、Storeの最新要件を確認してください。実際に確認できた通知と条件は
+[ThirdPartyNotices.txt](../ThirdPartyNotices.txt)へ収録しています。
 
 ## Windows App SDK 2.3.1に関する確認事項
 
@@ -49,9 +49,9 @@ live operating environmentでの利用を制限する文言があります。2.3
 
 ## Microsoft Storeへ掲載するとき
 
-Microsoft Storeでは、別の条項を指定しない場合にStandard Application License Termsが
-適用されます。GPLの権利を保つため、Partner CenterのStore登録情報にある
-「追加のライセンス条項」へ、次の公開URLを指定してください。
+Microsoft Storeの登録情報、追加ライセンス条項、依存コンポーネントの表示方法は、
+提出時点のPartner Centerの案内と各権利者の文書を確認してください。プロジェクト側の
+参照先として、次の公開URLを維持しています。
 
 ```text
 https://github.com/saica1101/StaminaManager/blob/develop/LICENSE-EXCEPTION.md
@@ -59,7 +59,7 @@ https://github.com/saica1101/StaminaManager/blob/develop/LICENSE-EXCEPTION.md
 
 このページはGPLv3本文への参照を含みます。既定ブランチを変更した場合はURLも更新してください。
 Storeで配布するバージョンに対応するソースコード、ビルド手順、ライセンス本文、追加許可、
-第三者通知を継続して公開してください。
+第三者通知を継続して公開できるよう管理します。
 
 ## 監査範囲
 

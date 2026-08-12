@@ -10,10 +10,12 @@ status instrument on every game card: a circular stamina meter paired with an
 explicit state label and completion time.
 
 The interface uses Fluent hierarchy, restrained density, and Windows materials.
-Mica is the default backdrop, while Acrylic, Blur, Transparent, and Solid are
-user-selectable. Content surfaces retain enough opacity to remain readable over
-every backdrop. High Contrast, disabled transparency, unsupported graphics, and
-remote sessions always receive a solid fallback.
+Mica is the default backdrop, while Acrylic and Solid are user-selectable.
+`Blur` and `Transparent` are retained only as legacy schema values and are
+migrated to Acrylic when settings are loaded. Content surfaces retain enough
+opacity to remain readable over every backdrop. High Contrast, disabled
+transparency, unsupported graphics, and remote sessions always receive a solid
+fallback.
 
 ## 2. Color Palette & Roles
 
@@ -66,11 +68,15 @@ one of: `余裕`, `注意`, `満タン間近`, `満タン`, or `自然回復停�
 * **Inputs/Forms:** Native `TextBox`, integer `NumberBox`, `ComboBox`,
   `ToggleSwitch`, and file pickers. Labels remain visible; validation appears
   directly beneath the affected field.
-* **Navigation:** Native `NavigationView` with only Overview and Settings.
+* **Navigation:** Native `NavigationView` with Overview and Settings as the
+  main items, About in `FooterMenuItems`, and a small package-version band in
+  `PaneFooter` above About.
 * **Dialogs:** Native `ContentDialog` for add/edit and destructive confirmation.
-* **Backdrops:** Mica by default; Desktop Acrylic, WinUIEx Blur,
-  WinUIEx Transparent, and Solid are live-preview alternatives. Transparent mode
-  preserves opaque-enough cards and fields.
+* **Backdrops:** Mica by default, Desktop Acrylic, and Solid are the three
+  selectable backgrounds. Acrylic's `DesktopAcrylicController.TintOpacity` is
+  adjusted by an integer 0–100% setting; the slider is enabled only while
+  Acrylic is actually applied. Mica, Solid, and Acrylic fallback states keep
+  the value but disable the slider.
 * **Motion:** Restrained 120–180 ms state transitions only. No looping or
   decorative startup animation. Reduced Motion removes nonessential transitions.
 
@@ -90,3 +96,13 @@ one of: `余裕`, `注意`, `満タン間近`, `満タン`, or `自然回復停�
   and update/edit actions.
 - Avoid double-card nesting. Backdrop provides window depth; cards provide the
   single required content layer.
+
+## 6. Settings extensions
+
+- The Appearance section exposes Light/Dark theme, Mica/Acrylic/Solid backdrop,
+  and the Acrylic `TintOpacity` percentage when Acrylic is actually active.
+- The Language section offers `日本語 (ja-JP)` and `English (en-US)`. A saved
+  language change is applied to the complete UI at the next application launch;
+  the current session is not partially retranslated.
+- The `PaneFooter` displays the package-derived version, and About provides the
+  GitHub repository and README as user-initiated default-browser links.
