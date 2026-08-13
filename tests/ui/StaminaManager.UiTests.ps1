@@ -2729,6 +2729,7 @@ try {
                 Invoke-WinApp ui invoke NavSettings -a $AppPid | Out-Null
                 Invoke-WinApp ui wait-for AcrylicOpacitySlider `
                     -w (Get-MainWindowHandle) -t 5000 | Out-Null
+                Wait-BackdropDiagnostic $expectedDiagnostics[100]
                 Wait-PersistedAcrylicOpacity 100
             }
         }

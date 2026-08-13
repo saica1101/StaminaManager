@@ -177,6 +177,28 @@ finally {{
             source,
             "Wait-BackdropDiagnostic $expectedDiagnostics[$percent]");
         StringAssert.Contains(source, "Wait-PersistedAcrylicOpacity 100");
+
+        int acrylicAction = source.IndexOf(
+            "Acrylic不透明度0/50/100",
+            StringComparison.Ordinal);
+        int restart = source.IndexOf(
+            "Restart-TestPackage",
+            acrylicAction,
+            StringComparison.Ordinal);
+        int sliderAfterRestart = source.IndexOf(
+            "Invoke-WinApp ui wait-for AcrylicOpacitySlider",
+            restart,
+            StringComparison.Ordinal);
+        int diagnosticAfterRestart = source.IndexOf(
+            "Wait-BackdropDiagnostic $expectedDiagnostics[100]",
+            sliderAfterRestart,
+            StringComparison.Ordinal);
+        Assert.IsTrue(
+            acrylicAction >= 0 &&
+                restart > acrylicAction &&
+                sliderAfterRestart > restart &&
+                diagnosticAfterRestart > sliderAfterRestart,
+            "再起動後はSlider表示待機の後にTintOpacity=1.00を確認すること。");
     }
 
     [TestMethod]
