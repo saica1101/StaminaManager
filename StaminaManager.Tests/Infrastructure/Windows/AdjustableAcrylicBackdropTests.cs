@@ -64,6 +64,38 @@ public sealed class AdjustableAcrylicBackdropTests
     }
 
     [TestMethod]
+    public void Lifecycle_DefaultConfigurationChangeは同じThemeでも再適用する()
+    {
+        RecordingController controller = new();
+        MutableStateSource stateSource = new();
+        AdjustableAcrylicLifecycle lifecycle = new(
+            controller,
+            stateSource,
+            static () => { },
+            static () => { });
+
+        lifecycle.Connect();
+        lifecycle.SetTintOpacityPercent(80);
+        controller.ClearOperations();
+        lifecycle.OnDefaultSystemBackdropConfigurationChanged();
+
+        Assert.AreEqual(1, controller.ResetPropertiesCallCount);
+        Assert.AreEqual(0.8f, controller.TintOpacity);
+        Assert.AreEqual(0.8f, controller.LuminosityOpacity);
+        Assert.AreEqual(ElementTheme.Light, controller.LastState.Theme);
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "ResetProperties",
+                "TintOpacity:-1.0",
+                "ApplyState:Light",
+                "TintOpacity:0.8",
+                "LuminosityOpacity:0.8",
+            },
+            controller.Operations);
+    }
+
+    [TestMethod]
     public void Lifecycle_DisconnectはTargetとEventとControllerを解放する()
     {
         RecordingController controller = new();

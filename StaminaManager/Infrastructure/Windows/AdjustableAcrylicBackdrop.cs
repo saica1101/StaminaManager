@@ -139,6 +139,17 @@ internal sealed class AdjustableAcrylicLifecycle
         }
     }
 
+    public void OnDefaultSystemBackdropConfigurationChanged()
+    {
+        if (!_isConnected)
+        {
+            return;
+        }
+
+        ApplyState(_stateSource.Current, shouldResetProperties: true);
+        ApplyOpacity();
+    }
+
     private void ApplyState(
         AdjustableAcrylicState state,
         bool shouldResetProperties)
@@ -347,6 +358,14 @@ public sealed class AdjustableAcrylicBackdrop : SystemBackdrop
         {
             base.OnTargetDisconnected(disconnectedTarget);
         }
+    }
+
+    protected override void OnDefaultSystemBackdropConfigurationChanged(
+        ICompositionSupportsSystemBackdrop target,
+        XamlRoot xamlRoot)
+    {
+        base.OnDefaultSystemBackdropConfigurationChanged(target, xamlRoot);
+        _lifecycle?.OnDefaultSystemBackdropConfigurationChanged();
     }
 
     private sealed class XamlBackdropStateSource :
