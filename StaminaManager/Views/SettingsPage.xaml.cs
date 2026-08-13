@@ -145,7 +145,7 @@ public sealed partial class SettingsPage : Page
         _pendingAcrylicOpacityPercent = percent;
         _acrylicOpacityChangeVersion++;
         ScheduleAcrylicOpacityCommit();
-        QueueAcrylicOpacityPreview(percent);
+        _appearanceChangeRouter.PreviewAcrylicTintOpacity(percent);
     }
 
     private async void CloseBehaviorSelector_SelectionChanged(
@@ -615,22 +615,6 @@ public sealed partial class SettingsPage : Page
     {
         sender.Stop();
         QueueAcrylicOpacityCommit();
-    }
-
-    private void QueueAcrylicOpacityPreview(int percent)
-    {
-        long version = _acrylicOpacityChangeVersion;
-        QueueAcrylicOpacityOperation(async () =>
-        {
-            if (version != _acrylicOpacityChangeVersion
-                || _pendingAcrylicOpacityPercent != percent)
-            {
-                return;
-            }
-
-            await _appearanceChangeRouter
-                .PreviewAcrylicTintOpacityAsync(percent);
-        });
     }
 
     private void QueueAcrylicOpacityCommit()

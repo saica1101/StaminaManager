@@ -665,9 +665,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
     }
 
-    public async Task<bool> PreviewAcrylicTintOpacityAsync(
-        int percent,
-        CancellationToken cancellationToken = default)
+    public bool PreviewAcrylicTintOpacity(int percent)
     {
         if (!EnsureReady())
         {
@@ -683,51 +681,48 @@ public sealed partial class SettingsViewModel : ObservableObject
             return false;
         }
 
-        await _mutationGate.WaitAsync(cancellationToken);
         if (!IsAcrylicOpacityEnabled)
         {
-            _mutationGate.Release();
             return false;
         }
 
-        IsAppearanceBusy = true;
+        int lastApplied = _lastAppliedAcrylicTintOpacityPercent;
+        BackdropResult? result = null;
         try
         {
-            int lastApplied = _lastAppliedAcrylicTintOpacityPercent;
-            BackdropResult? result = null;
-            try
+            result = _backdropService.Apply(
+                new BackdropRequest(BackdropKind.Acrylic, percent));
+            ActualBackdrop = result.ActualBackdrop;
+            if (result.IsRequestedBackdropApplied)
             {
-                result = _backdropService.Apply(
-                    new BackdropRequest(BackdropKind.Acrylic, percent));
-                ActualBackdrop = result.ActualBackdrop;
-                if (result.IsRequestedBackdropApplied)
-                {
-                    AcrylicTintOpacityPercent =
-                        result.ActualAcrylicTintOpacityPercent ?? percent;
-                    _lastAppliedAcrylicTintOpacityPercent =
-                        AcrylicTintOpacityPercent;
-                    CloseInfoBar();
-                    return true;
-                }
+                AcrylicTintOpacityPercent =
+                    result.ActualAcrylicTintOpacityPercent ?? percent;
+                _lastAppliedAcrylicTintOpacityPercent =
+                    AcrylicTintOpacityPercent;
+                CloseInfoBar();
+                return true;
             }
-            catch (Exception exception) when (!IsProcessFatal(exception))
-            {
-                Debug.WriteLine(
-                    "Acrylic opacity preview failed: "
-                    + exception.GetType().Name);
-            }
-
-            AcrylicTintOpacityPercent = lastApplied;
-            AppearanceRollbackStatus rollbackStatus =
-                RollbackAcrylicOpacity(lastApplied);
-            ShowAcrylicOpacityFailure(rollbackStatus);
-            return false;
         }
-        finally
+        catch (Exception exception) when (!IsProcessFatal(exception))
         {
-            IsAppearanceBusy = false;
-            _mutationGate.Release();
+            Debug.WriteLine(
+                "Acrylic opacity preview failed: "
+                + exception.GetType().Name);
         }
+
+        AcrylicTintOpacityPercent = lastApplied;
+        AppearanceRollbackStatus rollbackStatus =
+            RollbackAcrylicOpacity(lastApplied);
+        ShowAcrylicOpacityFailure(rollbackStatus);
+        return false;
+    }
+
+    public Task<bool> PreviewAcrylicTintOpacityAsync(
+        int percent,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(PreviewAcrylicTintOpacity(percent));
     }
 
     public async Task<bool> CommitAcrylicTintOpacityAsync(
@@ -755,7 +750,6 @@ public sealed partial class SettingsViewModel : ObservableObject
             return false;
         }
 
-        IsAppearanceBusy = true;
         try
         {
             int previousSaved = _gameManager.CurrentData.Settings
@@ -835,7 +829,6 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
         finally
         {
-            IsAppearanceBusy = false;
             _mutationGate.Release();
         }
     }

@@ -52,6 +52,29 @@ internal sealed class SettingsAppearanceChangeRouter
             _reportFailure,
             _synchronizeControls);
 
+    public bool PreviewAcrylicTintOpacity(int percent)
+    {
+        bool previewed;
+        try
+        {
+            previewed = _previewAcrylicOpacity(percent)
+                .GetAwaiter()
+                .GetResult();
+        }
+        catch (OperationCanceledException)
+        {
+            previewed = false;
+        }
+        catch (Exception)
+        {
+            previewed = false;
+            _reportFailure();
+        }
+
+        _synchronizeControls();
+        return previewed;
+    }
+
     public Task<bool> PreviewAcrylicTintOpacityAsync(int percent) =>
         ExecuteOpacityAsync(percent, _previewAcrylicOpacity);
 
