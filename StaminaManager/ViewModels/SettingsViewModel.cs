@@ -71,6 +71,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private AppLanguage _activeLanguage;
     private readonly SemaphoreSlim _mutationGate = new(1, 1);
     private int _lastAppliedAcrylicTintOpacityPercent;
+    private string? _backupStatusResourceId;
 
     public SettingsViewModel(
         GameManager gameManager,
@@ -1117,15 +1118,13 @@ public sealed partial class SettingsViewModel : ObservableObject
         EnsureBackupIsIdle();
         AppCoordinator coordinator = GetBackupCoordinator();
         IsBackupBusy = true;
-        BackupStatusText = _appResourceService.GetString(
-            "SettingsBackupExportBusy");
+        SetBackupStatus("SettingsBackupExportBusy");
         try
         {
             await coordinator.ExportBackupAsync(
                 destinationPath,
                 cancellationToken);
-            BackupStatusText = _appResourceService.GetString(
-                "SettingsBackupExportSuccessStatus");
+            SetBackupStatus("SettingsBackupExportSuccessStatus");
             ShowMessage(
                 _appResourceService.GetString(
                     "SettingsBackupExportSuccessMessage"),
@@ -1135,7 +1134,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
         catch (OperationCanceledException)
         {
-            BackupStatusText = string.Empty;
+            SetBackupStatus(null);
             throw;
         }
         catch (Exception exception) when (!IsProcessFatal(exception))
@@ -1143,8 +1142,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             Debug.WriteLine(
                 "Backup export failed: "
                 + exception.GetType().Name);
-            BackupStatusText = _appResourceService.GetString(
-                "SettingsBackupExportFailureStatus");
+            SetBackupStatus("SettingsBackupExportFailureStatus");
             ShowMessage(
                 _appResourceService.GetString(
                     "SettingsBackupExportFailureMessage"),
@@ -1165,8 +1163,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         EnsureBackupIsIdle();
         AppCoordinator coordinator = GetBackupCoordinator();
         IsBackupBusy = true;
-        BackupStatusText = _appResourceService.GetString(
-            "SettingsBackupPreviewBusy");
+        SetBackupStatus("SettingsBackupPreviewBusy");
         try
         {
             return await coordinator.PreviewRestoreAsync(
@@ -1175,7 +1172,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
         catch (OperationCanceledException)
         {
-            BackupStatusText = string.Empty;
+            SetBackupStatus(null);
             throw;
         }
         catch (Exception exception) when (!IsProcessFatal(exception))
@@ -1183,8 +1180,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             Debug.WriteLine(
                 "Backup restore preview failed: "
                 + exception.GetType().Name);
-            BackupStatusText = _appResourceService.GetString(
-                "SettingsBackupImportFailureStatus");
+            SetBackupStatus("SettingsBackupImportFailureStatus");
             ShowMessage(
                 _appResourceService.GetString(
                     "SettingsBackupImportFailureMessage"),
@@ -1206,18 +1202,17 @@ public sealed partial class SettingsViewModel : ObservableObject
         EnsureBackupIsIdle();
         AppCoordinator coordinator = GetBackupCoordinator();
         IsBackupBusy = true;
-        BackupStatusText = _appResourceService.GetString(
-            "SettingsBackupCancelBusy");
+        SetBackupStatus("SettingsBackupCancelBusy");
         try
         {
             await coordinator.CancelPreparedRestoreAsync(
                 sessionId,
                 cancellationToken);
-            BackupStatusText = string.Empty;
+            SetBackupStatus(null);
         }
         catch (OperationCanceledException)
         {
-            BackupStatusText = string.Empty;
+            SetBackupStatus(null);
             throw;
         }
         catch (Exception exception) when (!IsProcessFatal(exception))
@@ -1242,8 +1237,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         EnsureBackupIsIdle();
         AppCoordinator coordinator = GetBackupCoordinator();
         IsBackupBusy = true;
-        BackupStatusText = _appResourceService.GetString(
-            "SettingsBackupRestoreBusy");
+        SetBackupStatus("SettingsBackupRestoreBusy");
         AppLanguage previousActiveLanguage = _activeLanguage;
         bool isLanguageUiApplyFailed = false;
         bool isLanguageRollbackNotificationFailed = false;
@@ -1295,15 +1289,14 @@ public sealed partial class SettingsViewModel : ObservableObject
                 || coordinator.LastNotificationReconcileResult?.HasFailures
                     == true;
             bool isLanguageRestartRequired = IsLanguageRestartRequired;
-            BackupStatusText = hasRetry
-                ? _appResourceService.GetString(
-                    isLanguageRestartRequired
-                        ? "SettingsBackupRestorePartialRestartStatus"
-                        : "SettingsBackupRestorePartialStatus")
-                : _appResourceService.GetString(
-                    isLanguageRestartRequired
-                        ? "SettingsBackupRestoreSuccessRestartStatus"
-                        : "SettingsBackupRestoreSuccessStatus");
+            string backupStatusResourceId = hasRetry
+                ? isLanguageRestartRequired
+                    ? "SettingsBackupRestorePartialRestartStatus"
+                    : "SettingsBackupRestorePartialStatus"
+                : isLanguageRestartRequired
+                    ? "SettingsBackupRestoreSuccessRestartStatus"
+                    : "SettingsBackupRestoreSuccessStatus";
+            SetBackupStatus(backupStatusResourceId);
             ShowMessage(
                 BackupStatusText,
                 hasRetry
@@ -1318,7 +1311,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
         catch (OperationCanceledException)
         {
-            BackupStatusText = string.Empty;
+            SetBackupStatus(null);
             throw;
         }
         catch (Exception exception) when (!IsProcessFatal(exception))
@@ -1326,8 +1319,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             Debug.WriteLine(
                 "Backup restore failed: "
                 + exception.GetType().Name);
-            BackupStatusText = _appResourceService.GetString(
-                "SettingsBackupRestoreFailureStatus");
+            SetBackupStatus("SettingsBackupRestoreFailureStatus");
             ShowMessage(
                 _appResourceService.GetString(
                     "SettingsBackupRestoreFailureMessage"),
@@ -1381,6 +1373,10 @@ public sealed partial class SettingsViewModel : ObservableObject
     internal void RefreshLocalizedText()
     {
         InfoBarTitle = _appResourceService.GetString("SettingsErrorTitle");
+        if (_backupStatusResourceId is not null)
+        {
+            SetBackupStatus(_backupStatusResourceId);
+        }
         OnPropertyChanged(nameof(AcrylicOpacityValueAutomationName));
         OnPropertyChanged(nameof(AcrylicOpacityHelpText));
         OnPropertyChanged(nameof(NotificationAvailabilityText));
@@ -1399,8 +1395,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     internal void ReportBackupImportFailure()
     {
-        BackupStatusText = _appResourceService.GetString(
-            "SettingsBackupImportFailureStatus");
+        SetBackupStatus("SettingsBackupImportFailureStatus");
         ShowMessage(
             _appResourceService.GetString(
                 "SettingsBackupImportFailureMessage"),
@@ -1411,8 +1406,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     internal void ReportBackupCancelFailure()
     {
-        BackupStatusText = _appResourceService.GetString(
-            "SettingsBackupCancelFailureStatus");
+        SetBackupStatus("SettingsBackupCancelFailureStatus");
         ShowMessage(
             _appResourceService.GetString(
                 "SettingsBackupCancelFailureMessage"),
@@ -1423,8 +1417,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     internal void ReportBackupRestoreFailure()
     {
-        BackupStatusText = _appResourceService.GetString(
-            "SettingsBackupRestoreFailureStatus");
+        SetBackupStatus("SettingsBackupRestoreFailureStatus");
         ShowMessage(
             _appResourceService.GetString(
                 "SettingsBackupRestoreFailureMessage"),
@@ -2170,6 +2163,14 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         InfoBarMessage = string.Empty;
         IsInfoBarOpen = false;
+    }
+
+    private void SetBackupStatus(string? resourceId)
+    {
+        _backupStatusResourceId = resourceId;
+        BackupStatusText = resourceId is null
+            ? string.Empty
+            : _appResourceService.GetString(resourceId);
     }
 
     private sealed class PassThroughStartupService : IStartupService
