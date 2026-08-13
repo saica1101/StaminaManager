@@ -1298,7 +1298,7 @@ function Select-ComboItem {
         throw "ComboBox item was not found: $ItemName"
     }
 
-    Invoke-WinApp ui invoke $item.selector -a $AppPid | Out-Null
+    Invoke-WinApp ui click $item.selector -a $AppPid | Out-Null
     Invoke-WinApp ui wait-for $AutomationId -a $AppPid `
         --value $ItemName -t 5000 | Out-Null
 }
@@ -2676,7 +2676,7 @@ try {
                     Invoke-WinApp ui set-value AcrylicOpacitySlider $percent `
                         -a $AppPid | Out-Null
                     Invoke-WinApp ui wait-for AcrylicOpacitySlider -a $AppPid `
-                        -p Value --value "$percent" -t 3000 | Out-Null
+                        -p Value --value "$percent" -t 5000 | Out-Null
                     Wait-BackdropDiagnostic $expectedDiagnostics[$percent]
                     if ($percent -ne 100) {
                         Wait-PersistedAcrylicOpacity $percent

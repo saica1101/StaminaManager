@@ -144,6 +144,40 @@ finally {{
     }
 
     [TestMethod]
+    public void UiSuite_SelectComboItemClicksInvokableCandidate()
+    {
+        string source = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "tests",
+            "ui",
+            "StaminaManager.UiTests.ps1"));
+
+        StringAssert.Contains(
+            source,
+            "Invoke-WinApp ui click $item.selector -a $AppPid");
+        Assert.DoesNotContain(
+            "Invoke-WinApp ui invoke $item.selector -a $AppPid",
+            source);
+    }
+
+    [TestMethod]
+    public void UiSuite_AcrylicSliderValueWaitUsesFiveSeconds()
+    {
+        string source = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "tests",
+            "ui",
+            "StaminaManager.UiTests.ps1"));
+
+        StringAssert.Contains(
+            source,
+            "-p Value --value \"$percent\" -t 5000");
+        Assert.DoesNotContain(
+            "-p Value --value \"$percent\" -t 3000",
+            source);
+    }
+
+    [TestMethod]
     public void UiSuite_AstVerifiesExecutableAppearanceAndLanguageFlows()
     {
         string scriptPath = Path.Combine(
