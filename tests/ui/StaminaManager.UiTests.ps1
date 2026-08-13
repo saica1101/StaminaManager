@@ -2740,7 +2740,7 @@ try {
                 Invoke-WinApp ui invoke NavSettings -a $AppPid | Out-Null
                 Invoke-WinApp ui wait-for BackdropSelector -a $AppPid `
                     -t 5000 | Out-Null
-                if ($initialBackdrop -eq 'Acrylic') {
+                if ($isAcrylicAvailable -or $initialBackdrop -eq 'Acrylic') {
                     Select-ComboItem BackdropSelector 'Acrylic'
                     Scroll-ToSettingsControl AcrylicOpacitySlider
                     $actualBackdrop = Get-RawBackdropDiagnostic
@@ -2752,9 +2752,14 @@ try {
                     elseif ($actualBackdrop -match
                             '^Acrylic\|TintOpacity=(0\.\d{2}|1\.00)\|SolidSurface=Collapsed$') {
                         Wait-ControlEnabled AcrylicOpacitySlider $true
+                        $expectedInitialDiagnostic = 'Acrylic|TintOpacity={0}|SolidSurface=Collapsed' -f
+                            (([double]$initialOpacity / 100).ToString(
+                                '0.00',
+                                [Globalization.CultureInfo]::InvariantCulture))
                         Invoke-WinApp ui set-value AcrylicOpacitySlider `
                             $initialOpacity -a $AppPid | Out-Null
                         Wait-PersistedAcrylicOpacity $initialOpacity
+                        Wait-BackdropDiagnostic $expectedInitialDiagnostic
                     }
                     else {
                         throw "復元時のActualBackdropDiagnosticが不正です: $actualBackdrop"

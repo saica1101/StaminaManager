@@ -169,36 +169,22 @@ finally {{
             "ui",
             "StaminaManager.UiTests.ps1"));
 
+        const string invalidValueWaitPattern =
+            @"Invoke-WinApp\s+ui\s+wait-for\s+AcrylicOpacitySlider\s+`?\s*(?:-w\s+\(Get-MainWindowHandle\)|-a\s+\$AppPid)\s+`?\s*-p\s+Value";
         Assert.IsFalse(
             System.Text.RegularExpressions.Regex.IsMatch(
                 source,
-                @"Invoke-WinApp ui wait-for AcrylicOpacitySlider\s+`\s+(?:-w \(Get-MainWindowHandle\)|-a \$AppPid)\s+`\s+-p Value"));
+                invalidValueWaitPattern));
+        Assert.IsTrue(System.Text.RegularExpressions.Regex.IsMatch(
+            "Invoke-WinApp ui wait-for AcrylicOpacitySlider -w " +
+                "(Get-MainWindowHandle) -p Value", invalidValueWaitPattern));
+        Assert.IsTrue(System.Text.RegularExpressions.Regex.IsMatch(
+            "Invoke-WinApp ui wait-for AcrylicOpacitySlider `\n" +
+                "    -a $AppPid `\n    -p Value", invalidValueWaitPattern));
         StringAssert.Contains(
             source,
             "Wait-BackdropDiagnostic $expectedDiagnostics[$percent]");
         StringAssert.Contains(source, "Wait-PersistedAcrylicOpacity 100");
-
-        int acrylicAction = source.IndexOf(
-            "Acrylic不透明度0/50/100",
-            StringComparison.Ordinal);
-        int restart = source.IndexOf(
-            "Restart-TestPackage",
-            acrylicAction,
-            StringComparison.Ordinal);
-        int sliderAfterRestart = source.IndexOf(
-            "Invoke-WinApp ui wait-for AcrylicOpacitySlider",
-            restart,
-            StringComparison.Ordinal);
-        int diagnosticAfterRestart = source.IndexOf(
-            "Wait-BackdropDiagnostic $expectedDiagnostics[100]",
-            sliderAfterRestart,
-            StringComparison.Ordinal);
-        Assert.IsTrue(
-            acrylicAction >= 0 &&
-                restart > acrylicAction &&
-                sliderAfterRestart > restart &&
-                diagnosticAfterRestart > sliderAfterRestart,
-            "再起動後はSlider表示待機の後にTintOpacity=1.00を確認すること。");
     }
 
     [TestMethod]
@@ -282,10 +268,6 @@ finally {{
         Assert.DoesNotContain(
             "Invoke-WinApp ui wait-for $AutomationId -a $AppPid `\n        --value $ItemName",
             source);
-        Assert.IsFalse(
-            System.Text.RegularExpressions.Regex.IsMatch(
-                source,
-                @"Invoke-WinApp ui wait-for AcrylicOpacitySlider\s+`\s+(?:-w \(Get-MainWindowHandle\)|-a \$AppPid)\s+`\s+-p Value"));
         Assert.IsTrue(
             System.Text.RegularExpressions.Regex.IsMatch(
                 source,
@@ -450,6 +432,12 @@ if ($selectAcrylic.Count -ne 1 -or $diagnostic.Count -lt 1 -or
     $diagnostic[0].Extent.StartOffset -ge
         $enabled[0].Extent.StartOffset) {{
     throw 'Acrylic selection, diagnostic, and enablement order is invalid.'
+}}
+$acrylicText = $acrylic.Extent.Text
+if ($acrylicText -notmatch '(?s)Restart-TestPackage.*?wait-for AcrylicOpacitySlider.*?Wait-BackdropDiagnostic \$expectedDiagnostics\[100\]' -or
+    $acrylicText -notmatch '\$isAcrylicAvailable\s+-or\s+\$initialBackdrop\s+-eq\s+\x27Acrylic\x27' -or
+    $acrylicText -notmatch '(?s)set-value AcrylicOpacitySlider.*?\$initialOpacity.*?Wait-PersistedAcrylicOpacity \$initialOpacity.*?Wait-BackdropDiagnostic \$expectedInitialDiagnostic') {{
+    throw 'Acrylic restore/restart diagnostic contract is missing.'
 }}
 $restoreThrow = @($acrylic.FindAll({{
     param($item)
