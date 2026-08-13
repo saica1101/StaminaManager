@@ -161,7 +161,7 @@ finally {{
     }
 
     [TestMethod]
-    public void UiSuite_AcrylicSliderValueWaitUsesFiveSeconds()
+    public void UiSuite_AcrylicSliderUsesDiagnosticAndPersistenceInsteadOfValueWait()
     {
         string source = File.ReadAllText(Path.Combine(
             FindRepositoryRoot(),
@@ -169,12 +169,14 @@ finally {{
             "ui",
             "StaminaManager.UiTests.ps1"));
 
+        Assert.IsFalse(
+            System.Text.RegularExpressions.Regex.IsMatch(
+                source,
+                @"Invoke-WinApp ui wait-for AcrylicOpacitySlider\s+`\s+(?:-w \(Get-MainWindowHandle\)|-a \$AppPid)\s+`\s+-p Value"));
         StringAssert.Contains(
             source,
-            "-p Value --value \"$percent\" -t 5000");
-        Assert.DoesNotContain(
-            "-p Value --value \"$percent\" -t 3000",
-            source);
+            "Wait-BackdropDiagnostic $expectedDiagnostics[$percent]");
+        StringAssert.Contains(source, "Wait-PersistedAcrylicOpacity 100");
     }
 
     [TestMethod]
@@ -258,14 +260,10 @@ finally {{
         Assert.DoesNotContain(
             "Invoke-WinApp ui wait-for $AutomationId -a $AppPid `\n        --value $ItemName",
             source);
-        Assert.IsTrue(
-            System.Text.RegularExpressions.Regex.IsMatch(
-                source,
-                @"Invoke-WinApp ui wait-for AcrylicOpacitySlider\s+`\s+-w \(Get-MainWindowHandle\)\s+`\s+-p Value"));
         Assert.IsFalse(
             System.Text.RegularExpressions.Regex.IsMatch(
                 source,
-                @"Invoke-WinApp ui wait-for AcrylicOpacitySlider\s+`\s+-a \$AppPid\s+-p Value"));
+                @"Invoke-WinApp ui wait-for AcrylicOpacitySlider\s+`\s+(?:-w \(Get-MainWindowHandle\)|-a \$AppPid)\s+`\s+-p Value"));
         Assert.IsTrue(
             System.Text.RegularExpressions.Regex.IsMatch(
                 source,

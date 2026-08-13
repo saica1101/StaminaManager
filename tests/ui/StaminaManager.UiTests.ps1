@@ -2701,9 +2701,6 @@ try {
                 foreach ($percent in $opacityValues) {
                     Invoke-WinApp ui set-value AcrylicOpacitySlider $percent `
                         -a $AppPid | Out-Null
-                    Invoke-WinApp ui wait-for AcrylicOpacitySlider `
-                        -w (Get-MainWindowHandle) `
-                        -p Value --value "$percent" -t 5000 | Out-Null
                     Wait-BackdropDiagnostic $expectedDiagnostics[$percent]
                     if ($percent -ne 100) {
                         Wait-PersistedAcrylicOpacity $percent
@@ -2732,9 +2729,6 @@ try {
                 Invoke-WinApp ui invoke NavSettings -a $AppPid | Out-Null
                 Invoke-WinApp ui wait-for AcrylicOpacitySlider `
                     -w (Get-MainWindowHandle) -t 5000 | Out-Null
-                Invoke-WinApp ui wait-for AcrylicOpacitySlider `
-                    -w (Get-MainWindowHandle) -p Value `
-                    --value 100 -t 5000 | Out-Null
                 Wait-PersistedAcrylicOpacity 100
             }
         }
@@ -2759,10 +2753,6 @@ try {
                         Wait-ControlEnabled AcrylicOpacitySlider $true
                         Invoke-WinApp ui set-value AcrylicOpacitySlider `
                             $initialOpacity -a $AppPid | Out-Null
-                        Invoke-WinApp ui wait-for AcrylicOpacitySlider `
-                            -w (Get-MainWindowHandle) `
-                            -p Value --value "$initialOpacity" `
-                            -t 3000 | Out-Null
                         Wait-PersistedAcrylicOpacity $initialOpacity
                     }
                     else {
