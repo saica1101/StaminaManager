@@ -2,6 +2,7 @@ using Microsoft.UI.Composition;
 using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Dispatching;
 using StaminaManager.Core.Validation;
 using System.Diagnostics;
 
@@ -263,6 +264,7 @@ public sealed class AdjustableAcrylicBackdrop : SystemBackdrop
 {
     private AdjustableAcrylicLifecycle? _lifecycle;
     private int _tintOpacityPercent;
+    private bool _configurationUpdateQueued;
 
     public AdjustableAcrylicBackdrop(int tintOpacityPercent)
     {
@@ -330,13 +332,52 @@ public sealed class AdjustableAcrylicBackdrop : SystemBackdrop
         XamlRoot xamlRoot)
     {
         base.OnDefaultSystemBackdropConfigurationChanged(target, xamlRoot);
-        if (_lifecycle is { } lifecycle)
+        QueueBackdropConfigurationUpdate();
+    }
+
+    private void QueueBackdropConfigurationUpdate()
+    {
+        if (_configurationUpdateQueued)
         {
-            lifecycle.OnDefaultSystemBackdropConfigurationChanged();
-            if (!lifecycle.IsConnected)
-            {
-                _lifecycle = null;
-            }
+            return;
+        }
+
+        _configurationUpdateQueued = true;
+
+        DispatcherQueue? dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+
+        if (dispatcherQueue is null)
+        {
+            _configurationUpdateQueued = false;
+            ApplyBackdropConfigurationUpdate();
+            return;
+        }
+
+        bool queued = dispatcherQueue.TryEnqueue(() =>
+        {
+            _configurationUpdateQueued = false;
+            ApplyBackdropConfigurationUpdate();
+        });
+
+        if (!queued)
+        {
+            _configurationUpdateQueued = false;
+            ApplyBackdropConfigurationUpdate();
+        }
+    }
+
+    private void ApplyBackdropConfigurationUpdate()
+    {
+        if (_lifecycle is not { } lifecycle)
+        {
+            return;
+        }
+
+        lifecycle.OnDefaultSystemBackdropConfigurationChanged();
+
+        if (!lifecycle.IsConnected)
+        {
+            _lifecycle = null;
         }
     }
 }
