@@ -97,6 +97,9 @@ public sealed class AboutContractTests
         StringAssert.Contains(
             source,
             "?? args.SelectedItem as NavigationViewItem");
+        StringAssert.Contains(
+            source,
+            "?? sender.SelectedItem as NavigationViewItem");
     }
 
     [TestMethod]

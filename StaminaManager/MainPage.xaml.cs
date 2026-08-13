@@ -94,7 +94,8 @@ public sealed partial class MainPage : Page
     {
         NavigationViewItem? item = args.SelectedItemContainer
             as NavigationViewItem
-            ?? args.SelectedItem as NavigationViewItem;
+            ?? args.SelectedItem as NavigationViewItem
+            ?? sender.SelectedItem as NavigationViewItem;
         if (_isSynchronizingSelection
             || item is null)
         {
