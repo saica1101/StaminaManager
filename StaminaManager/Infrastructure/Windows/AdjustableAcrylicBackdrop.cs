@@ -132,7 +132,7 @@ internal sealed class AdjustableAcrylicLifecycle
             return;
         }
 
-        ApplyCurrentState();
+        ApplyCurrentStateSafely();
     }
 
     public void OnDefaultSystemBackdropConfigurationChanged()
@@ -142,6 +142,11 @@ internal sealed class AdjustableAcrylicLifecycle
             return;
         }
 
+        ApplyCurrentStateSafely();
+    }
+
+    private void ApplyCurrentStateSafely()
+    {
         try
         {
             ApplyCurrentState();
@@ -150,7 +155,7 @@ internal sealed class AdjustableAcrylicLifecycle
         {
             Disconnect();
             Debug.WriteLine(
-                "Acrylic default backdrop configuration update failed: "
+                "Acrylic backdrop state update failed: "
                 + exception.GetType().Name);
         }
     }

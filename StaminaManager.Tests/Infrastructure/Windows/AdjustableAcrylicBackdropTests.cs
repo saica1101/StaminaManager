@@ -156,6 +156,40 @@ public sealed class AdjustableAcrylicBackdropTests
     }
 
     [TestMethod]
+    public void Lifecycle_StateChanged失敗時はStateとControllerを解放する()
+    {
+        RecordingController controller = new();
+        MutableStateSource stateSource = new();
+        int detachCount = 0;
+        AdjustableAcrylicLifecycle lifecycle = new(
+            controller,
+            stateSource,
+            static () => { },
+            () => detachCount++);
+
+        lifecycle.Connect();
+        controller.ApplyStateException = new InvalidOperationException(
+            "state change update failure");
+
+        Exception? exception = null;
+        try
+        {
+            stateSource.SetTheme(ElementTheme.Dark);
+        }
+        catch (Exception caught)
+        {
+            exception = caught;
+        }
+
+        Assert.IsNull(exception);
+        Assert.IsFalse(lifecycle.IsConnected);
+        Assert.AreEqual(1, detachCount);
+        Assert.IsTrue(stateSource.IsDisposed);
+        Assert.AreEqual(0, stateSource.SubscriberCount);
+        Assert.AreEqual(1, controller.DisposeCallCount);
+    }
+
+    [TestMethod]
     public void Lifecycle_DisconnectはTargetとEventとControllerを解放する()
     {
         RecordingController controller = new();
