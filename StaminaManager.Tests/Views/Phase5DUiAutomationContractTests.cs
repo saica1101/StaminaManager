@@ -193,6 +193,82 @@ finally {{
     }
 
     [TestMethod]
+    public void UiSuite_UsesFooterTextForCoverageAndAboutLayout()
+    {
+        string source = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "tests",
+            "ui",
+            "StaminaManager.UiTests.ps1"));
+
+        Assert.DoesNotContain("VersionFooterBand", source);
+        StringAssert.Contains(
+            source,
+            "Collect-AuditSnapshot ($State + 'Wide')");
+        StringAssert.Contains(
+            source,
+            "$footer = Get-ElementMatch VersionFooterText");
+    }
+
+    [TestMethod]
+    public void UiSuite_ReopensPaneBeforeLanguageFooterVerification()
+    {
+        string source = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "tests",
+            "ui",
+            "StaminaManager.UiTests.ps1"));
+
+        StringAssert.Contains(source, "function Ensure-VersionFooterVisible");
+        StringAssert.Contains(
+            source,
+            "Test-UiElement $AppPid VersionFooterText");
+        StringAssert.Contains(
+            source,
+            "Invoke-WinApp ui invoke TogglePaneButton `\n        -w (Get-MainWindowHandle)");
+
+        int languageSurface = source.IndexOf(
+            "function Assert-LanguageSurface",
+            StringComparison.Ordinal);
+        int footerWait = source.IndexOf(
+            "Wait-UiPropertyValue VersionFooterText",
+            languageSurface,
+            StringComparison.Ordinal);
+        int footerHelperCall = source.IndexOf(
+            "Ensure-VersionFooterVisible",
+            languageSurface + 1,
+            StringComparison.Ordinal);
+        Assert.IsTrue(
+            footerHelperCall >= 0 && footerHelperCall < footerWait,
+            "Language surface must ensure the footer is visible first.");
+    }
+
+    [TestMethod]
+    public void UiSuite_UsesMainWindowForPopupSensitiveValueWaits()
+    {
+        string source = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "tests",
+            "ui",
+            "StaminaManager.UiTests.ps1"));
+
+        StringAssert.Contains(
+            source,
+            "Invoke-WinApp ui wait-for $AutomationId `\n        -w (Get-MainWindowHandle) `\n        --value $ItemName");
+        Assert.DoesNotContain(
+            "Invoke-WinApp ui wait-for $AutomationId -a $AppPid `\n        --value $ItemName",
+            source);
+        Assert.IsTrue(
+            System.Text.RegularExpressions.Regex.IsMatch(
+                source,
+                @"Invoke-WinApp ui wait-for AcrylicOpacitySlider\s+`\s+-w \(Get-MainWindowHandle\)\s+`\s+-p Value"));
+        Assert.IsFalse(
+            System.Text.RegularExpressions.Regex.IsMatch(
+                source,
+                @"Invoke-WinApp ui wait-for AcrylicOpacitySlider\s+`\s+-a \$AppPid\s+-p Value"));
+    }
+
+    [TestMethod]
     public void UiSuite_AstVerifiesExecutableAppearanceAndLanguageFlows()
     {
         string scriptPath = Path.Combine(

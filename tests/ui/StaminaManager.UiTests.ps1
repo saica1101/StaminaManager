@@ -217,7 +217,6 @@ Add-Type -AssemblyName UIAutomationClient
 
 $requiredAutomationIds = @(
     'ShellContentFrame',
-    'VersionFooterBand',
     'VersionFooterText',
     'AboutScrollViewer',
     'AboutVersionText',
@@ -1030,6 +1029,17 @@ function Restart-TestPackage {
     Start-PackagedApp | Out-Null
 }
 
+function Ensure-VersionFooterVisible {
+    if (Test-UiElement $AppPid VersionFooterText 500) {
+        return
+    }
+
+    Invoke-WinApp ui invoke TogglePaneButton `
+        -w (Get-MainWindowHandle) | Out-Null
+    Invoke-WinApp ui wait-for VersionFooterText `
+        -w (Get-MainWindowHandle) -t 5000 | Out-Null
+}
+
 function Assert-LanguageSurface {
     param([Parameter(Mandatory)][ValidateSet('ja-JP', 'en-US')]
         [string]$Language)
@@ -1043,6 +1053,7 @@ function Assert-LanguageSurface {
         'NavAbout.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name'
     Wait-UiLocalizedProperty $Language $oppositeLanguage NavSettings Name `
         'NavSettings.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name'
+    Ensure-VersionFooterVisible
     Wait-UiPropertyValue VersionFooterText Name $expectedVersionName
     Wait-UiResourceText $Language 'OverviewPageTitle.Text' $oppositeLanguage
     Wait-UiResourceText $Language 'OverviewPageDescription.Text' `
@@ -1299,7 +1310,8 @@ function Select-ComboItem {
     }
 
     Invoke-WinApp ui click $item.selector -a $AppPid | Out-Null
-    Invoke-WinApp ui wait-for $AutomationId -a $AppPid `
+    Invoke-WinApp ui wait-for $AutomationId `
+        -w (Get-MainWindowHandle) `
         --value $ItemName -t 5000 | Out-Null
 }
 
@@ -1503,7 +1515,6 @@ function Collect-AuditSnapshot {
         'About*' {
             @(
                 'ShellContentFrame',
-                'VersionFooterBand',
                 'VersionFooterText',
                 'NavAbout',
                 'AboutScrollViewer',
@@ -2185,8 +2196,7 @@ function Invoke-AboutUiAudit {
         Invoke-WinApp ui wait-for NavAbout -a $AppPid -t 5000 | Out-Null
         Invoke-WinApp ui invoke NavAbout -a $AppPid | Out-Null
         if ($State -eq 'About') {
-            Invoke-WinApp ui wait-for VersionFooterText -a $AppPid -t 5000 |
-                Out-Null
+            Ensure-VersionFooterVisible
         }
         foreach ($automationId in @(
                 'AboutScrollViewer',
@@ -2199,12 +2209,13 @@ function Invoke-AboutUiAudit {
                 Out-Null
         }
         if ($State -eq 'About') {
-            $versionBand = Get-ElementMatch VersionFooterBand
+            $footer = Get-ElementMatch VersionFooterText
             $aboutItem = Get-ElementMatch NavAbout
-            $versionBottom = [int]$versionBand.y + [int]$versionBand.height
+            $versionBottom = [int]$footer.y + [int]$footer.height
             if ($versionBottom -gt [int]$aboutItem.y) {
                 throw 'Version footer must be above the About navigation item.'
             }
+            Collect-AuditSnapshot ($State + 'Wide')
         }
         Assert-AboutButtonAccessibility
 
@@ -2674,7 +2685,8 @@ try {
                 foreach ($percent in $opacityValues) {
                     Invoke-WinApp ui set-value AcrylicOpacitySlider $percent `
                         -a $AppPid | Out-Null
-                    Invoke-WinApp ui wait-for AcrylicOpacitySlider -a $AppPid `
+                    Invoke-WinApp ui wait-for AcrylicOpacitySlider `
+                        -w (Get-MainWindowHandle) `
                         -p Value --value "$percent" -t 5000 | Out-Null
                     Wait-BackdropDiagnostic $expectedDiagnostics[$percent]
                     if ($percent -ne 100) {
@@ -2693,7 +2705,8 @@ try {
             Start-Sleep -Milliseconds 400
 
             Invoke-WinApp ui invoke NavSettings -a $AppPid | Out-Null
-            Invoke-WinApp ui wait-for AcrylicOpacitySlider -a $AppPid `
+            Invoke-WinApp ui wait-for AcrylicOpacitySlider `
+                -w (Get-MainWindowHandle) `
                 -t 5000 | Out-Null
             if ($isAcrylicAvailable) {
                 Wait-PersistedAcrylicOpacity 100
@@ -2702,9 +2715,10 @@ try {
                     -t 5000 | Out-Null
                 Invoke-WinApp ui invoke NavSettings -a $AppPid | Out-Null
                 Invoke-WinApp ui wait-for AcrylicOpacitySlider `
-                    -a $AppPid -t 5000 | Out-Null
+                    -w (Get-MainWindowHandle) -t 5000 | Out-Null
                 Invoke-WinApp ui wait-for AcrylicOpacitySlider `
-                    -a $AppPid -p Value --value 100 -t 5000 | Out-Null
+                    -w (Get-MainWindowHandle) -p Value `
+                    --value 100 -t 5000 | Out-Null
                 Wait-PersistedAcrylicOpacity 100
             }
         }
@@ -2730,7 +2744,8 @@ try {
                         Invoke-WinApp ui set-value AcrylicOpacitySlider `
                             $initialOpacity -a $AppPid | Out-Null
                         Invoke-WinApp ui wait-for AcrylicOpacitySlider `
-                            -a $AppPid -p Value --value "$initialOpacity" `
+                            -w (Get-MainWindowHandle) `
+                            -p Value --value "$initialOpacity" `
                             -t 3000 | Out-Null
                         Wait-PersistedAcrylicOpacity $initialOpacity
                     }
