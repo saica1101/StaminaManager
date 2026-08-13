@@ -31,15 +31,17 @@
 - [x] Acrylic Slider は 0～100 の整数を 1 刻みで扱い、現在値をパーセントで
   読み上げる。実際に Acrylic が適用されている場合だけ有効で、Mica、Solid、
   Acrylic の Solid フォールバック中は無効になる。
-- [x] `VersionFooterBand`／`VersionFooterText` は `PaneFooter` にあり、
+- [x] `VersionFooterBand`／`VersionFooterText` は `PaneFooter` に1行で表示し、
   パッケージ由来のバージョンと選択言語に対応した AccessibleName を公開する。
+- [x] `About` は `FooterMenuItems` ではなく `Settings` 直下の通常メニュー項目にあり、
+  選択順と表示位置を維持する。
 - [x] `NavAbout`、`AboutPageRoot`、GitHub／README の各リンクボタンに一意な
   AutomationId と、既定のブラウザーで開くことが分かる Name／HelpText を設定する。
   About を開いただけではネットワーク通信を行わない。
-- [x] `LanguageSelector` は日本語と English を選択でき、選択内容を保存して
-  次回起動時に画面全体へ反映する。現在の画面を部分的に再翻訳しない。
+- [x] `LanguageSelector` は日本語と English を選択でき、選択内容を保存すると
+  再起動なしで画面全体へ即時反映する。現在の画面を部分的に再翻訳しない。
 - [ ] Acrylic の 0／50／100%、Mica／Solid／Solid フォールバック時の無効状態、
-  VersionFooter、About のリンク、言語の再起動往復を実機 UIA で確認する。
+  VersionFooter、About のリンク、言語のライブ切替往復を実機 UIA で確認する。
   これは今回の文書同期では未実行であり、実機確認済みとは扱わない。
 
 ## Task 13 実機確認結果（2026-07-28）
@@ -104,7 +106,7 @@
 - [ ] 破損データ、保存失敗、通知拒否、StartupTask 拒否、Backdrop フォールバック、
   不正バックアップ、通知再調整失敗の各案内に次の操作が表示されることを確認する。
 - [ ] Acrylic Slider、VersionFooter、About の GitHub／README リンク、
-  日本語／English の次回起動反映を、Light／Dark／High Contrast と狭幅で確認する。
+  日本語／English の再起動なしライブ反映を、Light／Dark／High Contrast と狭幅で確認する。
   文書同期時点では実機 UI 確認を行っていない。
 - [ ] 100%、125%、150%、200% の表示スケールと最小／標準ウィンドウ幅で、
   コントロールが重ならず、フォーカス対象が隠れないことを確認する。

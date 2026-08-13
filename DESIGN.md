@@ -69,15 +69,16 @@ one of: `余裕`, `注意`, `満タン間近`, `満タン`, or `自然回復停�
   `ToggleSwitch`, and file pickers. Labels remain visible; validation appears
   directly beneath the affected field.
 * **Navigation:** Native `NavigationView` with Overview and Settings as the
-  main items, About in `FooterMenuItems`, and a small package-version band in
-  `PaneFooter` above About.
+  main items, About directly below Settings in the regular menu items, and a
+  one-line package-version band in `PaneFooter`.
 * **Dialogs:** Native `ContentDialog` for add/edit and destructive confirmation.
 * **Backdrops:** Mica by default, Desktop Acrylic, and Solid are the three
   selectable backgrounds. Acrylic's
   `DesktopAcrylicController.TintOpacity` and `LuminosityOpacity` are both
-  adjusted by the same integer 0–100% setting; the slider is enabled only
-  while Acrylic is actually applied. Mica, Solid, and Acrylic fallback states
-  keep the value but disable the slider.
+  adjusted by the same integer 0–100% setting and previewed in real time;
+  persistence uses a short debounce. The slider is enabled only while Acrylic
+  is actually applied. Mica, Solid, and Acrylic fallback states keep the value
+  but disable the slider.
 * **Motion:** Restrained 120–180 ms state transitions only. No looping or
   decorative startup animation. Reduced Motion removes nonessential transitions.
 
@@ -101,9 +102,12 @@ one of: `余裕`, `注意`, `満タン間近`, `満タン`, or `自然回復停�
 ## 6. Settings extensions
 
 - The Appearance section exposes Light/Dark theme, Mica/Acrylic/Solid backdrop,
-  and the Acrylic `TintOpacity` percentage when Acrylic is actually active.
+  and the Acrylic `TintOpacity`／`LuminosityOpacity` percentage when Acrylic is
+  actually active. Both values preview at the same rate; persistence uses a
+  short debounce.
 - The Language section offers `日本語 (ja-JP)` and `English (en-US)`. A saved
-  language change is applied to the complete UI at the next application launch;
+  language change is applied to the complete UI immediately without restarting;
   the current session is not partially retranslated.
-- The `PaneFooter` displays the package-derived version, and About provides the
-  GitHub repository and README as user-initiated default-browser links.
+- About appears directly below Settings, the `PaneFooter` displays the
+  package-derived version on one line, and About provides the GitHub repository
+  and README as user-initiated default-browser links.

@@ -59,8 +59,9 @@ Windows 11向けアプリです。
 - 選択した1ゲームを大きく表示するコンパクト表示
 - タスクトレイへの格納とWindowsログイン時の自動起動
 - Light／DarkテーマとMica／Acrylic／Solid背景
-- Acrylicの色調不透明度（`TintOpacity`）を0～100%で調整
-- 日本語／Englishの表示言語を選択（変更は次回起動時に反映）
+- Acrylicの色調・明るさ不透明度（`TintOpacity`／`LuminosityOpacity`）を同じ割合で調整
+- Acrylicの不透明度を操作中にリアルタイムプレビュー（保存は短いデバウンス後）
+- 日本語／Englishの表示言語を選択（再起動なしで画面全体へ即時反映）
 - ゲーム、画像、設定のバックアップと復元
 - オフライン動作、アカウント登録・広告・テレメトリなし
 
@@ -143,13 +144,15 @@ Windows 11向けアプリです。
 
 - テーマ：Light／Dark
 - ウィンドウの背景：Mica／Acrylic／Solid
-- Acrylicの色調不透明度（0～100%）：実際にAcrylicが適用されている場合のみ変更できます。
+- Acrylicの色調・明るさ不透明度（0～100%）：`TintOpacity` と
+  `LuminosityOpacity` を同じ割合でリアルタイムプレビューします。保存は短いデバウンス後に
+  行われ、実際にAcrylicが適用されている場合のみ変更できます。
   Mica、Solid、または環境制約によるSolidフォールバック中は無効です。
 
 ### 言語
 
 - 表示言語：日本語／English
-- 設定を保存すると、アプリの次回起動時に画面全体へ反映されます。
+- 設定を保存すると、再起動なしで画面全体へ即時反映されます。
 
 ### 動作
 
@@ -169,8 +172,9 @@ Windows 11向けアプリです。
 
 ## About
 
-左ペインの`About`では、アプリの概要、バージョン、使用技術、プライバシーの概要を
-確認できます。次のリンクは、ユーザーがボタンを押した場合だけ既定のブラウザーで開きます。
+`Settings`直下の`About`では、アプリの概要、バージョン、使用技術、プライバシーの概要を
+確認できます。`PaneFooter`にはバージョンを1行で表示します。次のリンクは、ユーザーが
+ボタンを押した場合だけ既定のブラウザーで開きます。
 
 - [GitHubリポジトリ](https://github.com/saica1101/StaminaManager)
 - [README](https://github.com/saica1101/StaminaManager/blob/develop/README.md)
