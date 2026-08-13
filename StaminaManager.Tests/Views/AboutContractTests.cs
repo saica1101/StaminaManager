@@ -88,6 +88,18 @@ public sealed class AboutContractTests
     }
 
     [TestMethod]
+    public void MainPage_ResolvesFooterSelectionFromSelectedItemFallback()
+    {
+        string source = File.ReadAllText(GetPath(
+            "StaminaManager",
+            "MainPage.xaml.cs"));
+
+        StringAssert.Contains(
+            source,
+            "?? args.SelectedItem as NavigationViewItem");
+    }
+
+    [TestMethod]
     public void AboutPage_UsesAccessibleNativeControls_AndNoNetworkSurface()
     {
         XDocument page = XDocument.Load(GetPath(
