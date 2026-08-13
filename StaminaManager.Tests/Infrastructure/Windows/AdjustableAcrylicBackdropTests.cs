@@ -54,9 +54,9 @@ public sealed class AdjustableAcrylicBackdropTests
         CollectionAssert.AreEqual(
             new[]
             {
+                "ApplyState:Dark",
                 "ResetProperties",
                 "TintOpacity:-1.0",
-                "ApplyState:Dark",
                 "TintOpacity:0.8",
                 "LuminosityOpacity:0.8",
             },
@@ -87,9 +87,9 @@ public sealed class AdjustableAcrylicBackdropTests
         CollectionAssert.AreEqual(
             new[]
             {
+                "ApplyState:Dark",
                 "ResetProperties",
                 "TintOpacity:-1.0",
-                "ApplyState:Dark",
                 "TintOpacity:0.8",
                 "LuminosityOpacity:0.8",
             },

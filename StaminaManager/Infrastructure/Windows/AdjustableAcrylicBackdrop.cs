@@ -175,12 +175,12 @@ internal sealed class AdjustableAcrylicLifecycle
         AdjustableAcrylicState state,
         bool shouldResetProperties)
     {
+        _controller.ApplyState(state);
         if (shouldResetProperties)
         {
             _controller.ResetProperties();
         }
 
-        _controller.ApplyState(state);
         _lastState = state;
     }
 
@@ -245,7 +245,7 @@ internal static class AdjustableAcrylicConnection
 internal sealed class DesktopAcrylicControllerAdapter :
     IAdjustableAcrylicController
 {
-    private readonly DesktopAcrylicController _controller = new();
+    private DesktopAcrylicController _controller = new();
     private readonly ICompositionSupportsSystemBackdrop _target;
     private readonly SystemBackdropConfiguration _configuration = new();
     private bool _isTargetAttached;
@@ -310,7 +310,46 @@ internal sealed class DesktopAcrylicControllerAdapter :
         };
     }
 
-    public void ResetProperties() => _controller.ResetProperties();
+    public void ResetProperties()
+    {
+        if (!_isTargetAttached)
+        {
+            _controller.ResetProperties();
+            return;
+        }
+
+        DesktopAcrylicController previousController = _controller;
+        DetachTarget();
+        previousController.Dispose();
+
+        DesktopAcrylicController replacementController = new();
+        try
+        {
+            replacementController.SetSystemBackdropConfiguration(
+                _configuration);
+            if (!replacementController.AddSystemBackdropTarget(_target))
+            {
+                throw new InvalidOperationException(
+                    "Desktop Acrylicのバックドロップターゲットを再接続できませんでした。");
+            }
+
+            // ResetPropertiesで自動テーマ追従へ戻るため、再接続時点の
+            // テーマ別既定色を明示値として固定し、後続のページ遷移で
+            // 旧テーマへ戻されないようにする。
+            global::Windows.UI.Color tintColor = replacementController.TintColor;
+            global::Windows.UI.Color fallbackColor = replacementController.FallbackColor;
+            replacementController.TintColor = tintColor;
+            replacementController.FallbackColor = fallbackColor;
+
+            _controller = replacementController;
+            _isTargetAttached = true;
+        }
+        catch
+        {
+            replacementController.Dispose();
+            throw;
+        }
+    }
 
     public void Dispose() => _controller.Dispose();
 }
