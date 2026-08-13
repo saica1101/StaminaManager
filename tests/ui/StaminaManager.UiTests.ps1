@@ -1210,11 +1210,22 @@ function Wait-ControlEnabled {
         [bool]$Expected,
         [int]$TimeoutMilliseconds = 3000)
 
+    $callerLine = $MyInvocation.ScriptLineNumber
     $expectedValue = if ($Expected) { 'True' } else { 'False' }
-    Invoke-WinApp ui wait-for $AutomationId `
-        -w (Get-MainWindowHandle) `
-        -p IsEnabled --value $expectedValue `
-        -t $TimeoutMilliseconds | Out-Null
+    try {
+        Invoke-WinApp ui wait-for $AutomationId `
+            -w (Get-MainWindowHandle) `
+            -p IsEnabled --value $expectedValue `
+            -t $TimeoutMilliseconds | Out-Null
+    }
+    catch {
+        $message = "Wait-ControlEnabled failed " +
+            "(AutomationId=$AutomationId, Expected=$Expected, " +
+            "CallerLine=$callerLine): $($_.Exception.Message)"
+        throw [System.InvalidOperationException]::new(
+            $message,
+            $_.Exception)
+    }
 }
 
 function Wait-PersistedAcrylicOpacity {

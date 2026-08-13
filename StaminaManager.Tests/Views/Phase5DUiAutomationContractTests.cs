@@ -266,9 +266,10 @@ finally {{
             System.Text.RegularExpressions.Regex.IsMatch(
                 source,
                 @"Invoke-WinApp ui wait-for AcrylicOpacitySlider\s+`\s+-a \$AppPid\s+-p Value"));
-        StringAssert.Contains(
-            source,
-            "Invoke-WinApp ui wait-for $AutomationId `\n        -w (Get-MainWindowHandle) `\n        -p IsEnabled");
+        Assert.IsTrue(
+            System.Text.RegularExpressions.Regex.IsMatch(
+                source,
+                @"Invoke-WinApp ui wait-for \$AutomationId\s+`\s+-w \(Get-MainWindowHandle\)\s+`\s+-p IsEnabled"));
         Assert.DoesNotContain(
             "Invoke-WinApp ui wait-for $AutomationId -a $AppPid `\n        -p IsEnabled",
             source);
@@ -309,6 +310,28 @@ finally {{
                     (nextRestart < 0 || completionWait < nextRestart),
                 "Language save completion must precede restart.");
         }
+    }
+
+    [TestMethod]
+    public void UiSuite_WaitControlEnabledFailureIncludesCallsiteDiagnostics()
+    {
+        string source = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "tests",
+            "ui",
+            "StaminaManager.UiTests.ps1"));
+
+        StringAssert.Contains(
+            source,
+            "$callerLine = $MyInvocation.ScriptLineNumber");
+        StringAssert.Contains(source, "Wait-ControlEnabled failed");
+        StringAssert.Contains(source, "$AutomationId");
+        StringAssert.Contains(source, "$Expected");
+        StringAssert.Contains(source, "$callerLine");
+        StringAssert.Contains(source, "$($_.Exception.Message)");
+        StringAssert.Contains(
+            source,
+            "[System.InvalidOperationException]::new");
     }
 
     [TestMethod]
