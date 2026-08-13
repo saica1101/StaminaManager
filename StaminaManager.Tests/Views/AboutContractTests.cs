@@ -103,6 +103,39 @@ public sealed class AboutContractTests
     }
 
     [TestMethod]
+    public void MainPage_RefreshesVersionFooterAutomationPropertiesFromOneValue()
+    {
+        string source = File.ReadAllText(GetPath(
+            "StaminaManager",
+            "MainPage.xaml.cs"));
+        int methodStart = source.IndexOf(
+            "internal void RefreshVersionFooterAutomationProperties()",
+            StringComparison.Ordinal);
+        int methodEnd = source.IndexOf(
+            "internal Task FlushPendingSettingsChangesAsync()",
+            Math.Max(methodStart, 0),
+            StringComparison.Ordinal);
+        string method = methodStart >= 0 && methodEnd > methodStart
+            ? source[methodStart..methodEnd]
+            : string.Empty;
+
+        Assert.AreEqual(
+            1,
+            method.Split(
+                "VersionFooterAutomationName",
+                StringSplitOptions.None).Length - 1);
+        StringAssert.Contains(
+            method,
+            "string value = VersionFooterAutomationName;");
+        StringAssert.Contains(
+            method,
+            "AutomationProperties.SetName(VersionFooterText, value);");
+        StringAssert.Contains(
+            method,
+            "AutomationProperties.SetHelpText(VersionFooterText, value);");
+    }
+
+    [TestMethod]
     public void AboutPage_UsesAccessibleNativeControls_AndNoNetworkSurface()
     {
         XDocument page = XDocument.Load(GetPath(

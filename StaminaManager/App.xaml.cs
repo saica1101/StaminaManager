@@ -146,6 +146,7 @@ public partial class App : Microsoft.UI.Xaml.Application
                 _coordinator!,
                 _overviewViewModel!,
                 CancellationToken.None);
+            _mainPage!.RefreshVersionFooterAutomationProperties();
             ActivationRouter.Attach(HandleRedirectedActivation);
             _window!.Activate();
             if (loadResult.Status == DataLoadStatus.Corrupt

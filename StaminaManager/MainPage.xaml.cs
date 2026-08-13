@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using StaminaManager.Application;
 using StaminaManager.Controls;
 using StaminaManager.Core.Abstractions;
@@ -84,6 +85,13 @@ public sealed partial class MainPage : Page
         _appResourceService.Format(
             "VersionFooterAutomationNameFormat",
             VersionText);
+
+    internal void RefreshVersionFooterAutomationProperties()
+    {
+        string value = VersionFooterAutomationName;
+        AutomationProperties.SetName(VersionFooterText, value);
+        AutomationProperties.SetHelpText(VersionFooterText, value);
+    }
 
     internal Task FlushPendingSettingsChangesAsync() =>
         _settingsPage.FlushPendingAppearanceChangesAsync();
