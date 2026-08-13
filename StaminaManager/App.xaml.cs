@@ -670,6 +670,7 @@ public partial class App : Microsoft.UI.Xaml.Application
 
         if (_window is null
             || _mainPage is null
+            || _overviewPage is null
             || _pageTreeFactory is not Func<AppLanguage, PageTree> factory
             || _appResourceService is not AppResourceService resources)
         {
@@ -678,14 +679,15 @@ public partial class App : Microsoft.UI.Xaml.Application
 
         AppLanguage previousLanguage = _activeLanguage;
         MainPage previousMainPage = _mainPage;
+        OverviewPage previousOverviewPage = _overviewPage;
         PageTree? newPageTree = null;
-        bool isRootReplaced = false;
+        bool isRootReplacementAttempted = false;
         try
         {
             resources.SetLanguageQualifier(language);
             newPageTree = factory(language);
+            isRootReplacementAttempted = true;
             _window.ReplaceMainPage(newPageTree.MainPage);
-            isRootReplaced = true;
             _overviewPage = newPageTree.OverviewPage;
             _mainPage = newPageTree.MainPage;
             _overviewViewModel!.RefreshLocalizedText();
@@ -697,11 +699,6 @@ public partial class App : Microsoft.UI.Xaml.Application
         }
         catch (Exception exception) when (!IsProcessFatal(exception))
         {
-            if (newPageTree is not null && !isRootReplaced)
-            {
-                newPageTree.MainPage.Detach();
-            }
-
             try
             {
                 resources.SetLanguageQualifier(previousLanguage);
@@ -712,6 +709,40 @@ public partial class App : Microsoft.UI.Xaml.Application
                 Debug.WriteLine(
                     "Language resource rollback failed: "
                     + rollbackException.GetType().Name);
+            }
+
+            if (newPageTree is not null && isRootReplacementAttempted)
+            {
+                try
+                {
+                    _window.ReplaceMainPage(previousMainPage);
+                }
+                catch (Exception rollbackException) when (
+                    !IsProcessFatal(rollbackException))
+                {
+                    Debug.WriteLine(
+                        "Language root rollback failed: "
+                        + rollbackException.GetType().Name);
+                }
+            }
+
+            _mainPage = previousMainPage;
+            _overviewPage = previousOverviewPage;
+            _activeLanguage = previousLanguage;
+
+            if (newPageTree is not null)
+            {
+                try
+                {
+                    newPageTree.MainPage.Detach();
+                }
+                catch (Exception detachException) when (
+                    !IsProcessFatal(detachException))
+                {
+                    Debug.WriteLine(
+                        "Failed to detach language replacement page: "
+                        + detachException.GetType().Name);
+                }
             }
 
             Debug.WriteLine(
