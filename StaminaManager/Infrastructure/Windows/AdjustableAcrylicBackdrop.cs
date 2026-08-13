@@ -1,7 +1,5 @@
 using Microsoft.UI.Composition;
 using Microsoft.UI.Composition.SystemBackdrops;
-using Microsoft.UI.Dispatching;
-using Microsoft.UI.System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 using StaminaManager.Core.Validation;
@@ -9,25 +7,11 @@ using System.Diagnostics;
 
 namespace StaminaManager.Infrastructure.Windows;
 
-internal sealed record AdjustableAcrylicState(
-    bool IsInputActive,
-    bool IsHighContrast,
-    ElementTheme Theme);
-
-internal interface IAdjustableAcrylicStateSource : IDisposable
-{
-    AdjustableAcrylicState Current { get; }
-
-    event EventHandler? StateChanged;
-}
-
 internal interface IAdjustableAcrylicController : IDisposable
 {
     float TintOpacity { get; set; }
 
     float LuminosityOpacity { get; set; }
-
-    void ApplyState(AdjustableAcrylicState state);
 
     void ResetProperties();
 }
@@ -35,44 +19,39 @@ internal interface IAdjustableAcrylicController : IDisposable
 internal sealed class AdjustableAcrylicLifecycle
 {
     private readonly IAdjustableAcrylicController _controller;
-    private readonly IAdjustableAcrylicStateSource _stateSource;
     private readonly Action _attachTarget;
     private readonly Action _detachTarget;
-    private AdjustableAcrylicState? _lastState;
     private int _tintOpacityPercent =
         AcrylicOpacityPolicy.DefaultAcrylicTintOpacityPercent;
     private bool _isConnected;
+    private bool _isDisposed;
 
     internal bool IsConnected => _isConnected;
 
     public AdjustableAcrylicLifecycle(
         IAdjustableAcrylicController controller,
-        IAdjustableAcrylicStateSource stateSource,
         Action attachTarget,
         Action detachTarget)
     {
         ArgumentNullException.ThrowIfNull(controller);
-        ArgumentNullException.ThrowIfNull(stateSource);
         ArgumentNullException.ThrowIfNull(attachTarget);
         ArgumentNullException.ThrowIfNull(detachTarget);
         _controller = controller;
-        _stateSource = stateSource;
         _attachTarget = attachTarget;
         _detachTarget = detachTarget;
     }
 
     public void Connect()
     {
+        ObjectDisposedException.ThrowIf(_isDisposed, this);
         if (_isConnected)
         {
             return;
         }
 
         _isConnected = true;
-        _stateSource.StateChanged += OnStateChanged;
         try
         {
-            ApplyState(_stateSource.Current, shouldResetProperties: false);
             _attachTarget();
             ApplyOpacity();
         }
@@ -100,16 +79,20 @@ internal sealed class AdjustableAcrylicLifecycle
 
     public void Disconnect()
     {
-        if (!_isConnected)
+        if (_isDisposed)
         {
             return;
         }
 
+        _isDisposed = true;
+        bool wasConnected = _isConnected;
         _isConnected = false;
-        _stateSource.StateChanged -= OnStateChanged;
         try
         {
-            _detachTarget();
+            if (wasConnected)
+            {
+                _detachTarget();
+            }
         }
         catch (Exception exception) when (!IsProcessFatal(exception))
         {
@@ -119,20 +102,8 @@ internal sealed class AdjustableAcrylicLifecycle
         }
         finally
         {
-            _stateSource.Dispose();
             _controller.Dispose();
-            _lastState = null;
         }
-    }
-
-    private void OnStateChanged(object? sender, EventArgs args)
-    {
-        if (!_isConnected)
-        {
-            return;
-        }
-
-        ApplyCurrentStateSafely();
     }
 
     public void OnDefaultSystemBackdropConfigurationChanged()
@@ -142,46 +113,20 @@ internal sealed class AdjustableAcrylicLifecycle
             return;
         }
 
-        ApplyCurrentStateSafely();
-    }
-
-    private void ApplyCurrentStateSafely()
-    {
         try
         {
-            ApplyCurrentState();
+            // Opacityを設定するとControllerの自動テーマ追従が無効になるため、
+            // WinUIが既定構成を更新した後に色をシステム既定へ戻して再適用する。
+            _controller.ResetProperties();
+            ApplyOpacity();
         }
         catch (Exception exception) when (!IsProcessFatal(exception))
         {
             Disconnect();
             Debug.WriteLine(
-                "Acrylic backdrop state update failed: "
+                "Acrylic backdrop configuration update failed: "
                 + exception.GetType().Name);
         }
-    }
-
-    private void ApplyCurrentState()
-    {
-        AdjustableAcrylicState state = _stateSource.Current;
-        bool shouldResetProperties = _lastState?.Theme != state.Theme;
-        ApplyState(state, shouldResetProperties);
-        if (shouldResetProperties)
-        {
-            ApplyOpacity();
-        }
-    }
-
-    private void ApplyState(
-        AdjustableAcrylicState state,
-        bool shouldResetProperties)
-    {
-        _controller.ApplyState(state);
-        if (shouldResetProperties)
-        {
-            _controller.ResetProperties();
-        }
-
-        _lastState = state;
     }
 
     private void ApplyOpacity()
@@ -205,27 +150,13 @@ internal static class AdjustableAcrylicConnection
 {
     public static AdjustableAcrylicLifecycle Connect(
         IAdjustableAcrylicController controller,
-        Func<IAdjustableAcrylicStateSource> createStateSource,
         Action attachTarget,
         Action detachTarget,
         int tintOpacityPercent)
     {
         ArgumentNullException.ThrowIfNull(controller);
-        ArgumentNullException.ThrowIfNull(createStateSource);
-        IAdjustableAcrylicStateSource stateSource;
-        try
-        {
-            stateSource = createStateSource();
-        }
-        catch
-        {
-            controller.Dispose();
-            throw;
-        }
-
         AdjustableAcrylicLifecycle lifecycle = new(
             controller,
-            stateSource,
             attachTarget,
             detachTarget);
         try
@@ -247,14 +178,17 @@ internal sealed class DesktopAcrylicControllerAdapter :
 {
     private DesktopAcrylicController _controller = new();
     private readonly ICompositionSupportsSystemBackdrop _target;
-    private readonly SystemBackdropConfiguration _configuration = new();
+    private readonly SystemBackdropConfiguration _configuration;
     private bool _isTargetAttached;
 
     public DesktopAcrylicControllerAdapter(
-        ICompositionSupportsSystemBackdrop target)
+        ICompositionSupportsSystemBackdrop target,
+        SystemBackdropConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(configuration);
         _target = target;
+        _configuration = configuration;
     }
 
     public float TintOpacity
@@ -271,7 +205,6 @@ internal sealed class DesktopAcrylicControllerAdapter :
 
     public void AttachTarget()
     {
-        _controller.SetSystemBackdropConfiguration(_configuration);
         if (!_controller.AddSystemBackdropTarget(_target))
         {
             throw new InvalidOperationException(
@@ -279,6 +212,7 @@ internal sealed class DesktopAcrylicControllerAdapter :
         }
 
         _isTargetAttached = true;
+        _controller.SetSystemBackdropConfiguration(_configuration);
     }
 
     public void DetachTarget()
@@ -298,57 +232,24 @@ internal sealed class DesktopAcrylicControllerAdapter :
         }
     }
 
-    public void ApplyState(AdjustableAcrylicState state)
-    {
-        _configuration.IsInputActive = state.IsInputActive;
-        _configuration.IsHighContrast = state.IsHighContrast;
-        _configuration.Theme = state.Theme switch
-        {
-            ElementTheme.Light => SystemBackdropTheme.Light,
-            ElementTheme.Dark => SystemBackdropTheme.Dark,
-            _ => SystemBackdropTheme.Default,
-        };
-    }
-
     public void ResetProperties()
     {
-        if (!_isTargetAttached)
-        {
-            _controller.ResetProperties();
-            return;
-        }
-
+        // SDK 2.3.1では既存ControllerのResetPropertiesが直前テーマの
+        // 既定色を返すため、現在の既定構成でControllerだけを置き換える。
         DesktopAcrylicController previousController = _controller;
         DetachTarget();
         previousController.Dispose();
 
-        DesktopAcrylicController replacementController = new();
-        try
+        _controller = new DesktopAcrylicController();
+        // WinUI Galleryと同じ順序で接続し、現在テーマの素材を生成させる。
+        if (!_controller.AddSystemBackdropTarget(_target))
         {
-            replacementController.SetSystemBackdropConfiguration(
-                _configuration);
-            if (!replacementController.AddSystemBackdropTarget(_target))
-            {
-                throw new InvalidOperationException(
-                    "Desktop Acrylicのバックドロップターゲットを再接続できませんでした。");
-            }
-
-            // ResetPropertiesで自動テーマ追従へ戻るため、再接続時点の
-            // テーマ別既定色を明示値として固定し、後続のページ遷移で
-            // 旧テーマへ戻されないようにする。
-            global::Windows.UI.Color tintColor = replacementController.TintColor;
-            global::Windows.UI.Color fallbackColor = replacementController.FallbackColor;
-            replacementController.TintColor = tintColor;
-            replacementController.FallbackColor = fallbackColor;
-
-            _controller = replacementController;
-            _isTargetAttached = true;
+            throw new InvalidOperationException(
+                "Desktop Acrylicのバックドロップターゲットを再接続できませんでした。");
         }
-        catch
-        {
-            replacementController.Dispose();
-            throw;
-        }
+
+        _isTargetAttached = true;
+        _controller.SetSystemBackdropConfiguration(_configuration);
     }
 
     public void Dispose() => _controller.Dispose();
@@ -395,12 +296,15 @@ public sealed class AdjustableAcrylicBackdrop : SystemBackdrop
         _lifecycle?.Disconnect();
         _lifecycle = null;
 
-        DesktopAcrylicControllerAdapter controller = new(connectedTarget);
+        SystemBackdropConfiguration configuration =
+            GetDefaultSystemBackdropConfiguration(
+                connectedTarget,
+                xamlRoot);
+        DesktopAcrylicControllerAdapter controller = new(
+            connectedTarget,
+            configuration);
         _lifecycle = AdjustableAcrylicConnection.Connect(
             controller,
-            () => new XamlBackdropStateSource(
-                connectedTarget,
-                xamlRoot),
             controller.AttachTarget,
             controller.DetachTarget,
             _tintOpacityPercent);
@@ -431,122 +335,6 @@ public sealed class AdjustableAcrylicBackdrop : SystemBackdrop
             if (!lifecycle.IsConnected)
             {
                 _lifecycle = null;
-            }
-        }
-    }
-
-    private sealed class XamlBackdropStateSource :
-        IAdjustableAcrylicStateSource
-    {
-        private readonly FrameworkElement? _rootElement;
-        private readonly Window? _window;
-        private readonly ThemeSettings? _themeSettings;
-        private readonly DispatcherQueue _dispatcherQueue;
-        private bool _isInputActive = true;
-        private bool _isDisposed;
-
-        public XamlBackdropStateSource(
-            ICompositionSupportsSystemBackdrop target,
-            XamlRoot xamlRoot)
-        {
-            ArgumentNullException.ThrowIfNull(target);
-            ArgumentNullException.ThrowIfNull(xamlRoot);
-            _dispatcherQueue = DispatcherQueue.GetForCurrentThread()
-                ?? throw new InvalidOperationException(
-                    "UI DispatcherQueueを取得できませんでした。");
-            _dispatcherQueue.EnsureSystemDispatcherQueue();
-            _rootElement = xamlRoot.Content as FrameworkElement;
-            _window = target as Window;
-            if (_window is not null)
-            {
-                _themeSettings = ThemeSettings.CreateForWindowId(
-                    _window.AppWindow.Id);
-            }
-
-            try
-            {
-                _rootElement?.ActualThemeChanged += OnActualThemeChanged;
-                _window?.Activated += OnWindowActivated;
-                if (_themeSettings is not null)
-                {
-                    _themeSettings.Changed += OnThemeSettingsChanged;
-                }
-            }
-            catch
-            {
-                if (_rootElement is not null)
-                {
-                    _rootElement.ActualThemeChanged -= OnActualThemeChanged;
-                }
-
-                if (_window is not null)
-                {
-                    _window.Activated -= OnWindowActivated;
-                }
-
-                if (_themeSettings is not null)
-                {
-                    _themeSettings.Changed -= OnThemeSettingsChanged;
-                }
-
-                throw;
-            }
-        }
-
-        public AdjustableAcrylicState Current => new(
-            _isInputActive,
-            _themeSettings?.HighContrast ?? false,
-            _rootElement?.ActualTheme ?? ElementTheme.Default);
-
-        public event EventHandler? StateChanged;
-
-        public void Dispose()
-        {
-            if (_isDisposed)
-            {
-                return;
-            }
-
-            _isDisposed = true;
-            if (_rootElement is not null)
-            {
-                _rootElement.ActualThemeChanged -= OnActualThemeChanged;
-            }
-
-            if (_window is not null)
-            {
-                _window.Activated -= OnWindowActivated;
-            }
-
-            if (_themeSettings is not null)
-            {
-                _themeSettings.Changed -= OnThemeSettingsChanged;
-            }
-        }
-
-        private void OnActualThemeChanged(
-            FrameworkElement sender,
-            object args) => QueueStateChanged();
-
-        private void OnWindowActivated(
-            object sender,
-            WindowActivatedEventArgs args)
-        {
-            _isInputActive = args.WindowActivationState
-                != WindowActivationState.Deactivated;
-            QueueStateChanged();
-        }
-
-        private void OnThemeSettingsChanged(
-            ThemeSettings sender,
-            object args) => QueueStateChanged();
-
-        private void QueueStateChanged()
-        {
-            if (!_isDisposed)
-            {
-                _dispatcherQueue.TryEnqueue(
-                    () => StateChanged?.Invoke(this, EventArgs.Empty));
             }
         }
     }
