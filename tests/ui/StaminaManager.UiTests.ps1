@@ -1227,6 +1227,12 @@ function Wait-PersistedAcrylicOpacity {
     throw "Expected persisted Acrylic opacity $ExpectedPercent, actual $actual."
 }
 
+function Get-PersistedAcrylicOpacity {
+    $dataPath = Join-Path $dataDirectory 'data.json'
+    $data = [IO.File]::ReadAllText($dataPath) | ConvertFrom-Json
+    return [int]$data.settings.acrylicTintOpacityPercent
+}
+
 function Set-NumberBoxFromKeyboard {
     param(
         [string]$AutomationId,
@@ -1286,7 +1292,7 @@ function Select-ComboItem {
             ConvertFrom-Json
     ).matches
     $item = $matches |
-        Where-Object { $_.type -eq 'ListItem' -or $_.isInvokable } |
+        Where-Object { $_.isInvokable -eq $true } |
         Select-Object -First 1
     if ($null -eq $item) {
         throw "ComboBox item was not found: $ItemName"
@@ -2611,7 +2617,7 @@ try {
     Invoke-UiTest Settings 'Acrylic不透明度0/50/100の診断・disabled・永続化とSettings往復' {
         $initialBackdrop = Get-ControlValue BackdropSelector
         Scroll-ToSettingsControl AcrylicOpacitySlider
-        $initialOpacity = [int](Get-ControlValue AcrylicOpacitySlider)
+        $initialOpacity = Get-PersistedAcrylicOpacity
         $opacityValues = @(0, 50, 100)
         $expectedDiagnostics = @{
             0 = 'Acrylic|TintOpacity=0.00|SolidSurface=Collapsed'

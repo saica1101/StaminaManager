@@ -112,6 +112,38 @@ finally {{
     }
 
     [TestMethod]
+    public void UiSuite_AcrylicInitialOpacityReadsPersistedData()
+    {
+        string source = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "tests",
+            "ui",
+            "StaminaManager.UiTests.ps1"));
+
+        Assert.DoesNotContain(
+            "$initialOpacity = [int](Get-ControlValue AcrylicOpacitySlider)",
+            source);
+        StringAssert.Contains(source, "acrylicTintOpacityPercent");
+    }
+
+    [TestMethod]
+    public void UiSuite_SelectComboItemUsesInvokableMatchesOnly()
+    {
+        string source = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "tests",
+            "ui",
+            "StaminaManager.UiTests.ps1"));
+
+        StringAssert.Contains(
+            source,
+            "Where-Object { $_.isInvokable -eq $true }");
+        Assert.DoesNotContain(
+            "Where-Object { $_.type -eq 'ListItem' -or $_.isInvokable }",
+            source);
+    }
+
+    [TestMethod]
     public void UiSuite_AstVerifiesExecutableAppearanceAndLanguageFlows()
     {
         string scriptPath = Path.Combine(
