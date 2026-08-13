@@ -50,6 +50,7 @@ public sealed class MainWindow : WinUIEx.WindowEx
     private bool _isLifecycleDisposed;
     private readonly MainWindowContent _windowContent;
     private readonly CoalescingUiAction _captionColorUpdate;
+    private readonly IAppResourceService _appResourceService;
 
     public MainWindow(
         MainPage mainPage,
@@ -57,6 +58,7 @@ public sealed class MainWindow : WinUIEx.WindowEx
     {
         ArgumentNullException.ThrowIfNull(mainPage);
         ArgumentNullException.ThrowIfNull(appResourceService);
+        _appResourceService = appResourceService;
         _windowContent = new MainWindowContent();
         Content = _windowContent;
         _captionColorUpdate = new CoalescingUiAction(
@@ -75,6 +77,16 @@ public sealed class MainWindow : WinUIEx.WindowEx
 
         _windowContent.ActualThemeChanged += OnActualThemeChanged;
         ApplyCaptionButtonColors();
+    }
+
+    internal void ReplaceMainPage(MainPage mainPage)
+    {
+        ArgumentNullException.ThrowIfNull(mainPage);
+        _windowContent.RootFrameControl.Content = mainPage;
+        mainPage.RefreshVersionFooterAutomationProperties();
+        string appTitle = ResolveAppTitle(_appResourceService);
+        Title = appTitle;
+        _windowContent.TitleBarControl.Title = appTitle;
     }
 
     private void OnActualThemeChanged(

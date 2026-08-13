@@ -11,6 +11,7 @@ namespace StaminaManager.Infrastructure.Resources;
 public sealed class AppResourceService : IAppResourceService
 {
     private readonly Func<string, string> _getString;
+    private readonly Action<AppLanguage>? _setLanguageQualifier;
 
     public AppResourceService()
         : this(GetEffectiveLanguageOrDefault())
@@ -19,16 +20,27 @@ public sealed class AppResourceService : IAppResourceService
 
     public AppResourceService(AppLanguage sessionLanguage)
     {
+        AppLanguage currentLanguage = sessionLanguage;
         Lazy<(
             ResourceManager Manager,
             ResourceMap Map,
             ResourceContext Context)> resourceScope = new(
-            () => CreateResourceScope(sessionLanguage),
+            () => CreateResourceScope(currentLanguage),
             LazyThreadSafetyMode.ExecutionAndPublication);
         _getString = resourceId =>
         {
             (_, ResourceMap map, ResourceContext context) = resourceScope.Value;
             return map.GetValue(resourceId, context).ValueAsString;
+        };
+        _setLanguageQualifier = language =>
+        {
+            currentLanguage = language;
+            if (resourceScope.IsValueCreated)
+            {
+                resourceScope.Value.Context.QualifierValues[
+                    KnownResourceQualifierName.Language] =
+                    LanguagePolicy.GetLanguageTag(language);
+            }
         };
     }
 
@@ -36,6 +48,11 @@ public sealed class AppResourceService : IAppResourceService
     {
         ArgumentNullException.ThrowIfNull(getString);
         _getString = getString;
+    }
+
+    internal void SetLanguageQualifier(AppLanguage language)
+    {
+        _setLanguageQualifier?.Invoke(language);
     }
 
     private static (

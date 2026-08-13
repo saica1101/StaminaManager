@@ -42,6 +42,7 @@ public sealed partial class SettingsPage : Page
     private bool _isFlushingAppearanceChanges;
     private bool _isSynchronizingControls = true;
     private bool _areControlEventsAttached;
+    private bool _isDetached;
 
     public SettingsPage(
         SettingsViewModel viewModel,
@@ -183,6 +184,7 @@ public sealed partial class SettingsPage : Page
 
         await ExecuteSettingChangeAsync(async () =>
         {
+            await FlushPendingAppearanceChangesAsync();
             await ViewModel.SetLanguageAsync(requestedLanguage);
         });
     }
@@ -575,6 +577,42 @@ public sealed partial class SettingsPage : Page
         {
             _isSynchronizingControls = false;
         }
+    }
+
+    internal void Detach()
+    {
+        if (_isDetached)
+        {
+            return;
+        }
+
+        Loaded -= SettingsPage_Loaded;
+        _acrylicOpacityCommitTimer?.Stop();
+        if (_acrylicOpacityCommitTimer is not null)
+        {
+            _acrylicOpacityCommitTimer.Tick -=
+                AcrylicOpacityCommitTimer_Tick;
+        }
+
+        if (_areControlEventsAttached)
+        {
+            ThemeToggle.Toggled -= ThemeToggle_Toggled;
+            BackdropSelector.SelectionChanged -=
+                BackdropSelector_SelectionChanged;
+            AcrylicOpacitySlider.ValueChanged -=
+                AcrylicOpacitySlider_ValueChanged;
+            LanguageSelector.SelectionChanged -=
+                LanguageSelector_SelectionChanged;
+            CloseBehaviorSelector.SelectionChanged -=
+                CloseBehaviorSelector_SelectionChanged;
+            StartupToggle.Toggled -= StartupToggle_Toggled;
+            NotificationsToggle.Toggled -= NotificationsToggle_Toggled;
+            NotificationLeadInput.ValueChanged -=
+                NotificationLeadInput_ValueChanged;
+            _areControlEventsAttached = false;
+        }
+
+        _isDetached = true;
     }
 
     internal async Task FlushPendingAppearanceChangesAsync()

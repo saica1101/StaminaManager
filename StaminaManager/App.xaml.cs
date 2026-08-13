@@ -44,6 +44,9 @@ public partial class App : Microsoft.UI.Xaml.Application
     private readonly INotificationScheduler _notificationScheduler;
     private readonly IAppResourceService _appResourceService;
     private readonly AppLanguage _sessionLanguage;
+    private AppLanguage _activeLanguage;
+    private Func<AppLanguage, PageTree>? _pageTreeFactory;
+    private IAppLanguageService? _appLanguageService;
     private DispatcherQueue? _dispatcherQueue;
     private Window? _fallbackWindow;
     private readonly NotificationActivationQueue
@@ -82,6 +85,7 @@ public partial class App : Microsoft.UI.Xaml.Application
         _notificationScheduler = notificationScheduler;
         _appResourceService = appResourceService;
         _sessionLanguage = sessionLanguage;
+        _activeLanguage = sessionLanguage;
         _notificationScheduler.ActivationRequested +=
             OnNotificationActivationRequested;
         InitializeComponent();
@@ -165,6 +169,21 @@ public partial class App : Microsoft.UI.Xaml.Application
                 _coordinator.LastLanguageResult,
                 _coordinator.IsLanguageSynchronized,
                 _coordinator.LanguageConsistencyState);
+            if (_coordinator.LastLanguageResult is
+                    { IsApplied: true, RequestedLanguage: var language }
+                && language != _activeLanguage)
+            {
+                if (await ApplyLanguageAsync(language))
+                {
+                    _settingsViewModel.MarkLiveLanguageApplied(language);
+                }
+                else
+                {
+                    TryRestoreStartupLanguage();
+                    _settingsViewModel.MarkLanguageUiApplyFailed();
+                }
+            }
+
             await _settingsViewModel.RefreshNotificationAvailabilityAsync();
             _settingsViewModel.MarkReady();
 
@@ -410,6 +429,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             dispatcherQueue);
         IClock clock = new SystemClock();
         IAppLanguageService appLanguageService = new AppLanguageService();
+        _appLanguageService = appLanguageService;
         AppLanguage sessionLanguage = _sessionLanguage;
         IAppDataPathProvider pathProvider = new AppDataPathProvider();
         ILocalDataStore dataStore = new LocalDataStore(
@@ -438,13 +458,16 @@ public partial class App : Microsoft.UI.Xaml.Application
             themeService.ResolveInitialTheme(),
             sessionLanguage);
 
-        _gameManager = new GameManager(dataStore, clock, initialSettings);
-        _shellViewModel = new ShellViewModel();
-        _overviewViewModel = new OverviewViewModel(
-            _gameManager,
+        GameManager gameManager = new(dataStore, clock, initialSettings);
+        _gameManager = gameManager;
+        ShellViewModel shellViewModel = new();
+        _shellViewModel = shellViewModel;
+        OverviewViewModel overviewViewModel = new(
+            gameManager,
             clock,
             uiDispatcher,
             _appResourceService);
+        _overviewViewModel = overviewViewModel;
         NotificationCoordinator notificationCoordinator = new(
             _notificationScheduler,
             notificationLedgerStore,
@@ -455,10 +478,10 @@ public partial class App : Microsoft.UI.Xaml.Application
             pathProvider);
         RestoreCoordinator restoreCoordinator = new(
             backupService,
-            _gameManager);
-        _coordinator = new AppCoordinator(
+            gameManager);
+        AppCoordinator coordinator = new(
             dataStore,
-            _gameManager,
+            gameManager,
             uiDispatcher,
             themeService,
             backdropService,
@@ -468,30 +491,32 @@ public partial class App : Microsoft.UI.Xaml.Application
             restoreCoordinator,
             appLanguageService,
             sessionLanguage);
-        _coordinator.NavigationRequested += OnNavigationRequested;
-        _compactViewModel = new CompactViewModel(
-            _gameManager,
+        _coordinator = coordinator;
+        coordinator.NavigationRequested += OnNavigationRequested;
+        CompactViewModel compactViewModel = new(
+            gameManager,
             clock,
-            _coordinator,
+            coordinator,
             uiDispatcher,
             _appResourceService);
+        _compactViewModel = compactViewModel;
         _timerCoordinator = new TimerCoordinator(
             clock,
             new SystemTickSource(),
             uiDispatcher,
             nowUtc =>
             {
-                _overviewViewModel.RefreshOnUiThread(nowUtc);
-                _compactViewModel.RefreshOnUiThread(nowUtc);
+                overviewViewModel.RefreshOnUiThread(nowUtc);
+                compactViewModel.RefreshOnUiThread(nowUtc);
             });
         _timerVisibilityController = new TimerVisibilityController(
             _timerCoordinator);
-        _shellViewModel.PropertyChanged +=
+        shellViewModel.PropertyChanged +=
             OnShellViewModelPropertyChanged;
         _trayService.WindowVisibilityChanged +=
             OnTrayWindowVisibilityChanged;
-        _settingsViewModel = new SettingsViewModel(
-            _gameManager,
+        SettingsViewModel settingsViewModel = new(
+            gameManager,
             themeService,
             backdropService,
             _startupService,
@@ -499,45 +524,31 @@ public partial class App : Microsoft.UI.Xaml.Application
             notificationPermissionService,
             settingsLauncher,
             _appResourceService,
-            _coordinator,
+            coordinator,
             appLanguageService,
-            sessionLanguage);
+            sessionLanguage,
+            applyLanguageAsync: ApplyLanguageAsync);
+        _settingsViewModel = settingsViewModel;
 
-        _startupStage = "OverviewPage";
-        _overviewPage = new OverviewPage(
-            _overviewViewModel,
-            _appResourceService);
-        _startupStage = "SettingsPage";
-        SettingsPage settingsPage = new(
-            _settingsViewModel,
-            _appResourceService);
-        _startupStage = "AboutPage";
-        AboutPage aboutPage = new(
-            new AboutViewModel(
+        Func<AppLanguage, PageTree> pageTreeFactory = language =>
+            CreatePageTree(
+                language,
+                overviewViewModel,
+                settingsViewModel,
+                compactViewModel,
+                shellViewModel,
+                coordinator,
+                gameManager,
+                clock,
+                assetStore,
                 versionProvider,
-                externalUriLauncher,
-                _appResourceService,
-                _sessionLanguage));
-        _startupStage = "CompactPage";
-        CompactPage compactPage = new(
-            _compactViewModel,
-            _appResourceService);
-        _startupStage = "MainPage";
-        MainPage mainPage = new(
-            _shellViewModel,
-            _overviewPage,
-            settingsPage,
-            aboutPage,
-            compactPage,
-            _coordinator,
-            _gameManager,
-            clock,
-            assetStore,
-            _appResourceService,
-            versionProvider);
-        _mainPage = mainPage;
+                externalUriLauncher);
+        _pageTreeFactory = pageTreeFactory;
+        PageTree pageTree = pageTreeFactory(_sessionLanguage);
+        _overviewPage = pageTree.OverviewPage;
+        _mainPage = pageTree.MainPage;
         _startupStage = "MainWindow";
-        _window = new MainWindow(mainPage, _appResourceService);
+        _window = new MainWindow(pageTree.MainPage, _appResourceService);
         _window.ConfigureLifecycle(
             _windowStateService,
             _trayService,
@@ -556,6 +567,172 @@ public partial class App : Microsoft.UI.Xaml.Application
 
         _trayService.Initialize();
         _startupStage = "Composed";
+    }
+
+    private PageTree CreatePageTree(
+        AppLanguage language,
+        OverviewViewModel overviewViewModel,
+        SettingsViewModel settingsViewModel,
+        CompactViewModel compactViewModel,
+        ShellViewModel shellViewModel,
+        AppCoordinator coordinator,
+        GameManager gameManager,
+        IClock clock,
+        AssetStore assetStore,
+        IAppVersionProvider versionProvider,
+        IExternalUriLauncher externalUriLauncher)
+    {
+        OverviewPage? overviewPage = null;
+        SettingsPage? settingsPage = null;
+        AboutPage? aboutPage = null;
+        CompactPage? compactPage = null;
+        MainPage? mainPage = null;
+        try
+        {
+            _startupStage = "OverviewPage";
+            overviewPage = new OverviewPage(
+                overviewViewModel,
+                _appResourceService);
+            _startupStage = "SettingsPage";
+            settingsPage = new SettingsPage(
+                settingsViewModel,
+                _appResourceService);
+            _startupStage = "AboutPage";
+            aboutPage = new AboutPage(
+                new AboutViewModel(
+                    versionProvider,
+                    externalUriLauncher,
+                    _appResourceService,
+                    language));
+            _startupStage = "CompactPage";
+            compactPage = new CompactPage(
+                compactViewModel,
+                _appResourceService);
+            _startupStage = "MainPage";
+            mainPage = new MainPage(
+                shellViewModel,
+                overviewPage!,
+                settingsPage!,
+                aboutPage!,
+                compactPage!,
+                coordinator,
+                gameManager,
+                clock,
+                assetStore,
+                _appResourceService,
+                versionProvider);
+            return new PageTree(
+                mainPage,
+                overviewPage!);
+        }
+        catch
+        {
+            mainPage?.Detach();
+            settingsPage?.Detach();
+            compactPage?.Detach();
+            throw;
+        }
+    }
+
+    private Task<bool> ApplyLanguageAsync(AppLanguage language)
+    {
+        DispatcherQueue? dispatcherQueue = _dispatcherQueue;
+        if (dispatcherQueue is null || dispatcherQueue.HasThreadAccess)
+        {
+            return Task.FromResult(ApplyLanguageOnUiThread(language));
+        }
+
+        TaskCompletionSource<bool> completion = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        if (!dispatcherQueue.TryEnqueue(
+            () => completion.TrySetResult(
+                ApplyLanguageOnUiThread(language))))
+        {
+            return Task.FromResult(false);
+        }
+
+        return completion.Task;
+    }
+
+    private bool ApplyLanguageOnUiThread(AppLanguage language)
+    {
+        if (language == _activeLanguage)
+        {
+            return true;
+        }
+
+        if (_window is null
+            || _mainPage is null
+            || _pageTreeFactory is not Func<AppLanguage, PageTree> factory
+            || _appResourceService is not AppResourceService resources)
+        {
+            return false;
+        }
+
+        AppLanguage previousLanguage = _activeLanguage;
+        MainPage previousMainPage = _mainPage;
+        PageTree? newPageTree = null;
+        bool isRootReplaced = false;
+        try
+        {
+            resources.SetLanguageQualifier(language);
+            newPageTree = factory(language);
+            _window.ReplaceMainPage(newPageTree.MainPage);
+            isRootReplaced = true;
+            _overviewPage = newPageTree.OverviewPage;
+            _mainPage = newPageTree.MainPage;
+            _activeLanguage = language;
+            previousMainPage.Detach();
+            return true;
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            if (newPageTree is not null && !isRootReplaced)
+            {
+                newPageTree.MainPage.Detach();
+            }
+
+            try
+            {
+                resources.SetLanguageQualifier(previousLanguage);
+            }
+            catch (Exception rollbackException) when (
+                !IsProcessFatal(rollbackException))
+            {
+                Debug.WriteLine(
+                    "Language resource rollback failed: "
+                    + rollbackException.GetType().Name);
+            }
+
+            Debug.WriteLine(
+                "Language UI rebuild failed: "
+                + exception.GetType().Name);
+            return false;
+        }
+    }
+
+    private void TryRestoreStartupLanguage()
+    {
+        try
+        {
+            LanguageChangeResult result = _appLanguageService?.SetLanguage(
+                _activeLanguage)
+                ?? new LanguageChangeResult(
+                    _activeLanguage,
+                    IsApplied: false,
+                    LanguageFailureReason.PlatformError);
+            if (!result.IsApplied)
+            {
+                Debug.WriteLine(
+                    "Startup language override rollback was not applied.");
+            }
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Startup language override rollback failed: "
+                + exception.GetType().Name);
+        }
     }
 
     private void OnNavigationRequested(
@@ -727,4 +904,8 @@ public partial class App : Microsoft.UI.Xaml.Application
         string Heading,
         string Message,
         string CloseButton);
+
+    private sealed record PageTree(
+        MainPage MainPage,
+        OverviewPage OverviewPage);
 }

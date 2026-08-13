@@ -11,6 +11,7 @@ namespace StaminaManager.Views;
 public sealed partial class CompactPage : Page, INotifyPropertyChanged
 {
     private bool _isSynchronizingSelection;
+    private bool _isDetached;
 
     public CompactPage(
         CompactViewModel viewModel,
@@ -50,8 +51,25 @@ public sealed partial class CompactPage : Page, INotifyPropertyChanged
 
     public void ApplySelectedGame(Guid? gameId)
     {
+        if (_isDetached)
+        {
+            return;
+        }
+
         ViewModel.ApplySelectedGame(gameId);
         SynchronizeSelection();
+    }
+
+    internal void Detach()
+    {
+        if (_isDetached)
+        {
+            return;
+        }
+
+        ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        ActualThemeChanged -= CompactPage_ActualThemeChanged;
+        _isDetached = true;
     }
 
     private async void CompactGameSelector_SelectionChanged(

@@ -25,6 +25,7 @@ public sealed partial class MainPage : Page
     private readonly IAppResourceService _appResourceService;
     private bool _isSynchronizingSelection;
     private bool _isDialogOpen;
+    private bool _isDetached;
 
     public MainPage(
         ShellViewModel viewModel,
@@ -100,6 +101,28 @@ public sealed partial class MainPage : Page
 
     internal Task FlushPendingSettingsChangesAsync() =>
         _settingsPage.FlushPendingAppearanceChangesAsync();
+
+    internal void Detach()
+    {
+        if (_isDetached)
+        {
+            return;
+        }
+
+        ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        _overviewPage.ViewModel.AddGameRequested -= OnAddGameRequested;
+        _overviewPage.ViewModel.EditGameRequested -= OnEditGameRequested;
+        _overviewPage.ViewModel.CompactModeRequested -=
+            OnCompactModeRequested;
+        _compactPage.ViewModel.AddGameRequested -= OnAddGameRequested;
+        _compactPage.ViewModel.EditGameRequested -=
+            OnCompactEditGameRequested;
+        _compactPage.ViewModel.ReturnOverviewRequested -=
+            OnReturnOverviewRequested;
+        _settingsPage.Detach();
+        _compactPage.Detach();
+        _isDetached = true;
+    }
 
     private void ShellNavigation_SelectionChanged(
         NavigationView sender,

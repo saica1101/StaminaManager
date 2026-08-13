@@ -66,8 +66,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly ISettingsLauncher _settingsLauncher;
     private readonly IAppResourceService _appResourceService;
     private readonly IAppLanguageService _appLanguageService;
+    private readonly Func<AppLanguage, Task<bool>>? _applyLanguageAsync;
     private readonly AppCoordinator? _appCoordinator;
-    private readonly AppLanguage _sessionLanguage;
+    private AppLanguage _activeLanguage;
     private readonly SemaphoreSlim _mutationGate = new(1, 1);
     private int _lastAppliedAcrylicTintOpacityPercent;
 
@@ -117,7 +118,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         IAppResourceService appResourceService,
         AppCoordinator? appCoordinator = null,
         IAppLanguageService? appLanguageService = null,
-        AppLanguage? sessionLanguage = null)
+        AppLanguage? sessionLanguage = null,
+        Func<AppLanguage, Task<bool>>? applyLanguageAsync = null)
     {
         ArgumentNullException.ThrowIfNull(gameManager);
         ArgumentNullException.ThrowIfNull(themeService);
@@ -139,8 +141,9 @@ public sealed partial class SettingsViewModel : ObservableObject
         _appCoordinator = appCoordinator;
         _appLanguageService = appLanguageService
             ?? new PassThroughLanguageService();
-        _sessionLanguage = sessionLanguage
+        _activeLanguage = sessionLanguage
             ?? _appLanguageService.GetEffectiveLanguage();
+        _applyLanguageAsync = applyLanguageAsync;
         InfoBarTitle = _appResourceService.GetString("SettingsErrorTitle");
         AppSettings settings = gameManager.CurrentData.Settings;
         Theme = settings.Theme;
@@ -327,7 +330,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         LanguagePolicy.ToSelectionIndex(Language);
 
     public bool IsLanguageRestartRequired =>
-        Language != _sessionLanguage;
+        Language != _activeLanguage;
 
     public int CloseBehaviorIndex => (int)CloseBehavior;
 
@@ -613,6 +616,40 @@ public sealed partial class SettingsViewModel : ObservableObject
             Language = requestedLanguage;
             LanguageConsistencyState =
                 LanguageConsistencyState.Synchronized;
+            if (_applyLanguageAsync is not null)
+            {
+                bool isUiApplied = await ApplyLanguageUiAsync(
+                    requestedLanguage);
+                if (!isUiApplied)
+                {
+                    bool isOverrideRolledBack =
+                        RollbackLanguageOverride(previousLanguage);
+                    bool isSettingsRolledBack = await RollbackLanguageAsync(
+                        previousLanguage);
+                    if (isOverrideRolledBack && isSettingsRolledBack)
+                    {
+                        Language = previousLanguage;
+                        LanguageConsistencyState =
+                            LanguageConsistencyState.Synchronized;
+                        ShowLanguageChangeFailure(
+                            LanguageFailureReason.PlatformError);
+                    }
+                    else
+                    {
+                        Language = _gameManager.CurrentData.Settings.Language;
+                        LanguageConsistencyState =
+                            LanguageConsistencyState.Inconsistent;
+                        ShowLanguageSynchronizationFailure(
+                            LanguageFailureReason.PlatformError);
+                    }
+
+                    return false;
+                }
+
+                _activeLanguage = requestedLanguage;
+                OnPropertyChanged(nameof(IsLanguageRestartRequired));
+            }
+
             NotificationReconcileResult notificationResult;
             try
             {
@@ -643,7 +680,7 @@ public sealed partial class SettingsViewModel : ObservableObject
                 return false;
             }
 
-            if (IsLanguageRestartRequired)
+            if (_applyLanguageAsync is null && IsLanguageRestartRequired)
             {
                 ShowMessage(
                     LanguageRestartMessage,
@@ -1207,6 +1244,9 @@ public sealed partial class SettingsViewModel : ObservableObject
         IsBackupBusy = true;
         BackupStatusText = _appResourceService.GetString(
             "SettingsBackupRestoreBusy");
+        AppLanguage previousActiveLanguage = _activeLanguage;
+        bool isLanguageUiApplyFailed = false;
+        bool isLanguageRolledBack = false;
         try
         {
             BackupRestoreResult result = await coordinator.RestoreBackupAsync(
@@ -1214,6 +1254,33 @@ public sealed partial class SettingsViewModel : ObservableObject
                 isReplacementConfirmed,
                 cancellationToken);
             SynchronizeFromCurrentData(coordinator);
+            if (_applyLanguageAsync is not null
+                && Language != previousActiveLanguage
+                && coordinator.IsLanguageSynchronized)
+            {
+                if (await ApplyLanguageUiAsync(Language))
+                {
+                    MarkLiveLanguageApplied(Language);
+                }
+                else
+                {
+                    bool isOverrideRolledBack =
+                        RollbackLanguageOverride(previousActiveLanguage);
+                    bool isSettingsRolledBack = await RollbackLanguageAsync(
+                        previousActiveLanguage);
+                    if (isOverrideRolledBack && isSettingsRolledBack)
+                    {
+                        isLanguageRolledBack = true;
+                        SynchronizeFromCurrentData(coordinator);
+                        MarkLiveLanguageApplied(previousActiveLanguage);
+                    }
+                    else
+                    {
+                        isLanguageUiApplyFailed = true;
+                        MarkLanguageUiApplyFailed();
+                    }
+                }
+            }
 
             bool hasRetry = result.IsPartial
                 || result.RequiresDerivedStateRetry
@@ -1221,6 +1288,7 @@ public sealed partial class SettingsViewModel : ObservableObject
                 || coordinator.LastBackdropResult?.ErrorMessage is not null
                 || !coordinator.IsStartupSynchronized
                 || !coordinator.IsLanguageSynchronized
+                || isLanguageUiApplyFailed
                 || coordinator.LastNotificationReconcileResult?.HasFailures
                     == true;
             bool isLanguageRestartRequired = IsLanguageRestartRequired;
@@ -1268,6 +1336,14 @@ public sealed partial class SettingsViewModel : ObservableObject
         finally
         {
             SynchronizeFromCurrentData(coordinator);
+            if (isLanguageRolledBack)
+            {
+                MarkLiveLanguageApplied(previousActiveLanguage);
+            }
+            else if (isLanguageUiApplyFailed)
+            {
+                MarkLanguageUiApplyFailed();
+            }
             IsBackupBusy = false;
         }
     }
@@ -1292,6 +1368,21 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         InitializationState = SettingsInitializationState.Failed;
         CloseInfoBar();
+    }
+
+    internal void MarkLiveLanguageApplied(AppLanguage language)
+    {
+        _activeLanguage = language;
+        Language = language;
+        LanguageConsistencyState = LanguageConsistencyState.Synchronized;
+        OnPropertyChanged(nameof(IsLanguageRestartRequired));
+    }
+
+    internal void MarkLanguageUiApplyFailed()
+    {
+        LanguageConsistencyState = LanguageConsistencyState.Inconsistent;
+        ShowLanguageSynchronizationFailure(
+            LanguageFailureReason.PlatformError);
     }
 
     internal void ReportUnexpectedFailure() => ShowMessage(
@@ -1332,6 +1423,26 @@ public sealed partial class SettingsViewModel : ObservableObject
             InfoBarSeverity.Error,
             _appResourceService.GetString(
                 "SettingsBackupRestoreFailureTitle"));
+    }
+
+    private async Task<bool> ApplyLanguageUiAsync(AppLanguage language)
+    {
+        if (_applyLanguageAsync is null)
+        {
+            return true;
+        }
+
+        try
+        {
+            return await _applyLanguageAsync(language);
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Language UI apply failed: "
+                + exception.GetType().Name);
+            return false;
+        }
     }
 
     public void SynchronizeFromCurrentSettings(
@@ -1768,6 +1879,21 @@ public sealed partial class SettingsViewModel : ObservableObject
         {
             Debug.WriteLine(
                 "Language setting rollback failed: "
+                + exception.GetType().Name);
+            return false;
+        }
+    }
+
+    private bool RollbackLanguageOverride(AppLanguage previousLanguage)
+    {
+        try
+        {
+            return _appLanguageService.SetLanguage(previousLanguage).IsApplied;
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Language override rollback failed: "
                 + exception.GetType().Name);
             return false;
         }
