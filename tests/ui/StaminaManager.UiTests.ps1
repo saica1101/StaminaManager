@@ -2401,6 +2401,7 @@ try {
     Add-Result Safety '言語テスト開始前の実効・選択言語記録' PASS `
         ($languageBaseline | ConvertTo-Json -Compress)
     Ensure-TestLanguageJapanese
+    $writtenFixtureState = Get-EmptyFixtureState
     $appliedFixtureState = Wait-EmptyFixtureApplied `
         $writtenFixtureState.Fingerprint '起動後'
     Add-Result Safety '起動後の空games fixture反映' PASS `

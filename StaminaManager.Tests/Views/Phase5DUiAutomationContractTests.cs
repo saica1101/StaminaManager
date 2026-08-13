@@ -335,6 +335,35 @@ finally {{
     }
 
     [TestMethod]
+    public void UiSuite_RefreshesFixtureFingerprintAfterLanguageNormalization()
+    {
+        string source = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "tests",
+            "ui",
+            "StaminaManager.UiTests.ps1"));
+
+        int languageNormalization = source.LastIndexOf(
+            "    Ensure-TestLanguageJapanese",
+            StringComparison.Ordinal);
+        int refreshedFingerprint = source.IndexOf(
+            "    $writtenFixtureState = Get-EmptyFixtureState",
+            languageNormalization,
+            StringComparison.Ordinal);
+        int appliedWait = source.IndexOf(
+            "$appliedFixtureState = Wait-EmptyFixtureApplied",
+            languageNormalization,
+            StringComparison.Ordinal);
+
+        Assert.IsGreaterThanOrEqualTo(0, languageNormalization);
+        Assert.IsTrue(
+            refreshedFingerprint > languageNormalization &&
+                refreshedFingerprint < appliedWait,
+            "Language normalization must refresh the fixture fingerprint " +
+            "before the post-start wait.");
+    }
+
+    [TestMethod]
     public void UiSuite_AstVerifiesExecutableAppearanceAndLanguageFlows()
     {
         string scriptPath = Path.Combine(
