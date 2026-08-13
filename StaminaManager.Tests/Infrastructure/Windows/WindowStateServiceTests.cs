@@ -8,7 +8,7 @@ namespace StaminaManager.Tests.Infrastructure.Windows;
 public sealed class WindowStateServiceTests
 {
     [TestMethod]
-    public void ApplyDisplayMode_表示前にmode別Idと補正済み境界を適用する()
+    public void ApplyDisplayMode_表示前に補正済み境界を適用する()
     {
         FakeWindowStateAdapter adapter = new()
         {
@@ -26,7 +26,6 @@ public sealed class WindowStateServiceTests
 
         service.ApplyDisplayMode(AppDisplayMode.Standard);
 
-        Assert.AreEqual("StaminaManager.Standard", adapter.PersistenceId);
         Assert.AreEqual(new WindowSize(520, 520), adapter.MinimumSize);
         Assert.AreEqual(
             new WindowBounds(1020, 0, 900, 700),
@@ -80,7 +79,6 @@ public sealed class WindowStateServiceTests
             new WindowBounds(100, 120, 1120, 760),
             standard.Bounds);
         Assert.IsTrue(standard.IsMaximized);
-        Assert.AreEqual("StaminaManager.Compact", adapter.PersistenceId);
         Assert.AreEqual(new WindowSize(360, 480), adapter.MinimumSize);
 
         service.ApplyDisplayMode(AppDisplayMode.Standard);
@@ -130,17 +128,12 @@ public sealed class WindowStateServiceTests
 
         public WindowPresenterState PresenterState { get; set; }
 
-        public string? PersistenceId { get; private set; }
-
         public WindowSize MinimumSize { get; private set; }
 
         public int MaximizeCount { get; private set; }
 
         public WindowWorkArea GetNearestWorkArea(WindowBounds bounds) =>
             WorkArea;
-
-        public void SetPersistenceId(string persistenceId) =>
-            PersistenceId = persistenceId;
 
         public void SetMinimumSize(WindowSize minimumSize) =>
             MinimumSize = minimumSize;

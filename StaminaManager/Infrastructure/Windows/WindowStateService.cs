@@ -63,7 +63,6 @@ public sealed class WindowStateService : IWindowStateService
             CurrentDisplayMode = displayMode;
             WindowBoundsProfile profile = WindowBoundsPolicy.GetProfile(
                 displayMode);
-            _adapter.SetPersistenceId(profile.PersistenceId);
             _adapter.SetMinimumSize(profile.MinimumSize);
             if (_adapter.PresenterState != WindowPresenterState.Restored)
             {
@@ -203,8 +202,6 @@ internal interface IWindowStateAdapter
 
     WindowWorkArea GetNearestWorkArea(WindowBounds bounds);
 
-    void SetPersistenceId(string persistenceId);
-
     void SetMinimumSize(WindowSize minimumSize);
 
     void MoveAndResize(WindowBounds bounds);
@@ -275,9 +272,6 @@ internal sealed class MainWindowStateAdapter : IWindowStateAdapter
             workArea.Width,
             workArea.Height);
     }
-
-    public void SetPersistenceId(string persistenceId) =>
-        WindowManager.Get(GetWindow()).PersistenceId = persistenceId;
 
     public void SetMinimumSize(WindowSize minimumSize)
     {
