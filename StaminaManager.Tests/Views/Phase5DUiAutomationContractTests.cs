@@ -67,6 +67,51 @@ Assert-NonStoreTestPackage ([pscustomobject]@{{
     }
 
     [TestMethod]
+    public void UiSuite_EmptyDirectoryFingerprintIsEmptyString()
+    {
+        string scriptPath = Path.Combine(
+            FindRepositoryRoot(),
+            "tests",
+            "ui",
+            "StaminaManager.UiTests.ps1");
+
+        RunPowerShell($@"
+$ErrorActionPreference = 'Stop'
+$scriptPath = $env:STAMINA_UI_SCRIPT
+$tokens = $null
+$parseErrors = $null
+$source = Get-Content -LiteralPath $scriptPath -Raw -Encoding UTF8
+$ast = [System.Management.Automation.Language.Parser]::ParseInput(
+    $source, $scriptPath, [ref]$tokens, [ref]$parseErrors)
+if ($parseErrors.Count -gt 0) {{
+    throw ('PowerShell parse failed: ' + $parseErrors[0].Message)
+}}
+$functions = @($ast.FindAll({{
+    param($node)
+    $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+        $node.Name -eq 'Get-DirectoryFingerprint'
+}}, $true))
+if ($functions.Count -ne 1) {{
+    throw 'Get-DirectoryFingerprint must have exactly one definition.'
+}}
+. ([scriptblock]::Create($functions[0].Extent.Text))
+$directory = Join-Path ([IO.Path]::GetTempPath()) `
+    ('stamina-empty-fingerprint-' + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $directory | Out-Null
+try {{
+    $value = Get-DirectoryFingerprint $directory
+    if ($null -ne $value -and $value -ne '') {{
+        throw ('Expected an empty fingerprint, got: ' + $value)
+    }}
+}}
+finally {{
+    Remove-Item -LiteralPath $directory -Recurse -Force
+}}
+'PASS'
+", scriptPath);
+    }
+
+    [TestMethod]
     public void UiSuite_AstVerifiesExecutableAppearanceAndLanguageFlows()
     {
         string scriptPath = Path.Combine(

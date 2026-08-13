@@ -325,13 +325,13 @@ function Get-DirectoryFingerprint {
     param([string]$Path)
 
     $root = [IO.Path]::GetFullPath($Path).TrimEnd('\')
-    $entries = Get-ChildItem -LiteralPath $root -Force -File -Recurse |
+    $entries = @(Get-ChildItem -LiteralPath $root -Force -File -Recurse |
         Sort-Object FullName |
         ForEach-Object {
             $relativePath = $_.FullName.Substring($root.Length).TrimStart('\')
             $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
             "F|$relativePath|$($_.Length)|$hash"
-        }
+        })
     return [string]::Join("`n", $entries)
 }
 
