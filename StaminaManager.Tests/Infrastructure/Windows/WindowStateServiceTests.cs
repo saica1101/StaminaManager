@@ -80,6 +80,13 @@ public sealed class WindowStateServiceTests
             standard.Bounds);
         Assert.IsTrue(standard.IsMaximized);
         Assert.AreEqual(new WindowSize(360, 480), adapter.MinimumSize);
+        WindowBoundsSnapshot compact = store.Get(
+            AppDisplayMode.Compact)!.Value;
+        Assert.AreEqual(
+            new WindowBounds(100, 120, 420, 520),
+            compact.Bounds);
+        Assert.AreEqual(96d, compact.SavedDpi);
+        Assert.IsFalse(compact.IsMaximized);
 
         service.ApplyDisplayMode(AppDisplayMode.Standard);
 
@@ -98,10 +105,7 @@ public sealed class WindowStateServiceTests
             CurrentDpi = 96,
             WorkArea = new WindowWorkArea(0, 0, 1920, 1040),
         };
-        MemoryWindowSnapshotStore store = new()
-        {
-            SaveException = new IOException("sensitive detail"),
-        };
+        MemoryWindowSnapshotStore store = new();
         List<Type> diagnostics = [];
         WindowStateService service = new(
             adapter,
@@ -109,6 +113,7 @@ public sealed class WindowStateServiceTests
             diagnostics.Add);
         service.ApplyDisplayMode(AppDisplayMode.Standard);
 
+        store.SaveException = new IOException("sensitive detail");
         service.CaptureCurrent();
 
         CollectionAssert.AreEqual(
@@ -162,7 +167,7 @@ public sealed class WindowStateServiceTests
         private readonly Dictionary<AppDisplayMode, WindowBoundsSnapshot>
             _snapshots = [];
 
-        public Exception? SaveException { get; init; }
+        public Exception? SaveException { get; set; }
 
         public WindowBoundsSnapshot? Get(AppDisplayMode displayMode) =>
             _snapshots.TryGetValue(displayMode, out WindowBoundsSnapshot value)

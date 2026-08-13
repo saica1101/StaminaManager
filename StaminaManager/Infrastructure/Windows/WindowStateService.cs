@@ -89,6 +89,7 @@ public sealed class WindowStateService : IWindowStateService
                 }
             }
 
+            SaveSnapshot(displayMode, CaptureSnapshot());
             _isInitialized = true;
         }
         finally
