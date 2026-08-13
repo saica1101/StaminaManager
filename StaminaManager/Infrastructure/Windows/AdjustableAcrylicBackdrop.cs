@@ -176,7 +176,7 @@ internal static class AdjustableAcrylicConnection
 internal sealed class DesktopAcrylicControllerAdapter :
     IAdjustableAcrylicController
 {
-    private DesktopAcrylicController _controller = new();
+    private readonly DesktopAcrylicController _controller = new();
     private readonly ICompositionSupportsSystemBackdrop _target;
     private readonly SystemBackdropConfiguration _configuration;
     private bool _isTargetAttached;
@@ -187,6 +187,7 @@ internal sealed class DesktopAcrylicControllerAdapter :
     {
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(configuration);
+
         _target = target;
         _configuration = configuration;
     }
@@ -205,6 +206,11 @@ internal sealed class DesktopAcrylicControllerAdapter :
 
     public void AttachTarget()
     {
+        // 先にWinUIが管理するConfigurationをControllerへ渡す。
+        // Configurationには現在のTheme / IsInputActive /
+        // IsHighContrastが反映される。
+        _controller.SetSystemBackdropConfiguration(_configuration);
+
         if (!_controller.AddSystemBackdropTarget(_target))
         {
             throw new InvalidOperationException(
@@ -212,7 +218,6 @@ internal sealed class DesktopAcrylicControllerAdapter :
         }
 
         _isTargetAttached = true;
-        _controller.SetSystemBackdropConfiguration(_configuration);
     }
 
     public void DetachTarget()
@@ -234,25 +239,21 @@ internal sealed class DesktopAcrylicControllerAdapter :
 
     public void ResetProperties()
     {
-        // SDK 2.3.1では既存ControllerのResetPropertiesが直前テーマの
-        // 既定色を返すため、現在の既定構成でControllerだけを置き換える。
-        DesktopAcrylicController previousController = _controller;
-        DetachTarget();
-        previousController.Dispose();
-
-        _controller = new DesktopAcrylicController();
-        // WinUI Galleryと同じ順序で接続し、現在テーマの素材を生成させる。
-        if (!_controller.AddSystemBackdropTarget(_target))
-        {
-            throw new InvalidOperationException(
-                "Desktop Acrylicのバックドロップターゲットを再接続できませんでした。");
-        }
-
-        _isTargetAttached = true;
-        _controller.SetSystemBackdropConfiguration(_configuration);
+        // TintOpacity / LuminosityOpacityを変更すると、
+        // Controllerの自動Light/Dark切替が無効になる。
+        //
+        // ResetPropertiesで現在のSystemBackdropConfigurationに
+        // 対応したシステム既定のAcrylic外観へ戻す。
+        //
+        // この直後にLifecycle側でユーザー指定Opacityだけを
+        // 再適用する。
+        _controller.ResetProperties();
     }
 
-    public void Dispose() => _controller.Dispose();
+    public void Dispose()
+    {
+        _controller.Dispose();
+    }
 }
 
 /// <summary>
