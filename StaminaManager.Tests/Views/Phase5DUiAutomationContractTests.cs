@@ -436,7 +436,7 @@ if ($selectAcrylic.Count -ne 1 -or $diagnostic.Count -lt 1 -or
 $acrylicText = $acrylic.Extent.Text
 if ($acrylicText -notmatch '(?s)Restart-TestPackage.*?wait-for AcrylicOpacitySlider.*?Wait-BackdropDiagnostic \$expectedDiagnostics\[100\]' -or
     $acrylicText -notmatch '\$isAcrylicAvailable\s+-or\s+\$initialBackdrop\s+-eq\s+\x27Acrylic\x27' -or
-    $acrylicText -notmatch '(?s)set-value AcrylicOpacitySlider.*?\$initialOpacity.*?Wait-PersistedAcrylicOpacity \$initialOpacity.*?Wait-BackdropDiagnostic \$expectedInitialDiagnostic') {{
+    $acrylicText -notmatch '(?s)set-value\s+AcrylicOpacitySlider\s+`?\s*\$initialOpacity.*?Wait-PersistedAcrylicOpacity \$initialOpacity.*?Wait-BackdropDiagnostic \$expectedInitialDiagnostic') {{
     throw 'Acrylic restore/restart diagnostic contract is missing.'
 }}
 $restoreThrow = @($acrylic.FindAll({{
