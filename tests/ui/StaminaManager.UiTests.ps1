@@ -1006,8 +1006,10 @@ function Restore-TestLanguage {
         Out-Null
     Select-ComboItem LanguageSelector $temporaryLabel
     Wait-PersistedLanguage $temporaryLanguage
+    Wait-ControlEnabled LanguageSelector $true
     Select-ComboItem LanguageSelector $targetLabel
     Wait-PersistedLanguage $targetLanguage
+    Wait-ControlEnabled LanguageSelector $true
 
     # Settings保存経路がPrimaryLanguageOverrideを設定した後に再起動する。
     Restart-TestPackage
@@ -1115,6 +1117,7 @@ function Ensure-TestLanguageJapanese {
     if ((Get-ControlValue LanguageSelector) -ne '日本語') {
         Select-ComboItem LanguageSelector '日本語'
         Wait-PersistedLanguage 'Japanese'
+        Wait-ControlEnabled LanguageSelector $true
         Restart-TestPackage
         Invoke-WinApp ui wait-for NavOverview -a $AppPid -t 5000 |
             Out-Null
@@ -1208,7 +1211,8 @@ function Wait-ControlEnabled {
         [int]$TimeoutMilliseconds = 3000)
 
     $expectedValue = if ($Expected) { 'True' } else { 'False' }
-    Invoke-WinApp ui wait-for $AutomationId -a $AppPid `
+    Invoke-WinApp ui wait-for $AutomationId `
+        -w (Get-MainWindowHandle) `
         -p IsEnabled --value $expectedValue `
         -t $TimeoutMilliseconds | Out-Null
 }
@@ -2895,6 +2899,7 @@ try {
                 Out-Null
             Select-ComboItem LanguageSelector 'English'
             Wait-PersistedLanguage 'English'
+            Wait-ControlEnabled LanguageSelector $true
             Restart-TestPackage
             Invoke-WinApp ui wait-for NavOverview -a $AppPid -t 5000 |
                 Out-Null
@@ -2906,6 +2911,7 @@ try {
                 Out-Null
             Select-ComboItem LanguageSelector '日本語'
             Wait-PersistedLanguage 'Japanese'
+            Wait-ControlEnabled LanguageSelector $true
             Restart-TestPackage
             Invoke-WinApp ui wait-for NavOverview -a $AppPid -t 5000 |
                 Out-Null

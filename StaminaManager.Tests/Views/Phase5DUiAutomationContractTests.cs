@@ -266,6 +266,49 @@ finally {{
             System.Text.RegularExpressions.Regex.IsMatch(
                 source,
                 @"Invoke-WinApp ui wait-for AcrylicOpacitySlider\s+`\s+-a \$AppPid\s+-p Value"));
+        StringAssert.Contains(
+            source,
+            "Invoke-WinApp ui wait-for $AutomationId `\n        -w (Get-MainWindowHandle) `\n        -p IsEnabled");
+        Assert.DoesNotContain(
+            "Invoke-WinApp ui wait-for $AutomationId -a $AppPid `\n        -p IsEnabled",
+            source);
+    }
+
+    [TestMethod]
+    public void UiSuite_WaitsForLanguageSaveBeforeEveryRestart()
+    {
+        string source = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "tests",
+            "ui",
+            "StaminaManager.UiTests.ps1"));
+
+        const string languageWait = "Wait-ControlEnabled LanguageSelector $true";
+        int languageWaitCount = System.Text.RegularExpressions.Regex.Matches(
+            source,
+            System.Text.RegularExpressions.Regex.Escape(languageWait)).Count;
+        Assert.AreEqual(5, languageWaitCount);
+
+        System.Text.RegularExpressions.MatchCollection persistedCalls =
+            System.Text.RegularExpressions.Regex.Matches(
+                source,
+                @"(?m)^\s+Wait-PersistedLanguage\s+");
+        foreach (System.Text.RegularExpressions.Match persistedCall in
+            persistedCalls)
+        {
+            int completionWait = source.IndexOf(
+                languageWait,
+                persistedCall.Index,
+                StringComparison.Ordinal);
+            int nextRestart = source.IndexOf(
+                "Restart-TestPackage",
+                persistedCall.Index,
+                StringComparison.Ordinal);
+            Assert.IsTrue(
+                completionWait >= persistedCall.Index &&
+                    (nextRestart < 0 || completionWait < nextRestart),
+                "Language save completion must precede restart.");
+        }
     }
 
     [TestMethod]
