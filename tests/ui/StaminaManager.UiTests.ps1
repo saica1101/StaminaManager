@@ -219,7 +219,7 @@ $requiredAutomationIds = @(
     'ShellContentFrame',
     'VersionFooterBand',
     'VersionFooterText',
-    'AboutPageRoot',
+    'AboutScrollViewer',
     'AboutVersionText',
     'OpenGitHubButton',
     'OpenReadmeButton',
@@ -1075,7 +1075,7 @@ function Assert-LanguageSurface {
         HelpText 'LanguageSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText'
 
     Invoke-WinApp ui invoke NavAbout -a $AppPid | Out-Null
-    Invoke-WinApp ui wait-for AboutPageRoot -a $AppPid -t 5000 | Out-Null
+    Invoke-WinApp ui wait-for AboutScrollViewer -a $AppPid -t 5000 | Out-Null
     foreach ($key in @(
             'AboutAppName.Text',
             'AboutDescription.Text',
@@ -1507,7 +1507,6 @@ function Collect-AuditSnapshot {
                 'VersionFooterText',
                 'NavAbout',
                 'AboutScrollViewer',
-                'AboutPageRoot',
                 'AboutVersionText',
                 'OpenGitHubButton',
                 'OpenReadmeButton',
@@ -2121,7 +2120,7 @@ function Assert-AboutLayoutBounds {
     }
 
     $viewport = Get-ElementMatch AboutScrollViewer
-    $root = Get-ElementMatch AboutPageRoot
+    $root = Get-ElementMatch AboutScrollViewer
     $windowRight = [int]$window.x + [int]$window.width
     $windowBottom = [int]$window.y + [int]$window.height
     $viewportRight = [int]$viewport.x + [int]$viewport.width
@@ -2139,7 +2138,7 @@ function Assert-AboutLayoutBounds {
         $rootRight -gt $windowRight -or
         [int]$root.x -lt [int]$viewport.x -or
         $rootRight -gt $viewportRight) {
-        throw "$State bounds are invalid for AboutPageRoot."
+        throw "$State bounds are invalid for AboutScrollViewer."
     }
     foreach ($automationId in @(
             'AboutVersionText',
@@ -2190,7 +2189,7 @@ function Invoke-AboutUiAudit {
                 Out-Null
         }
         foreach ($automationId in @(
-                'AboutPageRoot',
+                'AboutScrollViewer',
                 'AboutVersionText',
                 'OpenGitHubButton',
                 'OpenReadmeButton',

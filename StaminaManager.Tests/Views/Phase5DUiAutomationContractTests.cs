@@ -178,6 +178,21 @@ finally {{
     }
 
     [TestMethod]
+    public void UiSuite_UsesPublishedAboutScrollViewerForNavigationAndAudit()
+    {
+        string source = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "tests",
+            "ui",
+            "StaminaManager.UiTests.ps1"));
+
+        Assert.DoesNotContain("AboutPageRoot", source);
+        StringAssert.Contains(source, "    'AboutScrollViewer',");
+        StringAssert.Contains(source, "wait-for AboutScrollViewer");
+        StringAssert.Contains(source, "$root = Get-ElementMatch AboutScrollViewer");
+    }
+
+    [TestMethod]
     public void UiSuite_AstVerifiesExecutableAppearanceAndLanguageFlows()
     {
         string scriptPath = Path.Combine(
