@@ -194,9 +194,7 @@ public sealed class MainWindow : WinUIEx.WindowEx
         {
             MicaBackdrop => "Mica",
             AdjustableAcrylicBackdrop adjustableAcrylic =>
-                string.Create(
-                    CultureInfo.InvariantCulture,
-                    $"Acrylic|TintOpacity={adjustableAcrylic.TintOpacityPercent / 100f:F2}"),
+                FormatAcrylicBackdropDiagnostic(adjustableAcrylic),
             DesktopAcrylicBackdrop => "Acrylic",
             Infrastructure.Windows.BlurredBackdrop => "Blur",
             WinUIEx.TransparentTintBackdrop => "Transparent",
@@ -207,6 +205,15 @@ public sealed class MainWindow : WinUIEx.WindowEx
         };
         return $"{backdrop}|SolidSurface="
             + _windowContent.SolidBackdropSurfaceControl.Visibility;
+    }
+
+    private static string FormatAcrylicBackdropDiagnostic(
+        AdjustableAcrylicBackdrop adjustableAcrylic)
+    {
+        float opacity = adjustableAcrylic.TintOpacityPercent / 100f;
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"Acrylic|TintOpacity={opacity:F2}|LuminosityOpacity={opacity:F2}");
     }
 
     private async void OnAppWindowClosing(

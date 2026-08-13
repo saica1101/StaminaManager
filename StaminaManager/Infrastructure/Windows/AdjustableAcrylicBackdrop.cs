@@ -24,6 +24,8 @@ internal interface IAdjustableAcrylicController : IDisposable
 {
     float TintOpacity { get; set; }
 
+    float LuminosityOpacity { get; set; }
+
     void ApplyState(AdjustableAcrylicState state);
 
     void ResetProperties();
@@ -69,7 +71,7 @@ internal sealed class AdjustableAcrylicLifecycle
         {
             ApplyState(_stateSource.Current, shouldResetProperties: false);
             _attachTarget();
-            ApplyTintOpacity();
+            ApplyOpacity();
         }
         catch
         {
@@ -89,7 +91,7 @@ internal sealed class AdjustableAcrylicLifecycle
         _tintOpacityPercent = tintOpacityPercent;
         if (_isConnected)
         {
-            ApplyTintOpacity();
+            ApplyOpacity();
         }
     }
 
@@ -126,7 +128,7 @@ internal sealed class AdjustableAcrylicLifecycle
         ApplyState(state, shouldResetProperties);
         if (shouldResetProperties)
         {
-            ApplyTintOpacity();
+            ApplyOpacity();
         }
     }
 
@@ -134,16 +136,21 @@ internal sealed class AdjustableAcrylicLifecycle
         AdjustableAcrylicState state,
         bool shouldResetProperties)
     {
-        _controller.ApplyState(state);
-        _lastState = state;
         if (shouldResetProperties)
         {
             _controller.ResetProperties();
         }
+
+        _controller.ApplyState(state);
+        _lastState = state;
     }
 
-    private void ApplyTintOpacity() => _controller.TintOpacity =
-        _tintOpacityPercent / 100f;
+    private void ApplyOpacity()
+    {
+        float opacity = _tintOpacityPercent / 100f;
+        _controller.TintOpacity = opacity;
+        _controller.LuminosityOpacity = opacity;
+    }
 }
 
 internal static class AdjustableAcrylicConnection
@@ -193,6 +200,7 @@ internal sealed class DesktopAcrylicControllerAdapter :
     private readonly DesktopAcrylicController _controller = new();
     private readonly ICompositionSupportsSystemBackdrop _target;
     private readonly SystemBackdropConfiguration _configuration = new();
+    private bool _isTargetAttached;
 
     public DesktopAcrylicControllerAdapter(
         ICompositionSupportsSystemBackdrop target)
@@ -207,14 +215,40 @@ internal sealed class DesktopAcrylicControllerAdapter :
         set => _controller.TintOpacity = value;
     }
 
-    public void AttachTarget()
+    public float LuminosityOpacity
     {
-        _controller.AddSystemBackdropTarget(_target);
-        _controller.SetSystemBackdropConfiguration(_configuration);
+        get => _controller.LuminosityOpacity;
+        set => _controller.LuminosityOpacity = value;
     }
 
-    public void DetachTarget() =>
-        _controller.RemoveSystemBackdropTarget(_target);
+    public void AttachTarget()
+    {
+        _controller.SetSystemBackdropConfiguration(_configuration);
+        if (!_controller.AddSystemBackdropTarget(_target))
+        {
+            throw new InvalidOperationException(
+                "Desktop Acrylicのバックドロップターゲットを接続できませんでした。");
+        }
+
+        _isTargetAttached = true;
+    }
+
+    public void DetachTarget()
+    {
+        if (!_isTargetAttached)
+        {
+            return;
+        }
+
+        try
+        {
+            _controller.RemoveSystemBackdropTarget(_target);
+        }
+        finally
+        {
+            _isTargetAttached = false;
+        }
+    }
 
     public void ApplyState(AdjustableAcrylicState state)
     {

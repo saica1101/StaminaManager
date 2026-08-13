@@ -73,10 +73,11 @@ one of: `余裕`, `注意`, `満タン間近`, `満タン`, or `自然回復停�
   `PaneFooter` above About.
 * **Dialogs:** Native `ContentDialog` for add/edit and destructive confirmation.
 * **Backdrops:** Mica by default, Desktop Acrylic, and Solid are the three
-  selectable backgrounds. Acrylic's `DesktopAcrylicController.TintOpacity` is
-  adjusted by an integer 0–100% setting; the slider is enabled only while
-  Acrylic is actually applied. Mica, Solid, and Acrylic fallback states keep
-  the value but disable the slider.
+  selectable backgrounds. Acrylic's
+  `DesktopAcrylicController.TintOpacity` and `LuminosityOpacity` are both
+  adjusted by the same integer 0–100% setting; the slider is enabled only
+  while Acrylic is actually applied. Mica, Solid, and Acrylic fallback states
+  keep the value but disable the slider.
 * **Motion:** Restrained 120–180 ms state transitions only. No looping or
   decorative startup animation. Reduced Motion removes nonessential transitions.
 
