@@ -43,6 +43,8 @@ internal sealed class AdjustableAcrylicLifecycle
         AcrylicOpacityPolicy.DefaultAcrylicTintOpacityPercent;
     private bool _isConnected;
 
+    internal bool IsConnected => _isConnected;
+
     public AdjustableAcrylicLifecycle(
         IAdjustableAcrylicController controller,
         IAdjustableAcrylicStateSource stateSource,
@@ -130,13 +132,7 @@ internal sealed class AdjustableAcrylicLifecycle
             return;
         }
 
-        AdjustableAcrylicState state = _stateSource.Current;
-        bool shouldResetProperties = _lastState?.Theme != state.Theme;
-        ApplyState(state, shouldResetProperties);
-        if (shouldResetProperties)
-        {
-            ApplyOpacity();
-        }
+        ApplyCurrentState();
     }
 
     public void OnDefaultSystemBackdropConfigurationChanged()
@@ -146,8 +142,28 @@ internal sealed class AdjustableAcrylicLifecycle
             return;
         }
 
-        ApplyState(_stateSource.Current, shouldResetProperties: true);
-        ApplyOpacity();
+        try
+        {
+            ApplyCurrentState();
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Disconnect();
+            Debug.WriteLine(
+                "Acrylic default backdrop configuration update failed: "
+                + exception.GetType().Name);
+        }
+    }
+
+    private void ApplyCurrentState()
+    {
+        AdjustableAcrylicState state = _stateSource.Current;
+        bool shouldResetProperties = _lastState?.Theme != state.Theme;
+        ApplyState(state, shouldResetProperties);
+        if (shouldResetProperties)
+        {
+            ApplyOpacity();
+        }
     }
 
     private void ApplyState(
@@ -365,7 +381,14 @@ public sealed class AdjustableAcrylicBackdrop : SystemBackdrop
         XamlRoot xamlRoot)
     {
         base.OnDefaultSystemBackdropConfigurationChanged(target, xamlRoot);
-        _lifecycle?.OnDefaultSystemBackdropConfigurationChanged();
+        if (_lifecycle is { } lifecycle)
+        {
+            lifecycle.OnDefaultSystemBackdropConfigurationChanged();
+            if (!lifecycle.IsConnected)
+            {
+                _lifecycle = null;
+            }
+        }
     }
 
     private sealed class XamlBackdropStateSource :

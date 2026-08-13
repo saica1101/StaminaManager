@@ -64,7 +64,40 @@ public sealed class AdjustableAcrylicBackdropTests
     }
 
     [TestMethod]
-    public void Lifecycle_DefaultConfigurationChangeは同じThemeでも再適用する()
+    public void Lifecycle_DefaultConfigurationChangeはTheme変更時だけ再適用する()
+    {
+        RecordingController controller = new();
+        MutableStateSource stateSource = new();
+        AdjustableAcrylicLifecycle lifecycle = new(
+            controller,
+            stateSource,
+            static () => { },
+            static () => { });
+
+        lifecycle.Connect();
+        lifecycle.SetTintOpacityPercent(80);
+        controller.ClearOperations();
+        stateSource.SetThemeWithoutNotification(ElementTheme.Dark);
+        lifecycle.OnDefaultSystemBackdropConfigurationChanged();
+
+        Assert.AreEqual(1, controller.ResetPropertiesCallCount);
+        Assert.AreEqual(0.8f, controller.TintOpacity);
+        Assert.AreEqual(0.8f, controller.LuminosityOpacity);
+        Assert.AreEqual(ElementTheme.Dark, controller.LastState.Theme);
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "ResetProperties",
+                "TintOpacity:-1.0",
+                "ApplyState:Dark",
+                "TintOpacity:0.8",
+                "LuminosityOpacity:0.8",
+            },
+            controller.Operations);
+    }
+
+    [TestMethod]
+    public void Lifecycle_DefaultConfigurationChangeは同じThemeでResetとOpacityを再適用しない()
     {
         RecordingController controller = new();
         MutableStateSource stateSource = new();
@@ -79,20 +112,47 @@ public sealed class AdjustableAcrylicBackdropTests
         controller.ClearOperations();
         lifecycle.OnDefaultSystemBackdropConfigurationChanged();
 
-        Assert.AreEqual(1, controller.ResetPropertiesCallCount);
+        Assert.AreEqual(0, controller.ResetPropertiesCallCount);
         Assert.AreEqual(0.8f, controller.TintOpacity);
         Assert.AreEqual(0.8f, controller.LuminosityOpacity);
-        Assert.AreEqual(ElementTheme.Light, controller.LastState.Theme);
         CollectionAssert.AreEqual(
-            new[]
-            {
-                "ResetProperties",
-                "TintOpacity:-1.0",
-                "ApplyState:Light",
-                "TintOpacity:0.8",
-                "LuminosityOpacity:0.8",
-            },
+            new[] { "ApplyState:Light" },
             controller.Operations);
+    }
+
+    [TestMethod]
+    public void Lifecycle_DefaultConfigurationChange失敗時はStateとControllerを解放する()
+    {
+        RecordingController controller = new();
+        MutableStateSource stateSource = new();
+        int detachCount = 0;
+        AdjustableAcrylicLifecycle lifecycle = new(
+            controller,
+            stateSource,
+            static () => { },
+            () => detachCount++);
+
+        lifecycle.Connect();
+        controller.ApplyStateException = new InvalidOperationException(
+            "default configuration update failure");
+        stateSource.SetThemeWithoutNotification(ElementTheme.Dark);
+
+        Exception? exception = null;
+        try
+        {
+            lifecycle.OnDefaultSystemBackdropConfigurationChanged();
+        }
+        catch (Exception caught)
+        {
+            exception = caught;
+        }
+
+        Assert.IsNull(exception);
+        Assert.IsFalse(lifecycle.IsConnected);
+        Assert.AreEqual(1, detachCount);
+        Assert.IsTrue(stateSource.IsDisposed);
+        Assert.AreEqual(0, stateSource.SubscriberCount);
+        Assert.AreEqual(1, controller.DisposeCallCount);
     }
 
     [TestMethod]
@@ -188,11 +248,18 @@ public sealed class AdjustableAcrylicBackdropTests
 
         public int DisposeCallCount { get; private set; }
 
+        public Exception? ApplyStateException { get; set; }
+
         public AdjustableAcrylicState LastState { get; private set; } =
             new(true, false, ElementTheme.Light);
 
         public void ApplyState(AdjustableAcrylicState state)
         {
+            if (ApplyStateException is Exception exception)
+            {
+                throw exception;
+            }
+
             LastState = state;
             Operations.Add($"ApplyState:{state.Theme}");
         }
@@ -232,6 +299,9 @@ public sealed class AdjustableAcrylicBackdropTests
             Current = Current with { Theme = theme };
             _stateChanged?.Invoke(this, EventArgs.Empty);
         }
+
+        public void SetThemeWithoutNotification(ElementTheme theme) =>
+            Current = Current with { Theme = theme };
 
         public void Dispose() => IsDisposed = true;
     }
