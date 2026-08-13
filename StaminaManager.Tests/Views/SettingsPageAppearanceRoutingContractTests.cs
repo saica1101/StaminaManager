@@ -1,3 +1,5 @@
+using System.Xml.Linq;
+
 namespace StaminaManager.Tests.Views;
 
 [TestClass]
@@ -60,13 +62,65 @@ public sealed class SettingsPageAppearanceRoutingContractTests
         foreach (string fragment in new[]
         {
             "AcrylicOpacitySlider.Header",
-            "AcrylicOpacitySlider.Description",
             "AcrylicOpacitySlider.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name",
             "AcrylicOpacitySlider.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText",
             "AcrylicOpacityValue.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name",
         })
         {
             StringAssert.Contains(resources, fragment);
+        }
+    }
+
+    [TestMethod]
+    public void ProductionXaml_SliderDoesNotDeclareUnsupportedDescription()
+    {
+        string root = FindRepositoryRoot();
+        string[] sliderUids = Directory.EnumerateFiles(
+                Path.Combine(root, "StaminaManager"),
+                "*.xaml",
+                SearchOption.AllDirectories)
+            .Where(path => !path.Contains(
+                Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar,
+                StringComparison.OrdinalIgnoreCase)
+                && !path.Contains(
+                    Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar,
+                    StringComparison.OrdinalIgnoreCase))
+            .SelectMany(path => XDocument.Load(path).Descendants())
+            .Where(element => element.Name.LocalName == "Slider")
+            .Select(element => element.Attributes()
+                .FirstOrDefault(attribute => attribute.Name.LocalName == "Uid")
+                ?.Value)
+            .OfType<string>()
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.IsNotEmpty(sliderUids);
+
+        foreach (string language in new[] { "ja-JP", "en-US" })
+        {
+            string resourcePath = Path.Combine(
+                root,
+                "StaminaManager",
+                "Resources",
+                "Strings",
+                language,
+                "Resources.resw");
+            HashSet<string> keys = XDocument.Load(resourcePath)
+                .Root!
+                .Elements("data")
+                .Select(element => (string?)element.Attribute("name"))
+                .OfType<string>()
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            string[] unsupported = sliderUids
+                .Where(uid => keys.Contains(
+                    $"{uid}.Description",
+                    StringComparer.OrdinalIgnoreCase))
+                .ToArray();
+
+            Assert.IsEmpty(
+                unsupported,
+                $"{language}にSlider.Descriptionリソースがあります: "
+                + string.Join(", ", unsupported));
         }
     }
 

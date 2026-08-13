@@ -75,7 +75,6 @@
   <data name="BackdropAcrylicItem.Content" xml:space="preserve"><value>Acrylic</value></data>
   <data name="BackdropSolidItem.Content" xml:space="preserve"><value>Solid</value></data>
   <data name="AcrylicOpacitySlider.Header" xml:space="preserve"><value>Acrylic tint opacity</value></data>
-  <data name="AcrylicOpacitySlider.Description" xml:space="preserve"><value>Adjusts the strength of the Acrylic tint. It can be changed only when the background is Acrylic.</value></data>
   <data name="AcrylicOpacitySlider.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Acrylic tint opacity</value></data>
   <data name="AcrylicOpacitySlider.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText" xml:space="preserve"><value>Adjusts the strength of the Acrylic tint. It can be changed only when the background is Acrylic.</value></data>
   <data name="AcrylicOpacityValue.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Current Acrylic tint opacity</value></data>
