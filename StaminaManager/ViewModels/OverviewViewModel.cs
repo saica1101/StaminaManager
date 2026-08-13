@@ -18,6 +18,9 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
     private readonly ObservableCollection<OverviewItemViewModel>
         _overviewItems = [];
     private readonly AddGameItemViewModel _addGameItem;
+    private string? _errorResourceId;
+    private string? _recoveryResourceId;
+    private string? _dataLoadWarningResourceId;
     private bool _isDisposed;
 
     [ObservableProperty]
@@ -104,25 +107,43 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(exception);
-        string safeMessage = exception switch
+        string resourceId = exception switch
         {
             IOException or UnauthorizedAccessException =>
-                _appResourceService.GetString("OverviewSaveError"),
+                "OverviewSaveError",
             OperationCanceledException =>
-                _appResourceService.GetString("OverviewCanceledError"),
-            _ => _appResourceService.GetString("OverviewGenericError"),
+                "OverviewCanceledError",
+            _ => "OverviewGenericError",
         };
         return _uiDispatcher.InvokeAsync(
-            () => ErrorMessage = safeMessage,
+            () => ShowErrorResource(resourceId),
             cancellationToken);
     }
 
     public Task ShowNotificationTargetMissingAsync(
         CancellationToken cancellationToken = default) =>
         _uiDispatcher.InvokeAsync(
-            () => ErrorMessage = _appResourceService.GetString(
-                "OverviewNotificationTargetMissingError"),
+            () => ShowErrorResource("OverviewNotificationTargetMissingError"),
             cancellationToken);
+
+    internal void RefreshLocalizedText()
+    {
+        if (_errorResourceId is string errorResourceId)
+        {
+            ErrorMessage = _appResourceService.GetString(errorResourceId);
+        }
+
+        if (_recoveryResourceId is string recoveryResourceId)
+        {
+            RecoveryMessage = _appResourceService.GetString(recoveryResourceId);
+        }
+
+        if (_dataLoadWarningResourceId is string warningResourceId)
+        {
+            DataLoadWarningMessage = _appResourceService.GetString(
+                warningResourceId);
+        }
+    }
 
     public Task ShowStartupRecoveryAsync(
         StartupRecoveryStatus status,
@@ -134,22 +155,27 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
             {
                 if (status.Kind != StartupRecoveryKind.Promoted)
                 {
+                    _recoveryResourceId = null;
                     RecoveryMessage = string.Empty;
                     IsRecoveryInfoBarOpen = false;
                     return;
                 }
 
-                RecoveryMessage = status.IsDiagnosticPreserved
-                    ? _appResourceService.GetString(
-                        "OverviewRecoveryDiagnosticPreserved")
-                    : _appResourceService.GetString(
-                        "OverviewRecoveryPromoted");
+                string resourceId = status.IsDiagnosticPreserved
+                    ? "OverviewRecoveryDiagnosticPreserved"
+                    : "OverviewRecoveryPromoted";
+                _recoveryResourceId = resourceId;
+                RecoveryMessage = _appResourceService.GetString(resourceId);
                 IsRecoveryInfoBarOpen = true;
             },
             cancellationToken);
     }
 
-    public void CloseRecoveryInfoBar() => IsRecoveryInfoBarOpen = false;
+    public void CloseRecoveryInfoBar()
+    {
+        _recoveryResourceId = null;
+        IsRecoveryInfoBarOpen = false;
+    }
 
     public Task ShowDataLoadWarningAsync(
         DataLoadWarning warning,
@@ -159,24 +185,34 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
             {
                 if (warning != DataLoadWarning.SchemaMigrationWritebackFailed)
                 {
+                    _dataLoadWarningResourceId = null;
                     DataLoadWarningMessage = string.Empty;
                     IsDataLoadWarningInfoBarOpen = false;
                     return;
                 }
 
+                string resourceId = "OverviewSchemaWritebackWarning";
+                _dataLoadWarningResourceId = resourceId;
                 DataLoadWarningMessage = _appResourceService.GetString(
-                    "OverviewSchemaWritebackWarning");
+                    resourceId);
                 IsDataLoadWarningInfoBarOpen = true;
             },
             cancellationToken);
 
-    public void CloseDataLoadWarningInfoBar() =>
+    public void CloseDataLoadWarningInfoBar()
+    {
+        _dataLoadWarningResourceId = null;
         IsDataLoadWarningInfoBarOpen = false;
+    }
 
     public Task ClearErrorAsync(
         CancellationToken cancellationToken = default) =>
         _uiDispatcher.InvokeAsync(
-            () => ErrorMessage = null,
+            () =>
+            {
+                _errorResourceId = null;
+                ErrorMessage = null;
+            },
             cancellationToken);
 
     public void Dispose()
@@ -197,6 +233,12 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
     private void EnterCompactMode() => CompactModeRequested?.Invoke();
 
     private bool CanRequestActions() => !IsLoading;
+
+    private void ShowErrorResource(string resourceId)
+    {
+        _errorResourceId = resourceId;
+        ErrorMessage = _appResourceService.GetString(resourceId);
+    }
 
     private Task OnGamesChanged(CancellationToken cancellationToken) =>
         _uiDispatcher.InvokeAsync(

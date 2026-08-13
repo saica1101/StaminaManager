@@ -193,8 +193,8 @@
   <data name="SettingsLanguageHeading.Text" xml:space="preserve"><value>言語</value></data>
   <data name="LanguageSelector.Header" xml:space="preserve"><value>表示言語</value></data>
   <data name="LanguageSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>表示言語を選択</value></data>
-  <data name="LanguageSelector.Description" xml:space="preserve"><value>変更はアプリの次回起動時に反映されます。</value></data>
-  <data name="LanguageSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText" xml:space="preserve"><value>変更はアプリの次回起動時に反映されます。</value></data>
+  <data name="LanguageSelector.Description" xml:space="preserve"><value>変更は保存後すぐに反映されます。</value></data>
+  <data name="LanguageSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText" xml:space="preserve"><value>変更は保存後すぐに反映されます。</value></data>
   <data name="LanguageJapaneseItem.Content" xml:space="preserve"><value>日本語</value></data>
   <data name="LanguageEnglishItem.Content" xml:space="preserve"><value>English</value></data>
   <data name="CompactGameSelector.Header" xml:space="preserve"><value>表示するゲーム</value></data>

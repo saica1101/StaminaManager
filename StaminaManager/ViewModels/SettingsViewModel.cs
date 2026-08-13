@@ -1246,7 +1246,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             "SettingsBackupRestoreBusy");
         AppLanguage previousActiveLanguage = _activeLanguage;
         bool isLanguageUiApplyFailed = false;
-        bool isLanguageRolledBack = false;
+        bool isLanguageRollbackNotificationFailed = false;
         try
         {
             BackupRestoreResult result = await coordinator.RestoreBackupAsync(
@@ -1270,9 +1270,11 @@ public sealed partial class SettingsViewModel : ObservableObject
                         previousActiveLanguage);
                     if (isOverrideRolledBack && isSettingsRolledBack)
                     {
-                        isLanguageRolledBack = true;
                         SynchronizeFromCurrentData(coordinator);
                         MarkLiveLanguageApplied(previousActiveLanguage);
+                        isLanguageRollbackNotificationFailed =
+                            await ReconcileNotificationsAfterLanguageRollbackAsync(
+                                cancellationToken);
                     }
                     else
                     {
@@ -1289,6 +1291,7 @@ public sealed partial class SettingsViewModel : ObservableObject
                 || !coordinator.IsStartupSynchronized
                 || !coordinator.IsLanguageSynchronized
                 || isLanguageUiApplyFailed
+                || isLanguageRollbackNotificationFailed
                 || coordinator.LastNotificationReconcileResult?.HasFailures
                     == true;
             bool isLanguageRestartRequired = IsLanguageRestartRequired;
@@ -1336,11 +1339,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         finally
         {
             SynchronizeFromCurrentData(coordinator);
-            if (isLanguageRolledBack)
-            {
-                MarkLiveLanguageApplied(previousActiveLanguage);
-            }
-            else if (isLanguageUiApplyFailed)
+            if (isLanguageUiApplyFailed)
             {
                 MarkLanguageUiApplyFailed();
             }
@@ -1376,6 +1375,15 @@ public sealed partial class SettingsViewModel : ObservableObject
         Language = language;
         LanguageConsistencyState = LanguageConsistencyState.Synchronized;
         OnPropertyChanged(nameof(IsLanguageRestartRequired));
+        RefreshLocalizedText();
+    }
+
+    internal void RefreshLocalizedText()
+    {
+        InfoBarTitle = _appResourceService.GetString("SettingsErrorTitle");
+        OnPropertyChanged(nameof(AcrylicOpacityValueAutomationName));
+        OnPropertyChanged(nameof(AcrylicOpacityHelpText));
+        OnPropertyChanged(nameof(NotificationAvailabilityText));
     }
 
     internal void MarkLanguageUiApplyFailed()
@@ -1881,6 +1889,31 @@ public sealed partial class SettingsViewModel : ObservableObject
                 "Language setting rollback failed: "
                 + exception.GetType().Name);
             return false;
+        }
+    }
+
+    private async Task<bool> ReconcileNotificationsAfterLanguageRollbackAsync(
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            NotificationReconcileResult result =
+                await _notificationReconciler.ReconcileAsync(
+                    _gameManager.Games,
+                    _gameManager.CurrentData.Settings,
+                    cancellationToken);
+            return result.HasFailures;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Notification reconciliation after language rollback failed: "
+                + exception.GetType().Name);
+            return true;
         }
     }
 

@@ -179,8 +179,15 @@ public partial class App : Microsoft.UI.Xaml.Application
                 }
                 else
                 {
-                    TryRestoreStartupLanguage();
-                    _settingsViewModel.MarkLanguageUiApplyFailed();
+                    if (await TryRestoreStartupLanguageAsync())
+                    {
+                        _settingsViewModel.MarkLiveLanguageApplied(
+                            _activeLanguage);
+                    }
+                    else
+                    {
+                        _settingsViewModel.MarkLanguageUiApplyFailed();
+                    }
                 }
             }
 
@@ -681,6 +688,9 @@ public partial class App : Microsoft.UI.Xaml.Application
             isRootReplaced = true;
             _overviewPage = newPageTree.OverviewPage;
             _mainPage = newPageTree.MainPage;
+            _overviewViewModel!.RefreshLocalizedText();
+            _compactViewModel!.RefreshLocalizedText();
+            _settingsViewModel!.RefreshLocalizedText();
             _activeLanguage = language;
             previousMainPage.Detach();
             return true;
@@ -711,27 +721,50 @@ public partial class App : Microsoft.UI.Xaml.Application
         }
     }
 
-    private void TryRestoreStartupLanguage()
+    private async Task<bool> TryRestoreStartupLanguageAsync()
     {
+        AppLanguage previousLanguage = _activeLanguage;
         try
         {
-            LanguageChangeResult result = _appLanguageService?.SetLanguage(
-                _activeLanguage)
-                ?? new LanguageChangeResult(
-                    _activeLanguage,
-                    IsApplied: false,
-                    LanguageFailureReason.PlatformError);
+            GameManager? gameManager = _gameManager;
+            IAppLanguageService? appLanguageService = _appLanguageService;
+            AppCoordinator? coordinator = _coordinator;
+            if (gameManager is null
+                || appLanguageService is null
+                || coordinator is null)
+            {
+                return false;
+            }
+
+            await gameManager.UpdateSettingsAsync(
+                    settings => settings with
+                    {
+                        Language = previousLanguage,
+                    },
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+            LanguageChangeResult result = appLanguageService.SetLanguage(
+                previousLanguage);
             if (!result.IsApplied)
             {
                 Debug.WriteLine(
                     "Startup language override rollback was not applied.");
+                return false;
             }
+
+            await coordinator.ReconcileDerivedStateAsync(
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+            return coordinator.IsLanguageSynchronized
+                && coordinator.LastNotificationReconcileResult?.HasFailures
+                    != true;
         }
         catch (Exception exception) when (!IsProcessFatal(exception))
         {
             Debug.WriteLine(
-                "Startup language override rollback failed: "
+                "Startup language state rollback failed: "
                 + exception.GetType().Name);
+            return false;
         }
     }
 

@@ -17,6 +17,7 @@ public sealed partial class CompactViewModel : ObservableObject, IDisposable
     private readonly IUiDispatcher _uiDispatcher;
     private readonly IAppResourceService _appResourceService;
     private readonly ObservableCollection<GameCardViewModel> _games = [];
+    private string? _errorResourceId;
     private bool _isDisposed;
 
     [ObservableProperty]
@@ -72,7 +73,25 @@ public sealed partial class CompactViewModel : ObservableObject, IDisposable
     public void ShowError(string message)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
+        _errorResourceId = null;
         ErrorMessage = message;
+    }
+
+    internal void ShowErrorResource(string resourceId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+        _errorResourceId = resourceId;
+        ErrorMessage = _appResourceService.GetString(resourceId);
+    }
+
+    internal void RefreshLocalizedText()
+    {
+        if (_errorResourceId is not null)
+        {
+            ErrorMessage = _appResourceService.GetString(_errorResourceId);
+        }
+
+        NotifySelectedPresentationChanged();
     }
 
     public string SelectedName => SelectedGame?.Name ?? string.Empty;
@@ -137,6 +156,7 @@ public sealed partial class CompactViewModel : ObservableObject, IDisposable
         }
 
         IsBusy = true;
+        _errorResourceId = null;
         ErrorMessage = null;
         try
         {
@@ -153,8 +173,12 @@ public sealed partial class CompactViewModel : ObservableObject, IDisposable
             exception is IOException or UnauthorizedAccessException)
         {
             await _uiDispatcher.InvokeAsync(
-                    () => ErrorMessage = _appResourceService.GetString(
-                        "CompactSelectionSaveError"),
+                    () =>
+                    {
+                        _errorResourceId = null;
+                        ErrorMessage = _appResourceService.GetString(
+                            "CompactSelectionSaveError");
+                    },
                     CancellationToken.None)
                 .ConfigureAwait(false);
             throw;

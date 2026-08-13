@@ -88,9 +88,7 @@ public sealed partial class MainPage : Page
             VersionText);
 
     public string VersionFooterAutomationName =>
-        _appResourceService.Format(
-            "VersionFooterAutomationNameFormat",
-            VersionText);
+        VersionFooterDisplayText;
 
     internal void RefreshVersionFooterAutomationProperties()
     {
@@ -282,8 +280,8 @@ public sealed partial class MainPage : Page
                 or UnauthorizedAccessException
                 or InvalidOperationException)
         {
-            _compactPage.ViewModel.ShowError(
-                _appResourceService.GetString("ReturnOverviewSaveError"));
+            _compactPage.ViewModel.ShowErrorResource(
+                "ReturnOverviewSaveError");
         }
     }
 
