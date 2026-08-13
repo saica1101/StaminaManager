@@ -71,7 +71,11 @@ internal sealed class SettingsAppearanceChangeRouter
             _reportFailure();
         }
 
-        _synchronizeControls();
+        if (!previewed)
+        {
+            _synchronizeControls();
+        }
+
         return previewed;
     }
 

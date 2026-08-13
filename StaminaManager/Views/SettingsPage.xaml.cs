@@ -142,10 +142,14 @@ public sealed partial class SettingsPage : Page
         }
 
         int percent = checked((int)args.NewValue);
+        if (!_appearanceChangeRouter.PreviewAcrylicTintOpacity(percent))
+        {
+            return;
+        }
+
         _pendingAcrylicOpacityPercent = percent;
         _acrylicOpacityChangeVersion++;
         ScheduleAcrylicOpacityCommit();
-        _appearanceChangeRouter.PreviewAcrylicTintOpacity(percent);
     }
 
     private async void CloseBehaviorSelector_SelectionChanged(
