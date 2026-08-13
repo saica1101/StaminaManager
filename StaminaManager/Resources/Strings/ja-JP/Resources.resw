@@ -19,6 +19,7 @@
   <data name="NavAbout.Content" xml:space="preserve"><value>About</value></data>
   <data name="NavAbout.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Aboutページを表示</value></data>
   <data name="VersionFooterLabel.Text" xml:space="preserve"><value>バージョン</value></data>
+  <data name="VersionFooterTextFormat" xml:space="preserve"><value>バージョン : {0}</value></data>
   <data name="VersionFooterText.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText" xml:space="preserve"><value>Stamina Managerのバージョン</value></data>
   <data name="VersionFooterAutomationNameFormat" xml:space="preserve"><value>Stamina Manager、バージョン {0}</value></data>
   <data name="CompactModeButton.Content" xml:space="preserve"><value>コンパクト表示</value></data>

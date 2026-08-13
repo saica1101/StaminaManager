@@ -52,6 +52,13 @@
                 FontFamily="{StaticResource AppFontFamily}"
                 Icon="Setting"
                 Tag="Settings" />
+            <NavigationViewItem
+                x:Name="AboutNavigationItem"
+                x:Uid="NavAbout"
+                AutomationProperties.AutomationId="NavAbout"
+                FontFamily="{StaticResource AppFontFamily}"
+                Icon="Help"
+                Tag="About" />
         </NavigationView.MenuItems>
         <NavigationView.PaneFooter>
             <Border
@@ -65,27 +72,15 @@
                     AutomationProperties.AccessibilityView="Content"
                     Spacing="4">
                     <TextBlock
-                        x:Uid="VersionFooterLabel"
-                        Style="{StaticResource AppSecondaryTextStyle}" />
-                    <TextBlock
                         x:Name="VersionFooterText"
                         AutomationProperties.AutomationId="VersionFooterText"
                         AutomationProperties.Name="{x:Bind VersionFooterAutomationName}"
                         AutomationProperties.HelpText="{x:Bind VersionFooterAutomationName}"
-                        Text="{x:Bind VersionText, Mode=OneTime}"
+                        Text="{x:Bind VersionFooterDisplayText, Mode=OneTime}"
                         Style="{StaticResource AppSecondaryTextStyle}" />
                 </StackPanel>
             </Border>
         </NavigationView.PaneFooter>
-        <NavigationView.FooterMenuItems>
-            <NavigationViewItem
-                x:Name="AboutNavigationItem"
-                x:Uid="NavAbout"
-                AutomationProperties.AutomationId="NavAbout"
-                FontFamily="{StaticResource AppFontFamily}"
-                Icon="Help"
-                Tag="About" />
-        </NavigationView.FooterMenuItems>
 
         <ContentControl
             x:Uid="ShellContentHost"

@@ -81,6 +81,11 @@ public sealed partial class MainPage : Page
 
     public string VersionText { get; }
 
+    public string VersionFooterDisplayText =>
+        _appResourceService.Format(
+            "VersionFooterTextFormat",
+            VersionText);
+
     public string VersionFooterAutomationName =>
         _appResourceService.Format(
             "VersionFooterAutomationNameFormat",
