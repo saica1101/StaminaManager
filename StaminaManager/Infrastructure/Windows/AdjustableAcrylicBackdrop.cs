@@ -5,6 +5,7 @@ using Microsoft.UI.System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 using StaminaManager.Core.Validation;
+using System.Diagnostics;
 
 namespace StaminaManager.Infrastructure.Windows;
 
@@ -108,6 +109,12 @@ internal sealed class AdjustableAcrylicLifecycle
         {
             _detachTarget();
         }
+        catch (Exception exception) when (!IsProcessFatal(exception))
+        {
+            Debug.WriteLine(
+                "Acrylic backdrop target detach failed: "
+                + exception.GetType().Name);
+        }
         finally
         {
             _stateSource.Dispose();
@@ -151,6 +158,15 @@ internal sealed class AdjustableAcrylicLifecycle
         _controller.TintOpacity = opacity;
         _controller.LuminosityOpacity = opacity;
     }
+
+    private static bool IsProcessFatal(Exception exception) =>
+        exception is OutOfMemoryException
+            or StackOverflowException
+            or AccessViolationException
+            or AppDomainUnloadedException
+            or BadImageFormatException
+            or CannotUnloadAppDomainException
+            or InvalidProgramException;
 }
 
 internal static class AdjustableAcrylicConnection

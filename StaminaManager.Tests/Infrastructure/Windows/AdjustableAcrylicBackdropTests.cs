@@ -7,7 +7,7 @@ namespace StaminaManager.Tests.Infrastructure.Windows;
 public sealed class AdjustableAcrylicBackdropTests
 {
     [TestMethod]
-    public void Lifecycle_0_50_100PercentをTintOpacityへ変換する()
+    public void Lifecycle_0_50_100PercentをTintとLuminosityへ変換する()
     {
         RecordingController controller = new();
         MutableStateSource stateSource = new();
@@ -20,16 +20,19 @@ public sealed class AdjustableAcrylicBackdropTests
         lifecycle.Connect();
         lifecycle.SetTintOpacityPercent(0);
         Assert.AreEqual(0.0f, controller.TintOpacity);
+        Assert.AreEqual(0.0f, controller.LuminosityOpacity);
 
         lifecycle.SetTintOpacityPercent(50);
         Assert.AreEqual(0.5f, controller.TintOpacity);
+        Assert.AreEqual(0.5f, controller.LuminosityOpacity);
 
         lifecycle.SetTintOpacityPercent(100);
         Assert.AreEqual(1.0f, controller.TintOpacity);
+        Assert.AreEqual(1.0f, controller.LuminosityOpacity);
     }
 
     [TestMethod]
-    public void Lifecycle_ThemeChangeはReset後にTintOpacityを再適用する()
+    public void Lifecycle_ThemeChangeはReset後にTintとLuminosityを再適用する()
     {
         RecordingController controller = new();
         MutableStateSource stateSource = new();
@@ -46,14 +49,16 @@ public sealed class AdjustableAcrylicBackdropTests
 
         Assert.AreEqual(1, controller.ResetPropertiesCallCount);
         Assert.AreEqual(0.8f, controller.TintOpacity);
+        Assert.AreEqual(0.8f, controller.LuminosityOpacity);
         Assert.AreEqual(ElementTheme.Dark, controller.LastState.Theme);
         CollectionAssert.AreEqual(
             new[]
             {
-                "ApplyState:Dark",
                 "ResetProperties",
                 "TintOpacity:-1.0",
+                "ApplyState:Dark",
                 "TintOpacity:0.8",
+                "LuminosityOpacity:0.8",
             },
             controller.Operations);
     }
@@ -123,6 +128,7 @@ public sealed class AdjustableAcrylicBackdropTests
     private sealed class RecordingController : IAdjustableAcrylicController
     {
         private float _tintOpacity;
+        private float _luminosityOpacity;
 
         public List<string> Operations { get; } = [];
 
@@ -133,6 +139,16 @@ public sealed class AdjustableAcrylicBackdropTests
             {
                 _tintOpacity = value;
                 Operations.Add($"TintOpacity:{value:0.0}");
+            }
+        }
+
+        public float LuminosityOpacity
+        {
+            get => _luminosityOpacity;
+            set
+            {
+                _luminosityOpacity = value;
+                Operations.Add($"LuminosityOpacity:{value:0.0}");
             }
         }
 
