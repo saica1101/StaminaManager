@@ -16,7 +16,6 @@
         <Button
             x:Name="CardButton"
             AllowDrop="True"
-            CanDrag="True"
             AutomationProperties.AutomationId="{x:Bind CardAutomationId, Mode=OneWay}"
             AutomationProperties.Name="{x:Bind CardAutomationName, Mode=OneWay}"
             Command="{x:Bind ViewModel.EditCommand, Mode=OneWay}"
@@ -137,5 +136,22 @@
                 AutomationProperties.AccessibilityView="Raw"
                 Symbol="Edit" />
         </Button>
+
+        <Grid
+            x:Name="Draghandle"
+            Width="32"
+            Height="32"
+            Margin="0,0,8,8"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Bottom"
+            AllowDrop="True"
+            Background="Transparent"
+            CanDrag="True">
+            <FontIcon
+                AutomationProperties.AccessibilityView="Raw"
+                FontSize="16"
+                Foreground="{ThemeResource SecondaryTextBrush}"
+                Glyph="&#xE784;" />
+        </Grid>
     </Grid>
 </UserControl>
