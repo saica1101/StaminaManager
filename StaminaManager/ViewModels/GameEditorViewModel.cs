@@ -132,9 +132,9 @@ public sealed partial class GameEditorViewModel : ObservableObject
         }
         else
         {
-        StaminaSnapshot snapshot = StaminaCalculator.Calculate(
-            entry,
-            _clock.UtcNow);
+            StaminaSnapshot snapshot = StaminaCalculator.Calculate(
+                entry,
+                _clock.UtcNow);
 
         Name = entry.Name;
         CurrentStamina = snapshot.Current;
