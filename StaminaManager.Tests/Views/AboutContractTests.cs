@@ -43,7 +43,7 @@ public sealed class AboutContractTests
             "AutomationProperties.AutomationId"));
         StringAssert.Contains(
             AttributeValue(versionText, "Text") ?? string.Empty,
-            "VersionText");
+            "VersionFooterDisplayText");
 
         string xaml = File.ReadAllText(GetPath("StaminaManager", "MainPage.xaml"));
         int menuItemsIndex = xaml.IndexOf(
