@@ -58,11 +58,11 @@
         </Style>
     </ContentDialog.Resources>
 
-    <Grid MinWidth="320" MaxWidth="520">
+    <Grid MinWidth="400" MaxWidth="520">
         <ScrollViewer
             HorizontalScrollBarVisibility="Disabled"
             VerticalScrollBarVisibility="Auto">
-            <Grid Padding="0,4,0,0">
+            <Grid Padding="0,4,16,0">
                 <StackPanel
                     Spacing="{StaticResource Spacing16}"
                     Visibility="{x:Bind local:GameEditorDialog.BoolToVisibility(ViewModel.IsEditing), Mode=OneWay}">
@@ -186,43 +186,47 @@
                             Visibility="{x:Bind local:GameEditorDialog.TextToVisibility(ViewModel.RecoveryIntervalError), Mode=OneWay}" />
                     </StackPanel>
 
-                    <StackPanel Spacing="{StaticResource Spacing8}">
-                        <ToggleSwitch
-                            x:Name="GameNotificationToggle"
-                            x:Uid="GameNotificationToggle"
-                            AutomationProperties.AutomationId="GameNotificationToggle"
-                            IsOn="{x:Bind ViewModel.IsNotificationEnabled, Mode=TwoWay}" />
+                    <StackPanel Spacing="{StaticResource Spacing16}">
+                        <StackPanel Spacing="{StaticResource Spacing8}">
+                            <ToggleSwitch
+                                x:Name="GameNotificationToggle"
+                                x:Uid="GameNotificationToggle"
+                                AutomationProperties.AutomationId="GameNotificationToggle"
+                                IsOn="{x:Bind ViewModel.IsNotificationEnabled, Mode=TwoWay}" />
 
-                        <TextBlock
-                            x:Uid="GameNotificationDescription"
-                            Style="{StaticResource AppSecondaryTextStyle}"
-                            TextWrapping="Wrap" />
+                            <TextBlock
+                                x:Uid="GameNotificationDescription"
+                                Style="{StaticResource AppSecondaryTextStyle}"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
 
-                        <ToggleSwitch
-                            x:Name="GameNotificationUseDefaultLeadToggle"
-                            x:Uid="GameNotificationUseDefaultLeadToggle"
-                            AutomationProperties.AutomationId="GameNotificationUseDefaultLeadToggle"
-                            IsOn="{x:Bind ViewModel.UseDefaultNotificationLeadTime, Mode=TwoWay}" />
+                        <StackPanel Spacing="{StaticResource Spacing8}">
+                            <ToggleSwitch
+                                x:Name="GameNotificationUseDefaultLeadToggle"
+                                x:Uid="GameNotificationUseDefaultLeadToggle"
+                                AutomationProperties.AutomationId="GameNotificationUseDefaultLeadToggle"
+                                IsOn="{x:Bind ViewModel.UseDefaultNotificationLeadTime, Mode=TwoWay}" />
 
-                        <NumberBox
-                            x:Name="GameNotificationLeadInput"
-                            x:Uid="GameNotificationLeadInput"
-                            AutomationProperties.AutomationId="GameNotificationLeadInput"
-                            AutomationProperties.HelpText="{x:Bind ViewModel.NotificationLeadMinutesOverrideError, Mode=OneWay}"
-                            IsEnabled="{x:Bind ViewModel.IsCustomNotificationLeadEnabled, Mode=OneWay}"
-                            Maximum="525600"
-                            Minimum="0"
-                            SpinButtonPlacementMode="Compact"
-                            ValidationMode="Disabled"
-                            Value="{x:Bind ViewModel.NotificationLeadMinutesOverride, Mode=TwoWay}" />
+                            <NumberBox
+                                x:Name="GameNotificationLeadInput"
+                                x:Uid="GameNotificationLeadInput"
+                                AutomationProperties.AutomationId="GameNotificationLeadInput"
+                                AutomationProperties.HelpText="{x:Bind ViewModel.NotificationLeadMinutesOverrideError, Mode=OneWay}"
+                                IsEnabled="{x:Bind ViewModel.IsCustomNotificationLeadEnabled, Mode=OneWay}"
+                                Maximum="525600"
+                                Minimum="0"
+                                SpinButtonPlacementMode="Compact"
+                                ValidationMode="Disabled"
+                                Value="{x:Bind ViewModel.NotificationLeadMinutesOverride, Mode=TwoWay}" />
 
-                        <TextBlock
-                            Margin="0,-4,0,0"
-                            AutomationProperties.LiveSetting="Assertive"
-                            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                            Text="{x:Bind ViewModel.NotificationLeadMinutesOverrideError, Mode=OneWay}"
-                            TextWrapping="Wrap"
-                            Visibility="{x:Bind local:GameEditorDialog.TextToVisibility(ViewModel.NotificationLeadMinutesOverrideError), Mode=OneWay}" />
+                            <TextBlock
+                                Margin="0,-4,0,0"
+                                AutomationProperties.LiveSetting="Assertive"
+                                Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                Text="{x:Bind ViewModel.NotificationLeadMinutesOverrideError, Mode=OneWay}"
+                                TextWrapping="Wrap"
+                                Visibility="{x:Bind local:GameEditorDialog.TextToVisibility(ViewModel.NotificationLeadMinutesOverrideError), Mode=OneWay}" />
+                        </StackPanel>
                     </StackPanel>
 
                     <StackPanel Spacing="{StaticResource Spacing8}">

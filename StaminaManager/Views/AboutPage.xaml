@@ -17,37 +17,57 @@
             x:Name="AboutPageRoot"
             AutomationProperties.AutomationId="AboutPageRoot"
             HorizontalAlignment="Stretch"
-            MaxWidth="720"
-            Padding="20,20,20,32"
-            Spacing="{StaticResource Spacing32}">
-            <StackPanel Spacing="{StaticResource Spacing12}">
+            MaxWidth="760"
+            Padding="32,28,32,40"
+            Spacing="{StaticResource Spacing24}">
+
+            <!-- アプリ情報 -->
+            <Grid ColumnSpacing="{StaticResource Spacing20}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
                 <Image
                     x:Uid="AboutAppIcon"
+                    Width="72"
+                    Height="72"
+                    VerticalAlignment="Top"
                     AutomationProperties.AccessibilityView="Raw"
-                    Height="64"
-                    HorizontalAlignment="Left"
                     Source="ms-appx:///Assets/Square150x150Logo.scale-100.png"
-                    Stretch="Uniform"
-                    Width="64" />
-                <TextBlock
-                    x:Uid="AboutAppName"
-                    Style="{StaticResource AppPageTitleTextStyle}" />
-                <StackPanel Spacing="{StaticResource Spacing4}">
-                    <TextBlock
-                        x:Uid="AboutVersionLabel"
-                        Style="{StaticResource AppSecondaryTextStyle}" />
-                    <TextBlock
-                        x:Name="AboutVersionText"
-                        AutomationProperties.AutomationId="AboutVersionText"
-                        Text="{x:Bind ViewModel.VersionText, Mode=OneTime}"
-                        Style="{StaticResource AppSecondaryTextStyle}" />
-                </StackPanel>
-            </StackPanel>
+                    Stretch="Uniform" />
 
-            <TextBlock
-                x:Uid="AboutDescription"
-                Style="{StaticResource AppBodyTextStyle}"
-                TextWrapping="Wrap" />
+                <StackPanel
+                    Grid.Column="1"
+                    VerticalAlignment="Center"
+                    Spacing="{StaticResource Spacing8}">
+
+                    <TextBlock
+                        x:Uid="AboutAppName"
+                        Style="{StaticResource AppPageTitleTextStyle}" />
+
+                    <StackPanel
+                        Orientation="Horizontal"
+                        Spacing="{StaticResource Spacing8}">
+
+                        <TextBlock
+                            x:Uid="AboutVersionLabel"
+                            Style="{StaticResource AppSecondaryTextStyle}" />
+
+                        <TextBlock
+                            x:Name="AboutVersionText"
+                            AutomationProperties.AutomationId="AboutVersionText"
+                            Style="{StaticResource AppSecondaryTextStyle}"
+                            Text="{x:Bind ViewModel.VersionText, Mode=OneTime}" />
+                    </StackPanel>
+
+                    <TextBlock
+                        x:Uid="AboutDescription"
+                        MaxWidth="600"
+                        Style="{StaticResource AppBodyTextStyle}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </Grid>
 
             <InfoBar
                 x:Name="AboutInfoBar"
@@ -55,95 +75,182 @@
                 AutomationProperties.AutomationId="AboutInfoBar"
                 AutomationProperties.HelpText="{x:Bind ViewModel.InfoBarMessage, Mode=OneWay}"
                 AutomationProperties.LiveSetting="Assertive"
-                IsClosable="True"
                 Closed="AboutInfoBar_Closed"
+                IsClosable="True"
                 IsOpen="{x:Bind ViewModel.IsInfoBarOpen, Mode=OneWay}"
                 Message="{x:Bind ViewModel.InfoBarMessage, Mode=OneWay}"
                 Severity="Error" />
 
+            <!-- リンク -->
             <StackPanel Spacing="{StaticResource Spacing12}">
                 <TextBlock
                     x:Uid="AboutLinksHeading"
                     Style="{StaticResource AppCardTitleTextStyle}" />
-                <Button
-                    x:Name="OpenGitHubButton"
-                    x:Uid="OpenGitHubButton"
-                    AutomationProperties.AutomationId="OpenGitHubButton"
-                    Command="{x:Bind ViewModel.OpenGitHubCommand, Mode=OneWay}"
-                    HorizontalAlignment="Stretch"
-                    HorizontalContentAlignment="Left"
-                    Style="{StaticResource AccentButtonStyle}">
-                    <TextBlock
-                        x:Uid="OpenGitHubButtonText"
-                        TextWrapping="Wrap" />
-                </Button>
-                <Button
-                    x:Name="OpenReadmeButton"
-                    x:Uid="OpenReadmeButton"
-                    AutomationProperties.AutomationId="OpenReadmeButton"
-                    Command="{x:Bind ViewModel.OpenReadmeCommand, Mode=OneWay}"
-                    HorizontalAlignment="Stretch"
-                    HorizontalContentAlignment="Left"
-                    Style="{StaticResource DefaultButtonStyle}">
-                    <TextBlock
-                        x:Uid="OpenReadmeButtonText"
-                        TextWrapping="Wrap" />
-                </Button>
-                <TextBlock
-                    x:Uid="AboutReadmeHeading"
-                    AutomationProperties.AutomationId="AboutReadmeHeading"
-                    Style="{StaticResource AppCardTitleTextStyle}" />
-                <TextBlock
-                    x:Uid="AboutReadmeDescription"
-                    AutomationProperties.AutomationId="AboutReadmeDescription"
-                    Style="{StaticResource AppBodyTextStyle}"
-                    TextWrapping="Wrap" />
+
+                <Border
+                    Padding="{StaticResource SurfacePadding}"
+                    Background="{ThemeResource CardSurfaceBrush}"
+                    BorderBrush="{ThemeResource CardStrokeBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource CardCornerRadius}">
+
+                    <StackPanel Spacing="{StaticResource Spacing16}">
+                        <StackPanel
+                            Orientation="Horizontal"
+                            Spacing="{StaticResource Spacing8}">
+
+                            <Button
+                                x:Name="OpenGitHubButton"
+                                x:Uid="OpenGitHubButton"
+                                MinWidth="180"
+                                AutomationProperties.AutomationId="OpenGitHubButton"
+                                Command="{x:Bind ViewModel.OpenGitHubCommand, Mode=OneWay}"
+                                HorizontalAlignment="Left"
+                                Style="{StaticResource AccentButtonStyle}">
+                                <TextBlock
+                                    x:Uid="OpenGitHubButtonText"
+                                    TextWrapping="Wrap" />
+                            </Button>
+
+                            <Button
+                                x:Name="OpenReadmeButton"
+                                x:Uid="OpenReadmeButton"
+                                MinWidth="160"
+                                AutomationProperties.AutomationId="OpenReadmeButton"
+                                Command="{x:Bind ViewModel.OpenReadmeCommand, Mode=OneWay}"
+                                HorizontalAlignment="Left"
+                                Style="{StaticResource DefaultButtonStyle}">
+                                <TextBlock
+                                    x:Uid="OpenReadmeButtonText"
+                                    TextWrapping="Wrap" />
+                            </Button>
+                        </StackPanel>
+
+                        <Rectangle
+                            Height="1"
+                            Fill="{ThemeResource CardStrokeBrush}" />
+
+                        <StackPanel Spacing="{StaticResource Spacing8}">
+                            <TextBlock
+                                x:Uid="AboutReadmeHeading"
+                                AutomationProperties.AutomationId="AboutReadmeHeading"
+                                Style="{StaticResource AppCardTitleTextStyle}" />
+
+                            <TextBlock
+                                x:Uid="AboutReadmeDescription"
+                                AutomationProperties.AutomationId="AboutReadmeDescription"
+                                Style="{StaticResource AppBodyTextStyle}"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
             </StackPanel>
 
+            <!-- 技術スタック -->
             <StackPanel Spacing="{StaticResource Spacing12}">
-                <TextBlock
-                    x:Uid="AboutTechnologyHeading"
-                    Style="{StaticResource AppCardTitleTextStyle}" />
-                <StackPanel Spacing="{StaticResource Spacing8}">
+            <TextBlock
+                x:Uid="AboutTechnologyHeading"
+                Style="{StaticResource AppCardTitleTextStyle}" />
+
+            <Border
+                Padding="{StaticResource SurfacePadding}"
+                Background="{ThemeResource CardSurfaceBrush}"
+                BorderBrush="{ThemeResource CardStrokeBrush}"
+                BorderThickness="1"
+                CornerRadius="{StaticResource CardCornerRadius}">
+
+                <Grid
+                    ColumnSpacing="{StaticResource Spacing24}"
+                    RowSpacing="{StaticResource Spacing12}">
+
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
                     <TextBlock
+                        Grid.Row="0"
+                        Grid.Column="0"
                         x:Uid="AboutTechCSharp"
                         Style="{StaticResource AppBodyTextStyle}" />
+
                     <TextBlock
+                        Grid.Row="0"
+                        Grid.Column="1"
                         x:Uid="AboutTechDotNet"
                         Style="{StaticResource AppBodyTextStyle}" />
+
                     <TextBlock
+                        Grid.Row="1"
+                        Grid.Column="0"
                         x:Uid="AboutTechWinUI"
                         Style="{StaticResource AppBodyTextStyle}" />
+
                     <TextBlock
+                        Grid.Row="1"
+                        Grid.Column="1"
                         x:Uid="AboutTechWindowsAppSdk"
                         Style="{StaticResource AppBodyTextStyle}" />
+
                     <TextBlock
+                        Grid.Row="2"
+                        Grid.Column="0"
                         x:Uid="AboutTechToolkit"
                         Style="{StaticResource AppBodyTextStyle}" />
+
                     <TextBlock
+                        Grid.Row="2"
+                        Grid.Column="1"
                         x:Uid="AboutTechWinUIEx"
                         Style="{StaticResource AppBodyTextStyle}" />
-                </StackPanel>
-            </StackPanel>
+                </Grid>
+            </Border>
+        </StackPanel>
 
+            <!-- プライバシー -->
             <StackPanel Spacing="{StaticResource Spacing12}">
-                <TextBlock
-                    x:Uid="AboutPrivacyHeading"
-                    Style="{StaticResource AppCardTitleTextStyle}" />
+            <TextBlock
+                x:Uid="AboutPrivacyHeading"
+                Style="{StaticResource AppCardTitleTextStyle}" />
+
+            <Border
+                Padding="{StaticResource SurfacePadding}"
+                Background="{ThemeResource CardSurfaceBrush}"
+                BorderBrush="{ThemeResource CardStrokeBrush}"
+                BorderThickness="1"
+                CornerRadius="{StaticResource CardCornerRadius}">
+
                 <TextBlock
                     x:Uid="AboutPrivacyDescription"
                     Style="{StaticResource AppBodyTextStyle}"
                     TextWrapping="Wrap" />
-            </StackPanel>
+            </Border>
+        </StackPanel>
 
+            <!-- ライセンス -->
             <StackPanel Spacing="{StaticResource Spacing12}">
                 <TextBlock
                     x:Uid="AboutLicenseHeading"
                     Style="{StaticResource AppCardTitleTextStyle}" />
-                <TextBlock
-                    x:Uid="AboutLicenseDescription"
-                    Style="{StaticResource AppBodyTextStyle}"
-                    TextWrapping="Wrap" />
+
+                <Border
+                    Padding="{StaticResource SurfacePadding}"
+                    Background="{ThemeResource CardSurfaceBrush}"
+                    BorderBrush="{ThemeResource CardStrokeBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource CardCornerRadius}">
+
+                    <TextBlock
+                        x:Uid="AboutLicenseDescription"
+                        Style="{StaticResource AppBodyTextStyle}"
+                        TextWrapping="Wrap" />
+                </Border>
             </StackPanel>
         </StackPanel>
     </ScrollViewer>
