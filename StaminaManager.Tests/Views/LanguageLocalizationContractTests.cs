@@ -127,12 +127,12 @@ public sealed class LanguageLocalizationContractTests
     }
 
     [TestMethod]
-    public void LanguageSelectorResources_UseRestartGuidanceAndSelfNames()
+    public void LanguageSelectorResources_UseImmediateApplyGuidanceAndSelfNames()
     {
         foreach ((string language, string expectedDescription) in new[]
         {
-            ("ja-JP", "変更はアプリの次回起動時に反映されます。"),
-            ("en-US", "Changes take effect the next time you start the app."),
+            ("ja-JP", "変更は保存後すぐに反映されます。"),
+            ("en-US", "Changes take effect immediately after saving."),
         })
         {
             Dictionary<string, string> values = LoadResourceValues(language);
@@ -400,7 +400,7 @@ public sealed class LanguageLocalizationContractTests
             "ComboBox" or "NumberBox" or "TextBox" or "ToggleSwitch"
                 or "Slider" => "Header",
             "Setter" => "Value",
-            "Button" => element.Elements().Any()
+            "Button" or "ToggleButton" => element.Elements().Any()
                 ? AutomationNameResourceProperty
                 : "Content",
             "ContentControl" or "Image" or "ItemsRepeater"
