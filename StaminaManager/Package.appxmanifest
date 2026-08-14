@@ -11,7 +11,7 @@
   <Identity
     Name="saica1101.StaminaManager"
     Publisher="CN=E42D0651-60BF-47A1-BD3B-ECCF464087D2"
-    Version="1.0.0.0" />
+    Version="1.1.0.0" />
 
   <Properties>
     <DisplayName>ms-resource:AppTitle</DisplayName>

@@ -70,6 +70,7 @@
                 Padding="16,8">
                 <StackPanel
                     AutomationProperties.AccessibilityView="Content"
+                    HorizontalAlignment="Stretch"
                     Spacing="4">
                     <TextBlock
                         x:Name="VersionFooterText"
@@ -77,6 +78,7 @@
                         AutomationProperties.Name="{x:Bind VersionFooterAutomationName}"
                         AutomationProperties.HelpText="{x:Bind VersionFooterAutomationName}"
                         Text="{x:Bind VersionFooterDisplayText, Mode=OneTime}"
+                        TextAlignment="Center"
                         Style="{StaticResource AppSecondaryTextStyle}" />
                 </StackPanel>
             </Border>
