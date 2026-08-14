@@ -1,0 +1,49 @@
+name: Store Package
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - develop
+    paths:
+      - '.github/workflows/store-package.yml'
+
+concurrency:
+  group: store-package-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Build and validate Store package
+        id: package
+        shell: pwsh
+        run: |
+          [xml]$manifest = Get-Content -Raw -LiteralPath 'StaminaManager\Package.appxmanifest'
+          $version = [string]$manifest.Package.Identity.Version
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            throw 'Package.appxmanifest does not contain a package version.'
+          }
+
+          Write-Host "Building Microsoft Store package version $version"
+          "version=$version" >> $env:GITHUB_OUTPUT
+          .\BuildStorePackage.ps1 -Version $version
+
+      - name: Upload Store package
+        uses: actions/upload-artifact@v4
+        with:
+          name: StaminaManager-Store-${{ steps.package.outputs.version }}
+          path: artifacts/store/${{ steps.package.outputs.version }}/**/*.msixupload
+          if-no-files-found: error
+          retention-days: 14
