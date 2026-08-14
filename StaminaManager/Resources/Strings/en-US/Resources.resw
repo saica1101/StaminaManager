@@ -117,6 +117,13 @@
   <data name="GameNotificationToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Toggle this game's full recovery notification</value></data>
   <data name="GameNotificationToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText" xml:space="preserve"><value>Receive this game's full recovery notification when Settings notifications are on</value></data>
   <data name="GameNotificationDescription.Text" xml:space="preserve"><value>Receive this game's full recovery notification when Settings notifications are on</value></data>
+  <data name="GameNotificationUseDefaultLeadToggle.Header" xml:space="preserve"><value>Use the app default notification time</value></data>
+  <data name="GameNotificationUseDefaultLeadToggle.OnContent" xml:space="preserve"><value>Default</value></data>
+  <data name="GameNotificationUseDefaultLeadToggle.OffContent" xml:space="preserve"><value>Custom</value></data>
+  <data name="GameNotificationUseDefaultLeadToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Use the app default notification time for this game</value></data>
+  <data name="GameNotificationLeadInput.Header" xml:space="preserve"><value>Notification time for this game (minutes before full)</value></data>
+  <data name="GameNotificationLeadInput.Description" xml:space="preserve"><value>0 means the full recovery time. Enter an integer from 0 to 525,600.</value></data>
+  <data name="GameNotificationLeadInput.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Notification lead time for this game in minutes</value></data>
   <data name="ChooseGameImageButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Choose a game image</value></data>
   <data name="GameEditorElapsedInfoBar.Title" xml:space="preserve"><value>Natural recovery is in progress</value></data>
   <data name="GameEditorElapsedInfoBar.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Review the current value after natural recovery</value></data>
@@ -230,6 +237,7 @@
   <data name="GameEditorRecoverySecondsOutOfRangeError" xml:space="preserve"><value>Enter recovery seconds as an integer from 0 to 59.</value></data>
   <data name="GameEditorRecoveryIntervalOutOfRangeError" xml:space="preserve"><value>Enter a recovery interval from 1 second to 525,600 minutes.</value></data>
   <data name="GameEditorFullTimeOutOfRangeError" xml:space="preserve"><value>This maximum and recovery time cannot produce a full recovery time. Use smaller values.</value></data>
+  <data name="GameEditorNotificationLeadOutOfRangeError" xml:space="preserve"><value>Enter a notification time from 0 to 525,600 minutes.</value></data>
   <data name="GameEditorElapsedWarningFormat" xml:space="preserve"><value>Natural recovery progressed while this screen was open. The calculated current value is {0}. Review the input before saving.</value></data>
   <data name="GameEditorSaveError" xml:space="preserve"><value>Could not save the data. Try again.</value></data>
   <data name="GameEditorSaveValidationError" xml:space="preserve"><value>Could not save the input. Check each field.</value></data>

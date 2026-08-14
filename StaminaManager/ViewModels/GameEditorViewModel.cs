@@ -42,6 +42,13 @@ public sealed partial class GameEditorViewModel : ObservableObject
     public partial bool IsNotificationEnabled { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsCustomNotificationLeadEnabled))]
+    public partial bool UseDefaultNotificationLeadTime { get; set; }
+
+    [ObservableProperty]
+    public partial double NotificationLeadMinutesOverride { get; set; }
+    
+    [ObservableProperty]
     public partial string? ImageAssetId { get; set; }
 
     [ObservableProperty]
@@ -74,6 +81,13 @@ public sealed partial class GameEditorViewModel : ObservableObject
     [ObservableProperty]
     public partial string? RecoveryIntervalError { get; private set; }
 
+    [ObservableProperty]
+    public partial string? NotificationLeadMinutesOverrideError
+    {
+        get;
+        private set;
+    }
+    
     [ObservableProperty]
     public partial string? GeneralError { get; private set; }
 
@@ -109,20 +123,34 @@ public sealed partial class GameEditorViewModel : ObservableObject
             RecoveryMinutes = 8;
             RecoverySeconds = 0;
             IsNotificationEnabled = true;
+
+            UseDefaultNotificationLeadTime = true;
+            NotificationLeadMinutesOverride =
+                _gameManager.CurrentData.Settings.NotificationLeadMinutes;
+
             ImageAssetId = null;
         }
         else
         {
-            StaminaSnapshot snapshot = StaminaCalculator.Calculate(
-                entry,
-                _clock.UtcNow);
-            Name = entry.Name;
-            CurrentStamina = snapshot.Current;
-            MaxStamina = entry.MaxStamina;
-            RecoveryMinutes = entry.RecoveryMinutes;
-            RecoverySeconds = entry.RecoverySeconds;
-            IsNotificationEnabled = entry.IsNotificationEnabled;
-            ImageAssetId = entry.ImageAssetId;
+        StaminaSnapshot snapshot = StaminaCalculator.Calculate(
+            entry,
+            _clock.UtcNow);
+
+        Name = entry.Name;
+        CurrentStamina = snapshot.Current;
+        MaxStamina = entry.MaxStamina;
+        RecoveryMinutes = entry.RecoveryMinutes;
+        RecoverySeconds = entry.RecoverySeconds;
+        IsNotificationEnabled = entry.IsNotificationEnabled;
+
+        UseDefaultNotificationLeadTime =
+            entry.NotificationLeadMinutesOverride is null;
+
+        NotificationLeadMinutesOverride =
+            entry.NotificationLeadMinutesOverride
+            ?? _gameManager.CurrentData.Settings.NotificationLeadMinutes;
+
+        ImageAssetId = entry.ImageAssetId;
         }
 
         _initialDraft = CreateDraftOrThrow();
@@ -143,6 +171,9 @@ public sealed partial class GameEditorViewModel : ObservableObject
 
     public bool HasElapsedWarning =>
         !string.IsNullOrWhiteSpace(ElapsedWarning);
+
+    public bool IsCustomNotificationLeadEnabled =>
+        !UseDefaultNotificationLeadTime;
 
     public string DialogTitle => _appResourceService.GetString(
         IsNew
@@ -300,9 +331,17 @@ public sealed partial class GameEditorViewModel : ObservableObject
     partial void OnMaxStaminaChanged(double value) => ValidateIfReady();
 
     partial void OnRecoveryMinutesChanged(double value) => ValidateIfReady();
-
+    
     partial void OnRecoverySecondsChanged(double value) => ValidateIfReady();
 
+    partial void OnUseDefaultNotificationLeadTimeChanged(
+        bool value) =>
+        ValidateIfReady();
+
+    partial void OnNotificationLeadMinutesOverrideChanged(
+        double value) =>
+        ValidateIfReady();
+    
     partial void OnStateChanged(GameEditorState value)
     {
         OnPropertyChanged(nameof(CanSave));
@@ -333,6 +372,11 @@ public sealed partial class GameEditorViewModel : ObservableObject
         RecoverySecondsError = GetIntegerError(RecoverySeconds);
         RecoveryIntervalError = null;
 
+        NotificationLeadMinutesOverrideError =
+            UseDefaultNotificationLeadTime
+                ? null
+                : GetIntegerError(NotificationLeadMinutesOverride);
+
         GameDraft draft = new(
             Name ?? string.Empty,
             ToValidationInt(CurrentStamina),
@@ -340,7 +384,10 @@ public sealed partial class GameEditorViewModel : ObservableObject
             ToValidationInt(RecoveryMinutes),
             ImageAssetId,
             ToValidationInt(RecoverySeconds),
-            IsNotificationEnabled);
+            IsNotificationEnabled,
+            UseDefaultNotificationLeadTime
+                ? null
+                : ToValidationInt(NotificationLeadMinutesOverride));
         ValidationResult result = GameEntryValidator.Validate(
             draft,
             _clock.UtcNow);
@@ -357,6 +404,10 @@ public sealed partial class GameEditorViewModel : ObservableObject
         RecoverySecondsError ??= FirstError(
             result,
             nameof(GameDraft.RecoverySeconds));
+        NotificationLeadMinutesOverrideError ??=
+            FirstError(
+                result,
+                nameof(GameDraft.NotificationLeadMinutesOverride));
         if (RecoveryMinutesError is null && RecoverySecondsError is null)
         {
             RecoveryIntervalError = FirstError(
@@ -368,7 +419,8 @@ public sealed partial class GameEditorViewModel : ObservableObject
             && MaxStaminaError is null
             && RecoveryMinutesError is null
             && RecoverySecondsError is null
-            && RecoveryIntervalError is null;
+            && RecoveryIntervalError is null
+            && NotificationLeadMinutesOverrideError is null;
         OnPropertyChanged(nameof(CanSave));
     }
 
@@ -379,7 +431,12 @@ public sealed partial class GameEditorViewModel : ObservableObject
         ToIntOrThrow(RecoveryMinutes, nameof(RecoveryMinutes)),
         ImageAssetId,
         ToIntOrThrow(RecoverySeconds, nameof(RecoverySeconds)),
-        IsNotificationEnabled);
+        IsNotificationEnabled,
+        UseDefaultNotificationLeadTime
+            ? null
+            : ToIntOrThrow(
+                NotificationLeadMinutesOverride,
+                nameof(NotificationLeadMinutesOverride)));
 
     private string? GetIntegerError(double value) =>
         double.IsFinite(value)
@@ -431,6 +488,8 @@ public sealed partial class GameEditorViewModel : ObservableObject
                 "GameEditorRecoveryIntervalOutOfRangeError",
             ValidationErrorCode.FullTimeOutOfRange =>
                 "GameEditorFullTimeOutOfRangeError",
+            ValidationErrorCode.NotificationLeadMinutesOverrideOutOfRange =>
+                "GameEditorNotificationLeadOutOfRangeError",
             _ => throw new ArgumentOutOfRangeException(nameof(code), code, null),
         });
 

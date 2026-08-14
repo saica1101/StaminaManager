@@ -117,6 +117,13 @@
   <data name="GameNotificationToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>このゲームの満タン通知を切り替える</value></data>
   <data name="GameNotificationToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText" xml:space="preserve"><value>Settingsの通知がONの場合に、このゲームの満タン通知を受け取ります</value></data>
   <data name="GameNotificationDescription.Text" xml:space="preserve"><value>Settingsの通知がONの場合に、このゲームの満タン通知を受け取ります</value></data>
+  <data name="GameNotificationUseDefaultLeadToggle.Header" xml:space="preserve"><value>アプリの既定通知時間を使う</value></data>
+  <data name="GameNotificationUseDefaultLeadToggle.OnContent" xml:space="preserve"><value>既定値</value></data>
+  <data name="GameNotificationUseDefaultLeadToggle.OffContent" xml:space="preserve"><value>個別設定</value></data>
+  <data name="GameNotificationUseDefaultLeadToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>このゲームの通知時間にアプリの既定値を使う</value></data>
+  <data name="GameNotificationLeadInput.Header" xml:space="preserve"><value>このゲームの通知時間（分前）</value></data>
+  <data name="GameNotificationLeadInput.Description" xml:space="preserve"><value>0は満タン時刻です。0～525,600の整数を入力してください。</value></data>
+  <data name="GameNotificationLeadInput.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>このゲームの満タン前の通知時間（分）</value></data>
   <data name="ChooseGameImageButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>ゲーム画像を選択</value></data>
   <data name="GameEditorElapsedInfoBar.Title" xml:space="preserve"><value>自然回復が進んでいます</value></data>
   <data name="GameEditorElapsedInfoBar.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>自然回復による現在値の確認</value></data>
@@ -230,6 +237,7 @@
   <data name="GameEditorRecoverySecondsOutOfRangeError" xml:space="preserve"><value>回復時間の秒部分は0～59秒の整数で入力してください。</value></data>
   <data name="GameEditorRecoveryIntervalOutOfRangeError" xml:space="preserve"><value>回復時間は合計1秒～525,600分で入力してください。</value></data>
   <data name="GameEditorFullTimeOutOfRangeError" xml:space="preserve"><value>この最大値と回復時間では満タン時刻を計算できません。値を小さくしてください。</value></data>
+  <data name="GameEditorNotificationLeadOutOfRangeError" xml:space="preserve"><value>通知時間は0～525,600分の整数で入力してください。</value></data>
   <data name="GameEditorElapsedWarningFormat" xml:space="preserve"><value>この画面を開いている間に自然回復が進みました。現在の計算値は {0} です。入力値を確認してから保存してください。</value></data>
   <data name="GameEditorSaveError" xml:space="preserve"><value>データを保存できませんでした。もう一度お試しください。</value></data>
   <data name="GameEditorSaveValidationError" xml:space="preserve"><value>入力内容を保存できません。各項目を確認してください。</value></data>
