@@ -185,6 +185,76 @@ public sealed class GameManager
         return edited;
     }
 
+    public async Task<bool> ReorderAsync(
+        Guid sourceGameId,
+        Guid targetGameId,
+        CancellationToken cancellationToken)
+    {
+        if (sourceGameId == targetGameId)
+        {
+            return false;
+        }
+
+        bool reordered = false;
+
+        await _mutationGate.WaitAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        try
+        {
+            EnsureInitialized();
+
+            int sourceIndex = FindIndex(sourceGameId);
+            int targetIndex = FindIndex(targetGameId);
+
+            if (sourceIndex < 0 || targetIndex < 0)
+            {
+                return false;
+            }
+
+            ImmutableArray<GameEntry>.Builder games =
+                _data.Games.ToBuilder();
+
+            GameEntry movedGame = games[sourceIndex];
+
+            games.RemoveAt(sourceIndex);
+            games.Insert(targetIndex, movedGame);
+
+            ImmutableArray<GameEntry> reorderedGames = games
+                .Select(
+                    (game, index) =>
+                        game with
+                        {
+                            SortOrder = index,
+                        })
+                .ToImmutableArray();
+
+            DataEnvelope candidate = _data with
+            {
+                Games = reorderedGames,
+            };
+
+            await SaveAndPublishAsync(
+                    candidate,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            reordered = true;
+        }
+        finally
+        {
+            _mutationGate.Release();
+        }
+
+        if (reordered)
+        {
+            await NotifyGamesChangedAsync()
+                .ConfigureAwait(false);
+        }
+
+        return reordered;
+    }
+
     public async Task<bool> DeleteAsync(
         Guid gameId,
         CancellationToken cancellationToken)

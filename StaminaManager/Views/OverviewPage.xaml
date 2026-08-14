@@ -15,7 +15,13 @@
         <DataTemplate
             x:Key="GameCardTemplate"
             x:DataType="viewModels:GameCardViewModel">
-            <controls:GameCardControl ViewModel="{x:Bind Mode=OneWay}" />
+            <controls:GameCardControl
+                AllowDrop="True"
+                ViewModel="{x:Bind Mode=OneWay}"
+                DragStarting="GameCard_DragStarting"
+                DragOver="GameCard_DragOver"
+                Drop="GameCard_Drop"
+                DropCompleted="GameCard_DropCompleted" />
         </DataTemplate>
 
         <DataTemplate
@@ -156,7 +162,7 @@
         <ScrollViewer
             x:Name="OverviewScrollViewer"
             Grid.Row="3"
-            Margin="0,20,0,0"
+            Margin="0,20,16,0"
             AutomationProperties.AutomationId="OverviewScrollViewer"
             HorizontalContentAlignment="Stretch"
             HorizontalScrollBarVisibility="Disabled"

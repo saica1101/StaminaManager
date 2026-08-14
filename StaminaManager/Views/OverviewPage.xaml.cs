@@ -4,12 +4,14 @@ using StaminaManager.Core.Calculations;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.ViewModels;
 using StaminaManager.Controls;
+using Windows.ApplicationModel.DataTransfer;
 
 namespace StaminaManager.Views;
 
 public sealed partial class OverviewPage : Page
 {
     private readonly IAppResourceService _appResourceService;
+    private Guid? _draggedGameId;
 
     public OverviewPage(
         OverviewViewModel viewModel,
@@ -75,6 +77,89 @@ public sealed partial class OverviewPage : Page
 
     public static Visibility BoolToVisibility(bool value) =>
         value ? Visibility.Visible : Visibility.Collapsed;
+
+    private void GameCard_DragStarting(
+        UIElement sender,
+        DragStartingEventArgs args)
+    {
+        if (sender is not GameCardControl card)
+        {
+            args.Cancel = true;
+            return;
+        }
+
+        Guid gameId = card.ViewModel.Id;
+        _draggedGameId = gameId;
+
+        args.AllowedOperations =
+            DataPackageOperation.Move;
+
+        args.Data.RequestedOperation =
+            DataPackageOperation.Move;
+
+        args.Data.SetText(
+            gameId.ToString("D"));
+    }
+
+    private void GameCard_DragOver(
+        object sender,
+        DragEventArgs args)
+    {
+        if (sender is not GameCardControl targetCard
+            || _draggedGameId is not Guid sourceGameId
+            || sourceGameId == targetCard.ViewModel.Id)
+        {
+            args.AcceptedOperation =
+                DataPackageOperation.None;
+
+            return;
+        }
+
+        args.AcceptedOperation =
+            DataPackageOperation.Move;
+
+        args.Handled = true;
+    }
+
+    private async void GameCard_Drop(
+        object sender,
+        DragEventArgs args)
+    {
+        if (sender is not GameCardControl targetCard
+            || _draggedGameId is not Guid sourceGameId)
+        {
+            args.AcceptedOperation =
+                DataPackageOperation.None;
+
+            return;
+        }
+
+        Guid targetGameId = targetCard.ViewModel.Id;
+
+        if (sourceGameId == targetGameId)
+        {
+            args.AcceptedOperation =
+                DataPackageOperation.None;
+
+            return;
+        }
+
+        args.AcceptedOperation =
+            DataPackageOperation.Move;
+
+        args.Handled = true;
+
+        await ViewModel.ReorderGameAsync(
+            sourceGameId,
+            targetGameId);
+    }
+
+    private void GameCard_DropCompleted(
+        UIElement sender,
+        DropCompletedEventArgs args)
+    {
+        _draggedGameId = null;
+    }
 
     private void OverviewItems_ElementPrepared(
         ItemsRepeater sender,

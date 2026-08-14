@@ -128,6 +128,37 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
             () => ShowErrorResource("OverviewNotificationTargetMissingError"),
             cancellationToken);
 
+    public async Task<bool> ReorderGameAsync(
+        Guid sourceGameId,
+        Guid targetGameId,
+        CancellationToken cancellationToken = default)
+    {
+        if (sourceGameId == targetGameId)
+        {
+            return false;
+        }
+
+        try
+        {
+            return await _gameManager.ReorderAsync(
+                sourceGameId,
+                targetGameId,
+                cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
+        }
+        catch (Exception exception)
+        {
+            await ShowErrorAsync(
+                exception,
+                CancellationToken.None);
+
+            return false;
+        }
+    }
+
     internal void RefreshLocalizedText()
     {
         if (_errorResourceId is string errorResourceId)
