@@ -233,9 +233,10 @@ finally {{
         StringAssert.Contains(
             source,
             "Test-UiElement $AppPid VersionFooterText");
-        StringAssert.Contains(
-            source,
-            "Invoke-WinApp ui invoke TogglePaneButton `\n        -w (Get-MainWindowHandle)");
+        Assert.IsTrue(
+            System.Text.RegularExpressions.Regex.IsMatch(
+                source,
+                @"Invoke-WinApp\s+ui\s+invoke\s+TogglePaneButton\s+`\s+-w\s+\(Get-MainWindowHandle\)"));
 
         int languageSurface = source.IndexOf(
             "function Assert-LanguageSurface",
@@ -262,19 +263,22 @@ finally {{
             "ui",
             "StaminaManager.UiTests.ps1"));
 
-        StringAssert.Contains(
-            source,
-            "Invoke-WinApp ui wait-for $AutomationId `\n        -w (Get-MainWindowHandle) `\n        --value $ItemName");
-        Assert.DoesNotContain(
-            "Invoke-WinApp ui wait-for $AutomationId -a $AppPid `\n        --value $ItemName",
-            source);
         Assert.IsTrue(
             System.Text.RegularExpressions.Regex.IsMatch(
                 source,
-                @"Invoke-WinApp ui wait-for \$AutomationId\s+`\s+-w \(Get-MainWindowHandle\)\s+`\s+-p IsEnabled"));
-        Assert.DoesNotContain(
-            "Invoke-WinApp ui wait-for $AutomationId -a $AppPid `\n        -p IsEnabled",
-            source);
+                @"Invoke-WinApp\s+ui\s+wait-for\s+\$AutomationId\s+`\s+-w\s+\(Get-MainWindowHandle\)\s+`\s+--value\s+\$ItemName"));
+        Assert.IsFalse(
+            System.Text.RegularExpressions.Regex.IsMatch(
+                source,
+                @"Invoke-WinApp\s+ui\s+wait-for\s+\$AutomationId\s+-a\s+\$AppPid\s+`\s+--value\s+\$ItemName"));
+        Assert.IsTrue(
+            System.Text.RegularExpressions.Regex.IsMatch(
+                source,
+                @"Invoke-WinApp\s+ui\s+wait-for\s+\$AutomationId\s+`\s+-w\s+\(Get-MainWindowHandle\)\s+`\s+-p\s+IsEnabled"));
+        Assert.IsFalse(
+            System.Text.RegularExpressions.Regex.IsMatch(
+                source,
+                @"Invoke-WinApp\s+ui\s+wait-for\s+\$AutomationId\s+-a\s+\$AppPid\s+`\s+-p\s+IsEnabled"));
     }
 
     [TestMethod]
