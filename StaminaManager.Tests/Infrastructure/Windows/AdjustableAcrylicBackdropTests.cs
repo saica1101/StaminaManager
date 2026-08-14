@@ -125,8 +125,8 @@ public sealed class AdjustableAcrylicBackdropTests
         int attachConfigurationIndex = attachMethod.IndexOf(
             "_controller.SetSystemBackdropConfiguration(_configuration)",
             StringComparison.Ordinal);
-        Assert.IsGreaterThanOrEqualTo(attachConfigurationIndex, 0);
-        Assert.IsGreaterThanOrEqualTo(attachTargetIndex, 0);
+        Assert.IsGreaterThanOrEqualTo(0, attachConfigurationIndex);
+        Assert.IsGreaterThanOrEqualTo(0, attachTargetIndex);
         Assert.IsLessThan(attachConfigurationIndex, attachTargetIndex);
     }
 
