@@ -27,12 +27,22 @@ jobs:
         run: dotnet restore StaminaManager.Tests/StaminaManager.Tests.csproj -p:Platform=x64
 
       - name: Run tests
-        run: dotnet test StaminaManager.Tests/StaminaManager.Tests.csproj --configuration Release --no-restore -p:Platform=x64 --logger "trx;LogFileName=test-results.trx"
+        timeout-minutes: 5
+        run: >
+          dotnet test StaminaManager.Tests/StaminaManager.Tests.csproj
+          --configuration Release
+          --no-restore
+          -p:Platform=x64
+          --logger "trx;LogFileName=test-results.trx"
+          --blame-hang
+          --blame-hang-timeout 2m
+          --blame-hang-dump-type none
 
       - name: Upload test results
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: test-results
           path: '**/TestResults/*.trx'
           if-no-files-found: ignore
+          retention-days: 7
