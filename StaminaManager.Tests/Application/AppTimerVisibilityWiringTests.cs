@@ -14,7 +14,10 @@ public sealed class AppTimerVisibilityWiringTests
 
         StringAssert.Contains(
             source,
-            "_shellViewModel.PropertyChanged +=");
+            "_shellViewModel = shellViewModel;");
+        StringAssert.Contains(
+            source,
+            "shellViewModel.PropertyChanged +=");
         StringAssert.Contains(source, "OnShellViewModelPropertyChanged");
         StringAssert.Contains(
             source,
