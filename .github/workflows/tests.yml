@@ -1,0 +1,70 @@
+name: Tests
+
+on:
+  pull_request:
+    branches:
+      - develop
+
+concurrency:
+  group: tests-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Install Windows App SDK 2.4 runtime
+        shell: pwsh
+        run: |
+          $installer = Join-Path $env:RUNNER_TEMP "WindowsAppRuntimeInstall-x64.exe"
+          Invoke-WebRequest `
+            -Uri "https://aka.ms/windowsappsdk/2.4/2.4.0/windowsappruntimeinstall-x64.exe" `
+            -OutFile $installer
+
+          $process = Start-Process `
+            -FilePath $installer `
+            -ArgumentList "--quiet" `
+            -Wait `
+            -PassThru
+
+          if ($process.ExitCode -ne 0) {
+            throw "Windows App SDK runtime installer failed with exit code $($process.ExitCode)."
+          }
+
+          Get-AppxPackage -Name "Microsoft.WindowsAppRuntime*" |
+            Sort-Object Name, Version |
+            Select-Object Name, Version, Architecture
+
+      - name: Restore
+        run: dotnet restore StaminaManager.Tests/StaminaManager.Tests.csproj -p:Platform=x64
+
+      - name: Run tests
+        timeout-minutes: 5
+        run: >
+          dotnet test StaminaManager.Tests/StaminaManager.Tests.csproj
+          --configuration Release
+          --no-restore
+          -p:Platform=x64
+          --logger "trx;LogFileName=test-results.trx"
+          --blame-hang
+          --blame-hang-timeout 2m
+          --blame-hang-dump-type none
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: '**/TestResults/*.trx'
+          if-no-files-found: ignore
+          retention-days: 7

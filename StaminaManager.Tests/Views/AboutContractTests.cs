@@ -11,15 +11,17 @@ public sealed class AboutContractTests
         "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
 
     [TestMethod]
-    public void MainPage_AboutIsFooterItem_AndVersionIsPaneFooter()
+    public void MainPage_AboutIsMenuItem_AndVersionIsPaneFooter()
     {
         XDocument page = XDocument.Load(GetPath("StaminaManager", "MainPage.xaml"));
         XElement navigation = page.Descendants(Presentation + "NavigationView")
             .Single();
         XElement about = navigation
-            .Element(Presentation + "NavigationView.FooterMenuItems")!
+            .Element(Presentation + "NavigationView.MenuItems")!
             .Descendants(Presentation + "NavigationViewItem")
-            .Single();
+            .Single(element => AttributeValue(
+                element,
+                "AutomationProperties.AutomationId") == "NavAbout");
         XElement versionBand = navigation
             .Element(Presentation + "NavigationView.PaneFooter")!
             .Descendants()
@@ -41,19 +43,18 @@ public sealed class AboutContractTests
             "AutomationProperties.AutomationId"));
         StringAssert.Contains(
             AttributeValue(versionText, "Text") ?? string.Empty,
-            "VersionText");
+            "VersionFooterDisplayText");
 
         string xaml = File.ReadAllText(GetPath("StaminaManager", "MainPage.xaml"));
+        int menuItemsIndex = xaml.IndexOf(
+            "<NavigationView.MenuItems>",
+            StringComparison.Ordinal);
         int paneFooterIndex = xaml.IndexOf(
             "<NavigationView.PaneFooter>",
             StringComparison.Ordinal);
-        int footerMenuItemsIndex = xaml.IndexOf(
-            "<NavigationView.FooterMenuItems>",
-            StringComparison.Ordinal);
         Assert.IsTrue(
-            paneFooterIndex >= 0
-                && footerMenuItemsIndex > paneFooterIndex);
-
+            menuItemsIndex >= 0
+                && paneFooterIndex > menuItemsIndex);
     }
 
     [TestMethod]
@@ -190,7 +191,7 @@ public sealed class AboutContractTests
     }
 
     [TestMethod]
-    public void AboutPage_UsesVerticalVersionAndWrappingButtonsWithoutFixedWidth()
+    public void AboutPage_UsesInlineVersionAndSideBySideWrappingLinkButtons()
     {
         XDocument page = XDocument.Load(GetPath(
             "StaminaManager",
@@ -202,24 +203,33 @@ public sealed class AboutContractTests
                 "AutomationProperties.AutomationId") == "AboutVersionText");
         XElement versionStack = versionText.Parent!;
 
-        Assert.AreNotEqual("Horizontal", AttributeValue(versionStack, "Orientation"));
+        Assert.AreEqual("Horizontal", AttributeValue(versionStack, "Orientation"));
 
-        foreach (string automationId in new[]
+        XElement[] buttons = new[]
         {
             "OpenGitHubButton",
             "OpenReadmeButton",
-        })
-        {
-            XElement button = page.Descendants(Presentation + "Button")
+        }
+            .Select(automationId => page.Descendants(Presentation + "Button")
                 .Single(element => AttributeValue(
                     element,
-                    "AutomationProperties.AutomationId") == automationId);
+                    "AutomationProperties.AutomationId") == automationId))
+            .ToArray();
+        XElement buttonRow = buttons[0].Parent!;
+
+        Assert.AreSame(buttonRow, buttons[1].Parent);
+        Assert.AreEqual("Horizontal", AttributeValue(buttonRow, "Orientation"));
+
+        foreach (XElement button in buttons)
+        {
             XElement text = button.Descendants(Presentation + "TextBlock")
                 .Single();
 
-            Assert.AreEqual("Stretch", AttributeValue(button, "HorizontalAlignment"));
+            Assert.AreEqual("Left", AttributeValue(button, "HorizontalAlignment"));
             Assert.IsNull(AttributeValue(button, "Width"));
-            Assert.IsNull(AttributeValue(button, "MinWidth"));
+            Assert.IsFalse(string.IsNullOrWhiteSpace(AttributeValue(
+                button,
+                "MinWidth")));
             Assert.AreEqual("Wrap", AttributeValue(text, "TextWrapping"));
         }
     }

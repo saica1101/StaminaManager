@@ -125,23 +125,33 @@ public sealed class AppLanguageServiceTests
     }
 
     [TestMethod]
-    public void GetEffectiveLanguage_Override非対応時は最初の対応OS言語を使う()
+    public void GetEffectiveLanguage_OSの第一優先言語が日本語ならJapaneseを使う()
+    {
+        AppLanguageService service = new(
+            () => null,
+            () => ["ja-JP", "en-US"]);
+
+        Assert.AreEqual(AppLanguage.Japanese, service.GetEffectiveLanguage());
+    }
+
+    [TestMethod]
+    public void GetEffectiveLanguage_OSの第一優先言語が日本語以外ならEnglishを使う()
     {
         AppLanguageService service = new(
             () => "fr-FR",
-            () => ["de-DE", "en-US", "ja-JP"]);
+            () => ["de-DE", "ja-JP", "en-US"]);
 
         Assert.AreEqual(AppLanguage.English, service.GetEffectiveLanguage());
     }
 
     [TestMethod]
-    public void GetEffectiveLanguage_対応言語なしではJapaneseへFallbackする()
+    public void GetEffectiveLanguage_OS言語一覧が空ならEnglishへFallbackする()
     {
         AppLanguageService service = new(
             () => null,
-            () => ["fr-FR"]);
+            () => []);
 
-        Assert.AreEqual(AppLanguage.Japanese, service.GetEffectiveLanguage());
+        Assert.AreEqual(AppLanguage.English, service.GetEffectiveLanguage());
     }
 
     [TestMethod]
