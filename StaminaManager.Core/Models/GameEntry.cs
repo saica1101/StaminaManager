@@ -10,4 +10,5 @@ public sealed record GameEntry(
     string? ImageAssetId,
     int SortOrder,
     int RecoverySeconds,
-    bool IsNotificationEnabled);
+    bool IsNotificationEnabled,
+    int? NotificationLeadMinutesOverride = null);
