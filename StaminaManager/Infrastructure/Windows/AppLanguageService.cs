@@ -55,16 +55,29 @@ public sealed class AppLanguageService : IAppLanguageService
             return overrideLanguage;
         }
 
-        foreach (string languageTag in _getOsLanguages())
+        IReadOnlyList<string> osLanguages = _getOsLanguages();
+
+        if (osLanguages.Count == 0)
         {
-            if (LanguagePolicy.TryGetLanguage(languageTag, out AppLanguage language))
-            {
-                return language;
-            }
+            return AppLanguage.English;
         }
 
-        return AppLanguage.Japanese;
+        string primaryLanguage = osLanguages[0];
+
+        return IsJapaneseLanguage(primaryLanguage)
+            ? AppLanguage.Japanese
+            : AppLanguage.English;
     }
+
+    private static bool IsJapaneseLanguage(string? languageTag) =>
+        !string.IsNullOrWhiteSpace(languageTag)
+        && (string.Equals(
+                languageTag,
+                "ja",
+                StringComparison.OrdinalIgnoreCase)
+            || languageTag.StartsWith(
+                "ja-",
+                StringComparison.OrdinalIgnoreCase));
 
     public LanguageChangeResult SetLanguage(AppLanguage language)
     {

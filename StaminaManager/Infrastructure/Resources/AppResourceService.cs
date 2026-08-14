@@ -80,7 +80,7 @@ public sealed class AppResourceService : IAppResourceService
             Debug.WriteLine(
                 "Session language resolution failed: "
                 + exception.GetType().Name);
-            return AppLanguage.Japanese;
+            return AppLanguage.English;
         }
     }
 
