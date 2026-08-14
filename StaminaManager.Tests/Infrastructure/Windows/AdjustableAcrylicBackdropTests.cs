@@ -127,7 +127,7 @@ public sealed class AdjustableAcrylicBackdropTests
             StringComparison.Ordinal);
         Assert.IsGreaterThanOrEqualTo(0, attachConfigurationIndex);
         Assert.IsGreaterThanOrEqualTo(0, attachTargetIndex);
-        Assert.IsLessThan(attachConfigurationIndex, attachTargetIndex);
+        Assert.IsLessThan(attachTargetIndex, attachConfigurationIndex);
     }
 
     [TestMethod]
