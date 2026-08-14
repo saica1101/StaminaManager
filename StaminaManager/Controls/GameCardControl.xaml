@@ -122,7 +122,7 @@
         </Button>
         <Button
             x:Name="QuickUpdateButton"
-        x:Uid="GameCardQuickUpdateButton"
+            x:Uid="GameCardQuickUpdateButton"
             Width="32"
             Height="32"
             Margin="0,8,8,0"
@@ -131,9 +131,9 @@
             VerticalAlignment="Top"
             AutomationProperties.AutomationId="{x:Bind QuickUpdateAutomationId, Mode=OneWay}"
             Command="{x:Bind ViewModel.UpdateCurrentCommand, Mode=OneWay}">
-            <FontIcon
+            <SymbolIcon
                 AutomationProperties.AccessibilityView="Raw"
-                Glyph="&#xE72C;" />
+                Symbol="Edit" />
         </Button>
     </Grid>
 </UserControl>

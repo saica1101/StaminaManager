@@ -311,6 +311,8 @@ public sealed class AdjustableAcrylicBackdrop : SystemBackdrop
             controller.AttachTarget,
             controller.DetachTarget,
             _tintOpacityPercent);
+            
+        QueueBackdropConfigurationUpdate();
     }
 
     protected override void OnTargetDisconnected(
