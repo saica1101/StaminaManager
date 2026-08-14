@@ -7,4 +7,5 @@ public sealed record GameDraft(
     int RecoveryMinutes,
     string? ImageAssetId,
     int RecoverySeconds,
-    bool IsNotificationEnabled);
+    bool IsNotificationEnabled,
+    int? NotificationLeadMinutesOverride = null);

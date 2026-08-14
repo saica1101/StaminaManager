@@ -62,6 +62,14 @@ public static class GameEntryValidator
                 ValidationErrorCode.RecoverySecondsOutOfRange);
         }
 
+        if (draft.NotificationLeadMinutesOverride is int notificationLeadMinutes && notificationLeadMinutes is < 0 or > MaxRecoveryMinutes)
+        {
+            AddError(
+                nameof(GameDraft.NotificationLeadMinutesOverride),
+                ValidationErrorCode.NotificationLeadMinutesOverrideOutOfRange
+                );
+        }
+
         if (recoveryIntervalSeconds is < 1 or > MaxRecoveryMinutes * 60L)
         {
             AddError(
@@ -98,7 +106,8 @@ public static class GameEntryValidator
             ImageAssetId: draft.ImageAssetId,
             SortOrder: 0,
             RecoverySeconds: draft.RecoverySeconds,
-            IsNotificationEnabled: draft.IsNotificationEnabled);
+            IsNotificationEnabled: draft.IsNotificationEnabled,
+            NotificationLeadMinutesOverride: draft.NotificationLeadMinutesOverride);
 
         try
         {

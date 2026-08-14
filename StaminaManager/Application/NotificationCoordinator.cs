@@ -89,7 +89,7 @@ public sealed class NotificationCoordinator : INotificationReconciler
             entry => !currentGameIds.Contains(entry.GameId)) > 0;
         HashSet<string> retainedCycleKeys = ResolveRetainedCycleKeys(
             games,
-            settings.NotificationLeadMinutes);
+            settings);
         isLedgerDirty |= PruneLedger(entries, retainedCycleKeys);
         bool hasLedgerSaveFailure = false;
 
@@ -138,14 +138,19 @@ public sealed class NotificationCoordinator : INotificationReconciler
             foreach (GameEntry game in games)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+
+                int leadMinutes = ResolveLeadMinutes(
+                    game,
+                    settings);
+
                 NotificationLedgerEntry? existing = ResolveExisting(
                     entries,
                     game,
-                    settings.NotificationLeadMinutes);
-                NotificationDecision decision =
-                    NotificationStateMachine.Evaluate(
+                    leadMinutes);
+
+                NotificationDecision decision = NotificationStateMachine.Evaluate(
                         game,
-                        settings.NotificationLeadMinutes,
+                        leadMinutes,
                         _clock.UtcNow,
                         notificationsEnabled: game.IsNotificationEnabled,
                         existing,
@@ -259,13 +264,18 @@ public sealed class NotificationCoordinator : INotificationReconciler
 
         foreach (GameEntry game in games)
         {
+            int leadMinutes = ResolveLeadMinutes(
+                game,
+                settings);
+
             NotificationLedgerEntry? existing = ResolveExisting(
                 entries,
                 game,
-                settings.NotificationLeadMinutes);
+                leadMinutes);
+
             NotificationDecision decision = NotificationStateMachine.Evaluate(
                 game,
-                settings.NotificationLeadMinutes,
+                leadMinutes,
                 _clock.UtcNow,
                 notificationsEnabled: false,
                 existing,
@@ -301,7 +311,7 @@ public sealed class NotificationCoordinator : INotificationReconciler
             entries,
             ResolveRetainedCycleKeys(
                 games,
-                settings.NotificationLeadMinutes));
+                settings));
         await SaveLedgerAsync(entries, issues, CancellationToken.None)
             .ConfigureAwait(false);
         return new NotificationReconcileResult(issues.ToImmutable());
@@ -448,18 +458,29 @@ public sealed class NotificationCoordinator : INotificationReconciler
                 existingEntry.Key,
                 StringComparison.Ordinal));
 
+    private static int ResolveLeadMinutes(
+        GameEntry game,
+        AppSettings settings) =>
+        game.NotificationLeadMinutesOverride ?? settings.NotificationLeadMinutes;
+
     private static HashSet<string> ResolveRetainedCycleKeys(
         IReadOnlyCollection<GameEntry> games,
-        int leadMinutes)
+        AppSettings settings)
     {
         HashSet<string> keys = new(StringComparer.Ordinal);
+
         foreach (GameEntry game in games)
         {
             try
             {
+                int leadMinutes = ResolveLeadMinutes(
+                    game,
+                    settings);
+
                 StaminaSnapshot snapshot = StaminaCalculator.Calculate(
                     game,
                     game.RecordedAtUtc);
+
                 if (snapshot.FullAtUtc is not null)
                 {
                     keys.Add(NotificationLedgerEntry.Create(

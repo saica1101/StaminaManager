@@ -34,6 +34,7 @@ public static class GameEditPolicy
                 : original.RecordedAtUtc,
             ImageAssetId = editedDraft.ImageAssetId,
             IsNotificationEnabled = editedDraft.IsNotificationEnabled,
+            NotificationLeadMinutesOverride = editedDraft.NotificationLeadMinutesOverride,
         };
     }
 }

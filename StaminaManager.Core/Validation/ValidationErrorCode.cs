@@ -9,4 +9,5 @@ public enum ValidationErrorCode
     RecoverySecondsOutOfRange,
     RecoveryIntervalOutOfRange,
     FullTimeOutOfRange,
+    NotificationLeadMinutesOverrideOutOfRange,
 }

@@ -101,7 +101,8 @@ public sealed class GameManager
                 draft.ImageAssetId,
                 _data.Games.Length,
                 draft.RecoverySeconds,
-                draft.IsNotificationEnabled);
+                draft.IsNotificationEnabled,
+                draft.NotificationLeadMinutesOverride);
             AppSettings settings =
                 _data.Settings.SelectedCompactGameId is null
                     ? _data.Settings with
@@ -164,7 +165,8 @@ public sealed class GameManager
                     edited.RecoveryMinutes,
                     edited.ImageAssetId,
                     edited.RecoverySeconds,
-                    edited.IsNotificationEnabled),
+                    edited.IsNotificationEnabled,
+                    edited.NotificationLeadMinutesOverride),
                 edited.RecordedAtUtc);
             DataEnvelope candidate = _data with
             {

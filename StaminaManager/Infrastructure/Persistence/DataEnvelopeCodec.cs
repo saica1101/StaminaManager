@@ -93,7 +93,8 @@ internal static class DataEnvelopeCodec
                     game.RecoveryMinutes,
                     game.ImageAssetId,
                     game.RecoverySeconds,
-                    game.IsNotificationEnabled),
+                    game.IsNotificationEnabled,
+                    game.NotificationLeadMinutesOverride),
                 recordedAtUtc);
             if (!validation.IsValid)
             {
