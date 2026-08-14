@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Windowing;
 using StaminaManager.Core.Abstractions;
 using StaminaManager.Core.Models;
 using StaminaManager.ViewModels;
@@ -67,9 +68,46 @@ public sealed partial class CompactPage : Page, INotifyPropertyChanged
             return;
         }
 
+        ResetAlwaysOnTop();
+
         ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
         ActualThemeChanged -= CompactPage_ActualThemeChanged;
         _isDetached = true;
+    }
+
+    private void AlwaysOnTopToggle_Click(
+        object sender,
+        RoutedEventArgs args)
+    {
+        SetAlwaysOnTop(
+            AlwaysOnTopToggle.IsChecked == true);
+    }
+
+    private void SetAlwaysOnTop(bool value)
+    {
+        if (XamlRoot is null)
+        {
+            return;
+        }
+
+        AppWindow? appWindow = AppWindow.GetFromWindowId(
+            XamlRoot.ContentIslandEnvironment.AppWindowId);
+
+        if (appWindow?.Presenter is OverlappedPresenter presenter)
+        {
+            presenter.IsAlwaysOnTop = value;
+        }
+    }
+
+    internal void ResetAlwaysOnTop()
+    {
+        if (_isDetached)
+        {
+            return;
+        }
+
+        AlwaysOnTopToggle.IsChecked = false;
+        SetAlwaysOnTop(false);
     }
 
     private async void CompactGameSelector_SelectionChanged(

@@ -39,6 +39,8 @@
   <data name="OverviewLoadingProgressRing.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Loading game information</value></data>
   <data name="OverviewLoadingText.Text" xml:space="preserve"><value>Loading game information</value></data>
   <data name="OverviewItems.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Registered games and add action</value></data>
+  <data name="GameCardQuickUpdateButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Update current stamina</value></data>
+  <data name="GameCardQuickUpdateButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Update current value</value></data>
   <data name="AddGameCardButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Add a game</value></data>
   <data name="AddGameCardTitle.Text" xml:space="preserve"><value>Add a game</value></data>
   <data name="AddGameCardDescription.Text" xml:space="preserve"><value>Register a game name and stamina recovery rules.</value></data>
@@ -66,19 +68,20 @@
   <data name="SettingsFailedStatus.Message" xml:space="preserve"><value>Settings actions are disabled. Check the recovery notice in Overview and restart the app.</value></data>
   <data name="SettingsFailedStatus.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Settings failed to load. Check the recovery notice in Overview.</value></data>
   <data name="SettingsAppearanceHeading.Text" xml:space="preserve"><value>Appearance</value></data>
-  <data name="ThemeToggle.Header" xml:space="preserve"><value>Theme</value></data>
-  <data name="ThemeToggle.OffContent" xml:space="preserve"><value>Light</value></data>
-  <data name="ThemeToggle.OnContent" xml:space="preserve"><value>Dark</value></data>
-  <data name="ThemeToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Switch between Light and Dark themes</value></data>
+  <data name="ThemeSelector.Header" xml:space="preserve"><value>Theme</value></data>
+  <data name="ThemeSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Choose app theme</value></data>
+  <data name="ThemeSystemItem.Content" xml:space="preserve"><value>Use system setting</value></data>
+  <data name="ThemeLightItem.Content" xml:space="preserve"><value>Light</value></data>
+  <data name="ThemeDarkItem.Content" xml:space="preserve"><value>Dark</value></data>
   <data name="BackdropSelector.Header" xml:space="preserve"><value>Window background</value></data>
   <data name="BackdropSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Select the window background</value></data>
   <data name="BackdropMicaItem.Content" xml:space="preserve"><value>Mica</value></data>
   <data name="BackdropAcrylicItem.Content" xml:space="preserve"><value>Acrylic</value></data>
   <data name="BackdropSolidItem.Content" xml:space="preserve"><value>Solid</value></data>
-  <data name="AcrylicOpacitySlider.Header" xml:space="preserve"><value>Acrylic tint opacity</value></data>
-  <data name="AcrylicOpacitySlider.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Acrylic tint opacity</value></data>
-  <data name="AcrylicOpacitySlider.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText" xml:space="preserve"><value>Adjusts the strength of the Acrylic tint. It can be changed only when the background is Acrylic.</value></data>
-  <data name="AcrylicOpacityValue.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Current Acrylic tint opacity</value></data>
+  <data name="AcrylicOpacitySlider.Header" xml:space="preserve"><value>Acrylic intensity opacity</value></data>
+  <data name="AcrylicOpacitySlider.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Acrylic intensity opacity</value></data>
+  <data name="AcrylicOpacitySlider.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText" xml:space="preserve"><value>Adjusts the strength of the Acrylic intensity. It can be changed only when the background is Acrylic.</value></data>
+  <data name="AcrylicOpacityValue.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Current Acrylic intensity opacity</value></data>
   <data name="SettingsGeneralHeading.Text" xml:space="preserve"><value>Behavior</value></data>
   <data name="CloseBehaviorSelector.Header" xml:space="preserve"><value>Close button behavior</value></data>
   <data name="CloseBehaviorSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Select what the close button does</value></data>
@@ -138,6 +141,8 @@
   <data name="DeleteBackButton.Content" xml:space="preserve"><value>Back</value></data>
   <data name="DeleteBackButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Return to editing without deleting</value></data>
   <data name="CompactGameSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Game to display</value></data>
+  <data name="AlwaysOnTopToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>コンパクト表示を常に手前に表示</value></data>
+  <data name="AlwaysOnTopToggle.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>常に手前に表示</value></data>
   <data name="ReturnOverviewButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Return to Overview</value></data>
   <data name="ReturnOverviewButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Return to Overview</value></data>
   <data name="CompactErrorInfoBar.Title" xml:space="preserve"><value>The operation could not be completed</value></data>
@@ -153,8 +158,8 @@
   <data name="OverviewSchemaWritebackWarning" xml:space="preserve"><value>The data was updated to the latest format but could not be saved again. Change a setting once to save it again.</value></data>
   <data name="SettingsErrorTitle" xml:space="preserve"><value>Could not complete the setting</value></data>
   <data name="AcrylicOpacityAutomationNameFormat" xml:space="preserve"><value>Acrylic opacity, current value {0}%</value></data>
-  <data name="AcrylicOpacityHelpTextEnabledFormat" xml:space="preserve"><value>Adjusts the Acrylic tint intensity. The current value is {0}%.</value></data>
-  <data name="AcrylicOpacityHelpTextDisabledFormat" xml:space="preserve"><value>Adjusts the Acrylic tint intensity. This can only be changed when the background is Acrylic. The current value is {0}%.</value></data>
+  <data name="AcrylicOpacityHelpTextEnabledFormat" xml:space="preserve"><value>Adjusts the Acrylic intensity. The current value is {0}%.</value></data>
+  <data name="AcrylicOpacityHelpTextDisabledFormat" xml:space="preserve"><value>Adjusts the Acrylic intensity. This can only be changed when the background is Acrylic. The current value is {0}%.</value></data>
   <data name="NotificationAvailabilityEnabled" xml:space="preserve"><value>Windows notifications are available.</value></data>
   <data name="NotificationAvailabilityDisabledForApplication" xml:space="preserve"><value>Notifications are disabled for this app in Windows settings.</value></data>
   <data name="NotificationAvailabilityDisabledForUser" xml:space="preserve"><value>Notifications are disabled in Windows.</value></data>
@@ -358,11 +363,12 @@
   <data name="SettingsRestorePreviewBackdropFormat" xml:space="preserve"><value>Background: {0} → {1}</value></data>
   <data name="SettingsRestorePreviewNotificationsFormat" xml:space="preserve"><value>Notifications: {0} → {1}</value></data>
   <data name="SettingsRestorePreviewCloseBehaviorFormat" xml:space="preserve"><value>Close behavior: {0} → {1}</value></data>
-  <data name="SettingsRestorePreviewAcrylicOpacityFormat" xml:space="preserve"><value>Acrylic tint opacity: {0}% → {1}%</value></data>
+  <data name="SettingsRestorePreviewAcrylicOpacityFormat" xml:space="preserve"><value>Acrylic intensity opacity: {0}% → {1}%</value></data>
   <data name="SettingsRestorePreviewLanguageFormat" xml:space="preserve"><value>Language: {0} → {1}</value></data>
   <data name="SettingsRestorePreviewStartupFormat" xml:space="preserve"><value>Startup: {0} → {1}</value></data>
   <data name="SettingsRestorePreviewOn" xml:space="preserve"><value>On</value></data>
   <data name="SettingsRestorePreviewOff" xml:space="preserve"><value>Off</value></data>
+  <data name="SettingsRestorePreviewSystem" xml:space="preserve"><value>System setting</value></data>
   <data name="SettingsRestorePreviewLight" xml:space="preserve"><value>Light</value></data>
   <data name="SettingsRestorePreviewDark" xml:space="preserve"><value>Dark</value></data>
   <data name="SettingsRestorePreviewMica" xml:space="preserve"><value>Mica</value></data>

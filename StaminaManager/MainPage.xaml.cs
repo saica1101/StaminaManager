@@ -67,6 +67,7 @@ public sealed partial class MainPage : Page
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         _overviewPage.ViewModel.AddGameRequested += OnAddGameRequested;
         _overviewPage.ViewModel.EditGameRequested += OnEditGameRequested;
+        _overviewPage.ViewModel.UpdateCurrentRequested += OnOverviewUpdateCurrentRequested;
         _overviewPage.ViewModel.CompactModeRequested +=
             OnCompactModeRequested;
         _compactPage.ViewModel.AddGameRequested += OnAddGameRequested;
@@ -110,6 +111,7 @@ public sealed partial class MainPage : Page
         ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
         _overviewPage.ViewModel.AddGameRequested -= OnAddGameRequested;
         _overviewPage.ViewModel.EditGameRequested -= OnEditGameRequested;
+        _overviewPage.ViewModel.UpdateCurrentRequested -= OnOverviewUpdateCurrentRequested;
         _overviewPage.ViewModel.CompactModeRequested -=
             OnCompactModeRequested;
         _compactPage.ViewModel.AddGameRequested -= OnAddGameRequested;
@@ -203,6 +205,10 @@ public sealed partial class MainPage : Page
     private void ApplyDisplayMode(AppDisplayMode displayMode)
     {
         bool isCompact = displayMode == AppDisplayMode.Compact;
+        if (!isCompact)
+        {
+            _compactPage.ResetAlwaysOnTop();
+        }
         ShellNavigation.Visibility = isCompact
             ? Visibility.Collapsed
             : Visibility.Visible;
@@ -242,6 +248,9 @@ public sealed partial class MainPage : Page
 
     private void OnEditGameRequested(Guid gameId) =>
         _ = ShowGameEditorAsync(gameId, focusCurrent: false);
+
+    private void OnOverviewUpdateCurrentRequested(Guid gameId) =>
+        _ = ShowGameEditorAsync(gameId, focusCurrent: true);
 
     private void OnCompactEditGameRequested(
         Guid gameId,

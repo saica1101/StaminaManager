@@ -448,7 +448,7 @@ public partial class App : Microsoft.UI.Xaml.Application
         IThemeService themeService = new ThemeService(
             new FrameworkElementThemeTarget(
                 () => _window?.Content as FrameworkElement),
-            () => RequestedTheme);
+            dispatcherQueue);
         IBackdropService backdropService = new BackdropService(
             new MainWindowBackdropTarget(() => _window),
             new WindowsBackdropEnvironment(

@@ -21,7 +21,9 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
+
             <ComboBox
                 x:Name="CompactGameSelector"
                 x:Uid="CompactGameSelector"
@@ -30,10 +32,23 @@
                 HorizontalAlignment="Stretch"
                 ItemsSource="{x:Bind ViewModel.Games, Mode=OneWay}"
                 SelectionChanged="CompactGameSelector_SelectionChanged" />
+
+            <ToggleButton
+                x:Name="AlwaysOnTopToggle"
+                x:Uid="AlwaysOnTopToggle"
+                Grid.Column="1"
+                VerticalAlignment="Bottom"
+                AutomationProperties.AutomationId="AlwaysOnTopToggle"
+                Click="AlwaysOnTopToggle_Click">
+                <FontIcon
+                    AutomationProperties.AccessibilityView="Raw"
+                    Glyph="&#xE718;" />
+            </ToggleButton>
+
             <Button
                 x:Name="ReturnOverviewButton"
                 x:Uid="ReturnOverviewButton"
-                Grid.Column="1"
+                Grid.Column="2"
                 VerticalAlignment="Bottom"
                 AutomationProperties.AutomationId="ReturnOverviewButton"
                 Command="{x:Bind ViewModel.ReturnOverviewCommand, Mode=OneWay}">

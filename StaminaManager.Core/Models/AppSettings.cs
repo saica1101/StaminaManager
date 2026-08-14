@@ -45,6 +45,7 @@ public sealed record AppSettings(
 
 public enum AppTheme
 {
+    System,
     Light,
     Dark,
 }

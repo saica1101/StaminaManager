@@ -80,7 +80,8 @@ public sealed partial class SettingsPage : Page
             return;
         }
 
-        ThemeToggle.Toggled += ThemeToggle_Toggled;
+        ThemeSelector.SelectionChanged +=
+            ThemeSelector_SelectionChanged;
         BackdropSelector.SelectionChanged +=
             BackdropSelector_SelectionChanged;
         AcrylicOpacitySlider.ValueChanged +=
@@ -96,19 +97,26 @@ public sealed partial class SettingsPage : Page
         _areControlEventsAttached = true;
     }
 
-    private async void ThemeToggle_Toggled(
+    private async void ThemeSelector_SelectionChanged(
         object sender,
-        RoutedEventArgs args)
+        SelectionChangedEventArgs args)
     {
         if (_isSynchronizingControls)
         {
             return;
         }
 
-        AppTheme requestedTheme = ThemeToggle.IsOn
-            ? AppTheme.Dark
-            : AppTheme.Light;
-        await _appearanceChangeRouter.ChangeThemeAsync(requestedTheme);
+        AppTheme requestedTheme =
+            ThemeSelector.SelectedIndex switch
+            {
+                0 => AppTheme.System,
+                1 => AppTheme.Light,
+                2 => AppTheme.Dark,
+                _ => return,
+            };
+
+        await _appearanceChangeRouter.ChangeThemeAsync(
+            requestedTheme);
     }
 
     private async void BackdropSelector_SelectionChanged(
@@ -480,6 +488,8 @@ public sealed partial class SettingsPage : Page
         AppTheme theme) =>
         theme switch
         {
+            AppTheme.System => resources.GetString(
+                "SettingsRestorePreviewSystem"),
             AppTheme.Light => resources.GetString(
                 "SettingsRestorePreviewLight"),
             AppTheme.Dark => resources.GetString(
@@ -558,7 +568,8 @@ public sealed partial class SettingsPage : Page
         _isSynchronizingControls = true;
         try
         {
-            ThemeToggle.IsOn = ViewModel.IsDarkTheme;
+            ThemeSelector.SelectedIndex =
+                ViewModel.SelectedThemeIndex;
             BackdropSelector.SelectedIndex =
                 ViewModel.SelectedBackdropIndex;
             AcrylicOpacitySlider.Value =
@@ -596,7 +607,8 @@ public sealed partial class SettingsPage : Page
 
         if (_areControlEventsAttached)
         {
-            ThemeToggle.Toggled -= ThemeToggle_Toggled;
+            ThemeSelector.SelectionChanged -=
+                ThemeSelector_SelectionChanged;
             BackdropSelector.SelectionChanged -=
                 BackdropSelector_SelectionChanged;
             AcrylicOpacitySlider.ValueChanged -=

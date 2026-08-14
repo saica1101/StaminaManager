@@ -179,6 +179,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsDarkTheme))]
+    [NotifyPropertyChangedFor(nameof(SelectedThemeIndex))]
     public partial AppTheme Theme { get; private set; }
 
     [ObservableProperty]
@@ -279,6 +280,15 @@ public sealed partial class SettingsViewModel : ObservableObject
         string.Empty;
 
     public bool IsDarkTheme => Theme == AppTheme.Dark;
+
+    public int SelectedThemeIndex =>
+        Theme switch
+        {
+            AppTheme.System => 0,
+            AppTheme.Light => 1,
+            AppTheme.Dark => 2,
+            _ => 1,
+        };
 
     public bool IsReady =>
         InitializationState == SettingsInitializationState.Ready;

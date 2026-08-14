@@ -80,6 +80,8 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
     public event Action? AddGameRequested;
 
     public event Action<Guid>? EditGameRequested;
+    
+    public event Action<Guid>? UpdateCurrentRequested;
 
     public event Action? CompactModeRequested;
 
@@ -271,7 +273,8 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
                 card = new GameCardViewModel(
                     entry,
                     nowUtc,
-                    id => EditGameRequested?.Invoke(id));
+                    id => EditGameRequested?.Invoke(id),
+                    id => UpdateCurrentRequested?.Invoke(id));
             }
 
             _games.Add(card);

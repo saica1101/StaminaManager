@@ -87,12 +87,17 @@
                     BorderThickness="1"
                     CornerRadius="{StaticResource CardCornerRadius}">
                     <StackPanel Spacing="{StaticResource Spacing24}">
-                        <ToggleSwitch
-                            x:Name="ThemeToggle"
-                            x:Uid="ThemeToggle"
-                            AutomationProperties.AutomationId="ThemeToggle"
+                        <ComboBox
+                            x:Name="ThemeSelector"
+                            x:Uid="ThemeSelector"
+                            AutomationProperties.AutomationId="ThemeSelector"
+                            MinWidth="220"
                             HorizontalAlignment="Left"
-                            IsOn="{x:Bind ViewModel.IsDarkTheme, Mode=OneWay}" />
+                            SelectedIndex="{x:Bind ViewModel.SelectedThemeIndex, Mode=OneWay}">
+                            <ComboBoxItem x:Uid="ThemeSystemItem" />
+                            <ComboBoxItem x:Uid="ThemeLightItem" />
+                            <ComboBoxItem x:Uid="ThemeDarkItem" />
+                        </ComboBox>
 
                         <Rectangle
                             Height="1"

@@ -39,6 +39,8 @@
   <data name="OverviewLoadingProgressRing.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>ゲーム情報を読み込み中</value></data>
   <data name="OverviewLoadingText.Text" xml:space="preserve"><value>ゲーム情報を読み込んでいます</value></data>
   <data name="OverviewItems.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>登録ゲームと追加操作</value></data>
+  <data name="GameCardQuickUpdateButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>現在のスタミナを更新</value></data>
+  <data name="GameCardQuickUpdateButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>現在値を更新</value></data>
   <data name="AddGameCardButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>ゲームを追加</value></data>
   <data name="AddGameCardTitle.Text" xml:space="preserve"><value>ゲームを追加</value></data>
   <data name="AddGameCardDescription.Text" xml:space="preserve"><value>ゲーム名とスタミナの回復ルールを登録します。</value></data>
@@ -66,19 +68,20 @@
   <data name="SettingsFailedStatus.Message" xml:space="preserve"><value>設定の操作を無効にしています。Overviewの復旧案内を確認してから、アプリを再起動してください。</value></data>
   <data name="SettingsFailedStatus.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>設定の読み込みに失敗しました。Overviewの復旧案内を確認してください</value></data>
   <data name="SettingsAppearanceHeading.Text" xml:space="preserve"><value>外観</value></data>
-  <data name="ThemeToggle.Header" xml:space="preserve"><value>テーマ</value></data>
-  <data name="ThemeToggle.OffContent" xml:space="preserve"><value>Light</value></data>
-  <data name="ThemeToggle.OnContent" xml:space="preserve"><value>Dark</value></data>
-  <data name="ThemeToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>LightとDarkテーマを切り替える</value></data>
+  <data name="ThemeSelector.Header" xml:space="preserve"><value>テーマ</value></data>
+  <data name="ThemeSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>テーマを選択</value></data>
+  <data name="ThemeSystemItem.Content" xml:space="preserve"><value>システム設定</value></data>
+  <data name="ThemeLightItem.Content" xml:space="preserve"><value>Light</value></data>
+  <data name="ThemeDarkItem.Content" xml:space="preserve"><value>Dark</value></data>
   <data name="BackdropSelector.Header" xml:space="preserve"><value>ウィンドウの背景</value></data>
   <data name="BackdropSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>ウィンドウの背景を選択</value></data>
   <data name="BackdropMicaItem.Content" xml:space="preserve"><value>Mica</value></data>
   <data name="BackdropAcrylicItem.Content" xml:space="preserve"><value>Acrylic</value></data>
   <data name="BackdropSolidItem.Content" xml:space="preserve"><value>Solid</value></data>
-  <data name="AcrylicOpacitySlider.Header" xml:space="preserve"><value>Acrylic の不透明度</value></data>
-  <data name="AcrylicOpacitySlider.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Acrylic の不透明度</value></data>
+  <data name="AcrylicOpacitySlider.Header" xml:space="preserve"><value>Acrylic の濃さ</value></data>
+  <data name="AcrylicOpacitySlider.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Acrylic の濃さ</value></data>
   <data name="AcrylicOpacitySlider.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.HelpText" xml:space="preserve"><value>Acrylic の色調の濃さを調整します。背景が Acrylic の場合のみ変更できます。</value></data>
-  <data name="AcrylicOpacityValue.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Acrylic の不透明度の現在値</value></data>
+  <data name="AcrylicOpacityValue.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Acrylic の濃さの現在値</value></data>
   <data name="SettingsGeneralHeading.Text" xml:space="preserve"><value>動作</value></data>
   <data name="CloseBehaviorSelector.Header" xml:space="preserve"><value>閉じるボタンの動作</value></data>
   <data name="CloseBehaviorSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>閉じるボタンの動作を選択</value></data>
@@ -138,6 +141,8 @@
   <data name="DeleteBackButton.Content" xml:space="preserve"><value>戻る</value></data>
   <data name="DeleteBackButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>削除せず編集へ戻る</value></data>
   <data name="CompactGameSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>表示するゲーム</value></data>
+  <data name="AlwaysOnTopToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>コンパクト表示を常に手前に表示</value></data>
+  <data name="AlwaysOnTopToggle.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>常に手前に表示</value></data>
   <data name="ReturnOverviewButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Overviewへ戻る</value></data>
   <data name="ReturnOverviewButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Overviewへ戻る</value></data>
   <data name="CompactErrorInfoBar.Title" xml:space="preserve"><value>操作を完了できませんでした</value></data>
@@ -152,7 +157,7 @@
   <data name="OverviewRecoveryPromoted" xml:space="preserve"><value>前回正常データで回復し、通常保存へ戻しました。内容を確認した後、バックアップを書き出してください。</value></data>
   <data name="OverviewSchemaWritebackWarning" xml:space="preserve"><value>データを最新形式へ更新しましたが、再保存できませんでした。設定を一度変更して保存し直してください。</value></data>
   <data name="SettingsErrorTitle" xml:space="preserve"><value>設定を完了できませんでした</value></data>
-  <data name="AcrylicOpacityAutomationNameFormat" xml:space="preserve"><value>Acrylic の不透明度、現在値 {0}%</value></data>
+  <data name="AcrylicOpacityAutomationNameFormat" xml:space="preserve"><value>Acrylic の濃さ、現在値 {0}%</value></data>
   <data name="AcrylicOpacityHelpTextEnabledFormat" xml:space="preserve"><value>Acrylic の色調の濃さを調整します。現在値は{0}%です。</value></data>
   <data name="AcrylicOpacityHelpTextDisabledFormat" xml:space="preserve"><value>Acrylic の色調の濃さを調整します。背景が Acrylic の場合のみ変更できます。現在値は{0}%です。</value></data>
   <data name="NotificationAvailabilityEnabled" xml:space="preserve"><value>Windowsの通知は利用できます。</value></data>
@@ -303,11 +308,11 @@
   <data name="SettingsBackdropRollbackUnknownAfterCancel" xml:space="preserve"><value>設定の保存がキャンセルされました。以前の設定に戻しました。背景の実際の表示状態を確認できません。アプリを再起動してください。</value></data>
   <data name="SettingsBackdropRollbackFailed" xml:space="preserve"><value>設定を保存できませんでした。背景表示を以前に戻せないため、アプリを再起動してください。</value></data>
   <data name="SettingsBackdropRollbackFailedAfterCancel" xml:space="preserve"><value>設定の保存がキャンセルされました。背景表示を以前に戻せないため、アプリを再起動してください。</value></data>
-  <data name="SettingsAcrylicOpacityFailureTitle" xml:space="preserve"><value>Acrylic の不透明度を変更できませんでした</value></data>
-  <data name="SettingsAcrylicOpacityFailureRestored" xml:space="preserve"><value>Acrylic の不透明度を適用できませんでした。直前に適用できた値へ戻しました。</value></data>
-  <data name="SettingsAcrylicOpacityFailureSafeFallback" xml:space="preserve"><value>Acrylic の不透明度を適用できませんでした。背景は安全な単色表示へ切り替わりました。アプリを再起動してください。</value></data>
-  <data name="SettingsAcrylicOpacityFailureUnknown" xml:space="preserve"><value>Acrylic の不透明度を適用できませんでした。背景の実際の表示状態を確認できません。アプリを再起動してください。</value></data>
-  <data name="SettingsAcrylicOpacityFailureRollbackFailed" xml:space="preserve"><value>Acrylic の不透明度を適用できませんでした。背景表示を以前に戻せないため、アプリを再起動してください。</value></data>
+  <data name="SettingsAcrylicOpacityFailureTitle" xml:space="preserve"><value>Acrylic の濃さを変更できませんでした</value></data>
+  <data name="SettingsAcrylicOpacityFailureRestored" xml:space="preserve"><value>Acrylic の濃さを適用できませんでした。直前に適用できた値へ戻しました。</value></data>
+  <data name="SettingsAcrylicOpacityFailureSafeFallback" xml:space="preserve"><value>Acrylic の濃さを適用できませんでした。背景は安全な単色表示へ切り替わりました。アプリを再起動してください。</value></data>
+  <data name="SettingsAcrylicOpacityFailureUnknown" xml:space="preserve"><value>Acrylic の濃さを適用できませんでした。背景の実際の表示状態を確認できません。アプリを再起動してください。</value></data>
+  <data name="SettingsAcrylicOpacityFailureRollbackFailed" xml:space="preserve"><value>Acrylic の濃さを適用できませんでした。背景表示を以前に戻せないため、アプリを再起動してください。</value></data>
   <data name="SettingsAcrylicOpacityRollbackSafeFallback" xml:space="preserve"><value>設定を保存できませんでした。以前の設定に戻しました。背景は安全な単色表示へ切り替わりました。アプリを再起動してください。</value></data>
   <data name="SettingsAcrylicOpacityRollbackSafeFallbackAfterCancel" xml:space="preserve"><value>設定の保存がキャンセルされました。以前の設定に戻しました。背景は安全な単色表示へ切り替わりました。アプリを再起動してください。</value></data>
   <data name="SettingsAcrylicOpacityRollbackUnknown" xml:space="preserve"><value>設定を保存できませんでした。以前の設定に戻しました。背景の実際の表示状態を確認できません。アプリを再起動してください。</value></data>
@@ -358,11 +363,12 @@
   <data name="SettingsRestorePreviewBackdropFormat" xml:space="preserve"><value>背景: {0} → {1}</value></data>
   <data name="SettingsRestorePreviewNotificationsFormat" xml:space="preserve"><value>通知: {0} → {1}</value></data>
   <data name="SettingsRestorePreviewCloseBehaviorFormat" xml:space="preserve"><value>閉じる動作: {0} → {1}</value></data>
-  <data name="SettingsRestorePreviewAcrylicOpacityFormat" xml:space="preserve"><value>Acrylic の色調不透明度: {0}% → {1}%</value></data>
+  <data name="SettingsRestorePreviewAcrylicOpacityFormat" xml:space="preserve"><value>Acrylic の濃さ: {0}% → {1}%</value></data>
   <data name="SettingsRestorePreviewLanguageFormat" xml:space="preserve"><value>言語: {0} → {1}</value></data>
   <data name="SettingsRestorePreviewStartupFormat" xml:space="preserve"><value>自動起動: {0} → {1}</value></data>
   <data name="SettingsRestorePreviewOn" xml:space="preserve"><value>オン</value></data>
   <data name="SettingsRestorePreviewOff" xml:space="preserve"><value>オフ</value></data>
+  <data name="SettingsRestorePreviewSystem" xml:space="preserve"><value>システム設定</value></data>
   <data name="SettingsRestorePreviewLight" xml:space="preserve"><value>ライト</value></data>
   <data name="SettingsRestorePreviewDark" xml:space="preserve"><value>ダーク</value></data>
   <data name="SettingsRestorePreviewMica" xml:space="preserve"><value>Mica</value></data>

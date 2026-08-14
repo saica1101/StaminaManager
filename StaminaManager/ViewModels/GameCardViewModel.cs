@@ -8,6 +8,7 @@ namespace StaminaManager.ViewModels;
 public sealed partial class GameCardViewModel : OverviewItemViewModel
 {
     private readonly Action<Guid>? _editRequested;
+    private readonly Action<Guid>? _updateCurrentRequested;
     private GameEntry _entry;
 
     [ObservableProperty]
@@ -37,13 +38,15 @@ public sealed partial class GameCardViewModel : OverviewItemViewModel
     public GameCardViewModel(
         GameEntry entry,
         DateTimeOffset nowUtc,
-        Action<Guid>? editRequested = null)
+        Action<Guid>? editRequested = null,
+        Action<Guid>? updateCurrentRequested = null)
     {
         ArgumentNullException.ThrowIfNull(entry);
         _entry = entry;
         Name = entry.Name;
         ImageAssetId = entry.ImageAssetId;
         _editRequested = editRequested;
+        _updateCurrentRequested = updateCurrentRequested;
         Refresh(entry, nowUtc);
     }
 
@@ -83,4 +86,8 @@ public sealed partial class GameCardViewModel : OverviewItemViewModel
 
     [RelayCommand]
     private void Edit() => _editRequested?.Invoke(Id);
+
+    [RelayCommand]
+    private void UpdateCurrent() =>
+        _updateCurrentRequested?.Invoke(Id);
 }
