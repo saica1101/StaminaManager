@@ -4,7 +4,7 @@
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
-  <data name="AppTitle" xml:space="preserve"><value>Stamina Manager</value></data>
+  <data name="AppTitle" xml:space="preserve"><value>StaminaManager</value></data>
   <data name="ManifestAppDescription" xml:space="preserve"><value>複数のゲームのスタミナ回復状況をまとめて確認し、通知で管理できるアプリです。</value></data>
   <data name="ManifestNotificationActivatorDisplayName" xml:space="preserve"><value>Stamina Manager の通知アクティベーター</value></data>
   <data name="StartupFailureWindowTitle" xml:space="preserve"><value>Stamina Manager</value></data>
