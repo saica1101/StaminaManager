@@ -170,6 +170,7 @@
             <ItemsRepeater
                 x:Name="OverviewItems"
                 x:Uid="OverviewItems"
+                Margin="0,0,16,0"
                 AutomationProperties.AccessibilityView="Content"
                 AutomationProperties.AutomationId="OverviewItems"
                 ItemTemplate="{StaticResource OverviewItemTemplateSelector}"

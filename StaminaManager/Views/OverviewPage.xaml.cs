@@ -170,7 +170,14 @@ public sealed partial class OverviewPage : Page
 
     private void UpdateOverviewLayout()
     {
-        double contentWidth = OverviewScrollViewer.ActualWidth;
+        Thickness itemsMargin = OverviewItems.Margin;
+
+        double contentWidth = Math.Max(
+            0d,
+            OverviewScrollViewer.ActualWidth
+                - itemsMargin.Left
+                - itemsMargin.Right);
+
         if (contentWidth <= 0d)
         {
             return;
