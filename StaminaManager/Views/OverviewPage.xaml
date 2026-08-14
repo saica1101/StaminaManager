@@ -18,10 +18,8 @@
             <controls:GameCardControl
                 AllowDrop="True"
                 ViewModel="{x:Bind Mode=OneWay}"
-                DragStarting="GameCard_DragStarting"
                 DragOver="GameCard_DragOver"
-                Drop="GameCard_Drop"
-                DropCompleted="GameCard_DropCompleted" />
+                Drop="GameCard_Drop" />
         </DataTemplate>
 
         <DataTemplate

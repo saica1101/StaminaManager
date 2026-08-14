@@ -11,7 +11,6 @@ namespace StaminaManager.Views;
 public sealed partial class OverviewPage : Page
 {
     private readonly IAppResourceService _appResourceService;
-    private Guid? _draggedGameId;
 
     public OverviewPage(
         OverviewViewModel viewModel,
@@ -78,36 +77,13 @@ public sealed partial class OverviewPage : Page
     public static Visibility BoolToVisibility(bool value) =>
         value ? Visibility.Visible : Visibility.Collapsed;
 
-    private void GameCard_DragStarting(
-        UIElement sender,
-        DragStartingEventArgs args)
-    {
-        if (sender is not GameCardControl card)
-        {
-            args.Cancel = true;
-            return;
-        }
-
-        Guid gameId = card.ViewModel.Id;
-        _draggedGameId = gameId;
-
-        args.AllowedOperations =
-            DataPackageOperation.Move;
-
-        args.Data.RequestedOperation =
-            DataPackageOperation.Move;
-
-        args.Data.SetText(
-            gameId.ToString("D"));
-    }
-
     private void GameCard_DragOver(
         object sender,
         DragEventArgs args)
     {
-        if (sender is not GameCardControl targetCard
-            || _draggedGameId is not Guid sourceGameId
-            || sourceGameId == targetCard.ViewModel.Id)
+        if (sender is not GameCardControl
+            || !args.DataView.Contains(StandardDataFormats.Text)
+            || (args.AllowedOperations & DataPackageOperation.Move) == 0)
         {
             args.AcceptedOperation =
                 DataPackageOperation.None;
@@ -126,17 +102,7 @@ public sealed partial class OverviewPage : Page
         DragEventArgs args)
     {
         if (sender is not GameCardControl targetCard
-            || _draggedGameId is not Guid sourceGameId)
-        {
-            args.AcceptedOperation =
-                DataPackageOperation.None;
-
-            return;
-        }
-
-        Guid targetGameId = targetCard.ViewModel.Id;
-
-        if (sourceGameId == targetGameId)
+            || !args.DataView.Contains(StandardDataFormats.Text))
         {
             args.AcceptedOperation =
                 DataPackageOperation.None;
@@ -149,16 +115,40 @@ public sealed partial class OverviewPage : Page
 
         args.Handled = true;
 
-        await ViewModel.ReorderGameAsync(
-            sourceGameId,
-            targetGameId);
-    }
+        var deferral = args.GetDeferral();
 
-    private void GameCard_DropCompleted(
-        UIElement sender,
-        DropCompletedEventArgs args)
-    {
-        _draggedGameId = null;
+        try
+        {
+            string sourceGameIdText =
+                await args.DataView.GetTextAsync();
+
+            if (!Guid.TryParseExact(
+                    sourceGameIdText,
+                    "D",
+                    out Guid sourceGameId))
+            {
+                args.AcceptedOperation =
+                    DataPackageOperation.None;
+
+                return;
+            }
+
+            Guid targetGameId =
+                targetCard.ViewModel.Id;
+
+            if (sourceGameId == targetGameId)
+            {
+                return;
+            }
+
+            await ViewModel.ReorderGameAsync(
+                sourceGameId,
+                targetGameId);
+        }
+        finally
+        {
+            deferral.Complete();
+        }
     }
 
     private void OverviewItems_ElementPrepared(

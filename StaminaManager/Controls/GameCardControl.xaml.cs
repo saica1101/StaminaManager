@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -7,6 +8,7 @@ using StaminaManager.Core.Calculations;
 using StaminaManager.Core.Models;
 using StaminaManager.ViewModels;
 using System.ComponentModel;
+using Windows.ApplicationModel.DataTransfer;
 
 namespace StaminaManager.Controls;
 
@@ -150,6 +152,35 @@ public sealed partial class GameCardControl : UserControl, INotifyPropertyChange
 
     internal bool FocusCard() => CardButton.Focus(
         FocusState.Programmatic);
+
+    private async void DragHandle_PointerPressed(
+        object sender,
+        PointerRoutedEventArgs args)
+    {
+        if (sender is not UIElement dragHandle)
+        {
+            return;
+        }
+
+        var pointerPoint = args.GetCurrentPoint(dragHandle);
+
+        await dragHandle.StartDragAsync(pointerPoint);
+    }
+
+    private void DragHandle_DragStarting(
+        UIElement sender,
+        DragStartingEventArgs args)
+    {
+        if (CurrentViewModel is not { } viewModel)
+        {
+            args.Cancel = true;
+            return;
+        }
+
+        args.AllowedOperations = DataPackageOperation.Move;
+        args.Data.RequestedOperation = DataPackageOperation.Move;
+        args.Data.SetText(viewModel.Id.ToString("D"));
+    }
 
     private void GameCardControl_SizeChanged(
         object sender,

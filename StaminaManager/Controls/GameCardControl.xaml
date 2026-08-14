@@ -138,7 +138,7 @@
         </Button>
 
         <Grid
-            x:Name="Draghandle"
+            x:Name="DragHandle"
             Width="32"
             Height="32"
             Margin="0,0,8,8"
@@ -146,9 +146,11 @@
             VerticalAlignment="Bottom"
             AllowDrop="True"
             Background="Transparent"
-            CanDrag="True">
+            DragStarting="DragHandle_DragStarting"
+            PointerPressed="DragHandle_PointerPressed">
             <FontIcon
                 AutomationProperties.AccessibilityView="Raw"
+                IsHitTestVisible="False"
                 FontSize="16"
                 Foreground="{ThemeResource SecondaryTextBrush}"
                 Glyph="&#xE784;" />
