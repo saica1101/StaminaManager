@@ -200,11 +200,30 @@ public sealed partial class GameCardControl : UserControl, INotifyPropertyChange
         DetailsGrid.RowSpacing = isNarrow
             ? NarrowRowSpacing
             : RegularRowSpacing;
-        Grid.SetColumnSpan(StatusPanel, isNarrow ? 2 : 1);
-        Grid.SetRow(RemainingTextBlock, isNarrow ? 2 : 1);
-        Grid.SetColumn(RemainingTextBlock, isNarrow ? 0 : 1);
-        Grid.SetColumnSpan(RemainingTextBlock, isNarrow ? 2 : 1);
-    }
+            
+        if (FindName("StatusGrid") is Grid statusGrid)
+        {
+            statusGrid.RowSpacing = isNarrow
+                ? NarrowRowSpacing
+                : RegularRowSpacing;
+        }
+
+        Grid.SetColumnSpan(
+            StatusPanel,
+            isNarrow ? 2 : 1);
+
+        Grid.SetRow(
+            RemainingTextBlock,
+            isNarrow ? 1 : 0);
+
+        Grid.SetColumn(
+            RemainingTextBlock,
+            isNarrow ? 0 : 1);
+
+        Grid.SetColumnSpan(
+            RemainingTextBlock,
+            isNarrow ? 2 : 1);
+            }
 
     private GameCardViewModel? CurrentViewModel =>
         GetValue(ViewModelProperty) as GameCardViewModel;

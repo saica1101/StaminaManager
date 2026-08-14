@@ -45,79 +45,102 @@
                     x:Name="DetailsGrid"
                     Grid.Column="1"
                     VerticalAlignment="Center"
-                    ColumnSpacing="8"
                     RowSpacing="4">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
 
+                    <!-- ゲーム画像とタイトル -->
                     <Grid
                         Grid.Row="0"
-                        Grid.Column="0"
-                        Width="28"
-                        Height="28">
-                        <Border
-                            Background="{ThemeResource NeutralTrackBrush}"
-                            CornerRadius="6" />
-                        <Image
-                            x:Name="GameImage"
-                            AutomationProperties.AccessibilityView="Raw"
-                            ImageFailed="GameImage_ImageFailed"
-                            Source="{x:Bind GameImageSource, Mode=OneWay}"
-                            Stretch="UniformToFill"
-                            Visibility="{x:Bind GameImageVisibility, Mode=OneWay}" />
-                        <FontIcon
-                            AutomationProperties.AccessibilityView="Raw"
-                            FontSize="14"
-                            Foreground="{ThemeResource SecondaryTextBrush}"
-                            Glyph="&#xE7FC;"
-                            Visibility="{x:Bind FallbackVisibility, Mode=OneWay}" />
+                        ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="28" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <Grid
+                            Grid.Column="0"
+                            Width="28"
+                            Height="28">
+                            <Border
+                                Background="{ThemeResource NeutralTrackBrush}"
+                                CornerRadius="6" />
+
+                            <Image
+                                x:Name="GameImage"
+                                AutomationProperties.AccessibilityView="Raw"
+                                ImageFailed="GameImage_ImageFailed"
+                                Source="{x:Bind GameImageSource, Mode=OneWay}"
+                                Stretch="UniformToFill"
+                                Visibility="{x:Bind GameImageVisibility, Mode=OneWay}" />
+
+                            <FontIcon
+                                AutomationProperties.AccessibilityView="Raw"
+                                FontSize="14"
+                                Foreground="{ThemeResource SecondaryTextBrush}"
+                                Glyph="&#xE7FC;"
+                                Visibility="{x:Bind FallbackVisibility, Mode=OneWay}" />
+                        </Grid>
+
+                        <TextBlock
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            MaxLines="1"
+                            Style="{StaticResource AppCardTitleTextStyle}"
+                            Text="{x:Bind ViewModel.Name, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis" />
                     </Grid>
 
-                    <TextBlock
-                        Grid.Row="0"
-                        Grid.Column="1"
-                        VerticalAlignment="Center"
-                        MaxLines="1"
-                        Style="{StaticResource AppCardTitleTextStyle}"
-                        Text="{x:Bind ViewModel.Name, Mode=OneWay}"
-                        TextTrimming="CharacterEllipsis" />
+                    <!-- ステータスと残り時間 -->
+                    <Grid
+                        x:Name="StatusGrid"
+                        Grid.Row="1"
+                        ColumnSpacing="8"
+                        RowSpacing="4">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
 
-                    <StackPanel
-                        x:Name="StatusPanel"
-                        Grid.Row="1"
-                        Grid.Column="0"
-                        VerticalAlignment="Center"
-                        Orientation="Horizontal"
-                        Spacing="6">
-                        <Ellipse
-                            Width="8"
-                            Height="8"
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel
+                            x:Name="StatusPanel"
+                            Grid.Row="0"
+                            Grid.Column="0"
                             VerticalAlignment="Center"
-                            Fill="{x:Bind StatusBrush, Mode=OneWay}" />
+                            Orientation="Horizontal"
+                            Spacing="6">
+                            <Ellipse
+                                Width="8"
+                                Height="8"
+                                VerticalAlignment="Center"
+                                Fill="{x:Bind StatusBrush, Mode=OneWay}" />
+
+                            <TextBlock
+                                FontFamily="{StaticResource AppFontFamily}"
+                                FontSize="14"
+                                FontWeight="SemiBold"
+                                Foreground="{ThemeResource PrimaryTextBrush}"
+                                Text="{x:Bind StatusText, Mode=OneWay}" />
+                        </StackPanel>
+
                         <TextBlock
-                            FontFamily="{StaticResource AppFontFamily}"
-                            FontSize="14"
-                            FontWeight="SemiBold"
-                            Foreground="{ThemeResource PrimaryTextBrush}"
-                            Text="{x:Bind StatusText, Mode=OneWay}" />
-                    </StackPanel>
-                    <TextBlock
-                        x:Name="RemainingTextBlock"
-                        Grid.Row="1"
-                        Grid.Column="1"
-                        MaxLines="1"
-                        VerticalAlignment="Center"
-                        Style="{StaticResource AppSecondaryTextStyle}"
-                        Text="{x:Bind RemainingText, Mode=OneWay}"
-                        TextTrimming="CharacterEllipsis"
-                        TextWrapping="NoWrap" />
+                            x:Name="RemainingTextBlock"
+                            Grid.Row="0"
+                            Grid.Column="1"
+                            MaxLines="1"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource AppSecondaryTextStyle}"
+                            Text="{x:Bind RemainingText, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
+                    </Grid>
                 </Grid>
             </Grid>
         </Button>
