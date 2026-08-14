@@ -3,7 +3,7 @@ StaminaManager
 
 This file records licenses and notices for third-party components restored by
 the project or present in the self-contained Microsoft Store package audited
-on 2026-08-03. Third-party components are not relicensed under StaminaManager's
+on 2026-08-14. Third-party components are not relicensed under StaminaManager's
 GNU GPL version 3 license. Their respective terms remain in effect.
 
 Runtime inventory:
@@ -11,7 +11,7 @@ Runtime inventory:
 - WinUIEx 2.9.0
 - Microsoft .NET Runtime 10.0.10
 - Microsoft Edge WebView2 1.0.3719.77
-- Microsoft Windows App SDK 2.3.1 and its transitive runtime packages
+- Microsoft Windows App SDK 2.4.0 and its transitive runtime packages
 - Microsoft Windows ML Runtime 2.1.74
 - System.Numerics.Tensors 9.0.0
 - Microsoft Windows SDK .NET projection components

@@ -47,6 +47,27 @@ live operating environmentでの利用を制限する文言があります。2.3
 1.8系へ切り替えて再検証してください。GPLの追加許可は、Microsoft側の利用制限を緩和する
 ものではありません。
 
+---
+
+## Windows App SDK 2.3.xのライセンス問題と対応(2026年8月14日追記)
+Windows App SDK 2.3.1から推移的に解決される
+`Microsoft.WindowsAppSDK.WinUI 2.3.0`には、`MICROSOFT WINDOWS APP SDK ENGINEERING PREVIEW`と題されたライセンスファイルが含まれており、配布および本番環境での利用を制限する条項が記載されていました。
+
+Microsoftは[microsoft/WindowsAppSDK#6654](https://github.com/microsoft/WindowsAppSDK/issues/6654) において、このライセンス問題の影響を受けるバージョンを確認し、Windows App SDK 2.4.0で問題を修正したと案内しています。
+
+StaminaManagerでは、この案内に従い`Microsoft.WindowsAppSDK`を2.4.0へ変更しています。
+この構成では`Microsoft.WindowsAppSDK.WinUI 2.3.6`が解決されます。
+
+旧構成:
+- Microsoft.WindowsAppSDK 2.3.1
+- Microsoft.WindowsAppSDK.WinUI 2.3.0(影響対象)
+
+現在の構成:
+- Microsoft.WindowsAppSDK 2.4.0
+- Microsoft.WindowsAppSDK.WinUI 2.3.6(修正版)
+
+---
+
 ## Microsoft Storeへ掲載するとき
 
 Microsoft Storeの登録情報、追加ライセンス条項、依存コンポーネントの表示方法は、
