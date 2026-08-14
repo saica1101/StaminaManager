@@ -141,8 +141,8 @@
   <data name="DeleteBackButton.Content" xml:space="preserve"><value>Back</value></data>
   <data name="DeleteBackButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Return to editing without deleting</value></data>
   <data name="CompactGameSelector.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Game to display</value></data>
-  <data name="AlwaysOnTopToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>コンパクト表示を常に手前に表示</value></data>
-  <data name="AlwaysOnTopToggle.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>常に手前に表示</value></data>
+  <data name="AlwaysOnTopToggle.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Keep compact view always on top</value></data>
+  <data name="AlwaysOnTopToggle.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Always on top</value></data>
   <data name="ReturnOverviewButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Return to Overview</value></data>
   <data name="ReturnOverviewButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Return to Overview</value></data>
   <data name="CompactErrorInfoBar.Title" xml:space="preserve"><value>The operation could not be completed</value></data>
