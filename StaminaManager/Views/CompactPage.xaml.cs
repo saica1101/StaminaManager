@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Windowing;
 using StaminaManager.Core.Abstractions;
@@ -76,11 +77,13 @@ public sealed partial class CompactPage : Page, INotifyPropertyChanged
     }
 
     private void AlwaysOnTopToggle_Click(
-        object sender,
-        RoutedEventArgs args)
+    object sender,
+    RoutedEventArgs args)
     {
-        SetAlwaysOnTop(
-            AlwaysOnTopToggle.IsChecked == true);
+        if (sender is ToggleButton toggle)
+        {
+            SetAlwaysOnTop(toggle.IsChecked == true);
+        }
     }
 
     private void SetAlwaysOnTop(bool value)
@@ -106,7 +109,11 @@ public sealed partial class CompactPage : Page, INotifyPropertyChanged
             return;
         }
 
-        AlwaysOnTopToggle.IsChecked = false;
+        if (FindName("AlwaysOnTopToggle") is ToggleButton toggle)
+        {
+            toggle.IsChecked = false;
+        }
+
         SetAlwaysOnTop(false);
     }
 

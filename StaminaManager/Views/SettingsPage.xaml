@@ -93,7 +93,8 @@
                             AutomationProperties.AutomationId="ThemeSelector"
                             MinWidth="220"
                             HorizontalAlignment="Left"
-                            SelectedIndex="{x:Bind ViewModel.SelectedThemeIndex, Mode=OneWay}">
+                            SelectedIndex="{x:Bind ViewModel.SelectedThemeIndex, Mode=OneWay}"
+                            SelectionChanged="ThemeSelector_SelectionChanged">
                             <ComboBoxItem x:Uid="ThemeSystemItem" />
                             <ComboBoxItem x:Uid="ThemeLightItem" />
                             <ComboBoxItem x:Uid="ThemeDarkItem" />

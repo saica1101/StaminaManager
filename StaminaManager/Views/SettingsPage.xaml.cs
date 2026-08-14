@@ -80,8 +80,7 @@ public sealed partial class SettingsPage : Page
             return;
         }
 
-        ThemeSelector.SelectionChanged +=
-            ThemeSelector_SelectionChanged;
+
         BackdropSelector.SelectionChanged +=
             BackdropSelector_SelectionChanged;
         AcrylicOpacitySlider.ValueChanged +=
@@ -101,19 +100,31 @@ public sealed partial class SettingsPage : Page
         object sender,
         SelectionChangedEventArgs args)
     {
-        if (_isSynchronizingControls)
+        if (_isSynchronizingControls
+            || sender is not ComboBox themeSelector)
         {
             return;
         }
 
-        AppTheme requestedTheme =
-            ThemeSelector.SelectedIndex switch
-            {
-                0 => AppTheme.System,
-                1 => AppTheme.Light,
-                2 => AppTheme.Dark,
-                _ => return,
-            };
+        AppTheme requestedTheme;
+
+        switch (themeSelector.SelectedIndex)
+        {
+            case 0:
+                requestedTheme = AppTheme.System;
+                break;
+
+            case 1:
+                requestedTheme = AppTheme.Light;
+                break;
+
+            case 2:
+                requestedTheme = AppTheme.Dark;
+                break;
+
+            default:
+                return;
+        }
 
         await _appearanceChangeRouter.ChangeThemeAsync(
             requestedTheme);
@@ -568,8 +579,11 @@ public sealed partial class SettingsPage : Page
         _isSynchronizingControls = true;
         try
         {
-            ThemeSelector.SelectedIndex =
-                ViewModel.SelectedThemeIndex;
+            if (FindName("ThemeSelector") is ComboBox themeSelector)
+            {
+                themeSelector.SelectedIndex =
+                    ViewModel.SelectedThemeIndex;
+            }
             BackdropSelector.SelectedIndex =
                 ViewModel.SelectedBackdropIndex;
             AcrylicOpacitySlider.Value =
@@ -607,8 +621,6 @@ public sealed partial class SettingsPage : Page
 
         if (_areControlEventsAttached)
         {
-            ThemeSelector.SelectionChanged -=
-                ThemeSelector_SelectionChanged;
             BackdropSelector.SelectionChanged -=
                 BackdropSelector_SelectionChanged;
             AcrylicOpacitySlider.ValueChanged -=
