@@ -96,6 +96,7 @@ public sealed class AdjustableAcrylicBackdropTests
         Assert.DoesNotContain("TintColor =", source);
         Assert.DoesNotContain("FallbackColor =", source);
         Assert.DoesNotContain("new SystemBackdropConfiguration", source);
+
         string resetMethod = source[
             source.IndexOf(
                 "public void ResetProperties()",
@@ -104,14 +105,13 @@ public sealed class AdjustableAcrylicBackdropTests
                 StringComparison.Ordinal)];
         StringAssert.Contains(
             resetMethod,
-            "_controller.SetSystemBackdropConfiguration(_configuration);");
-        int resetTargetIndex = resetMethod.IndexOf(
+            "_controller.ResetProperties();");
+        Assert.DoesNotContain(
+            "_controller.SetSystemBackdropConfiguration(_configuration);",
+            resetMethod);
+        Assert.DoesNotContain(
             "_controller.AddSystemBackdropTarget(_target)",
-            StringComparison.Ordinal);
-        int resetConfigurationIndex = resetMethod.IndexOf(
-            "_controller.SetSystemBackdropConfiguration(_configuration)",
-            StringComparison.Ordinal);
-        Assert.IsLessThan(resetConfigurationIndex, resetTargetIndex);
+            resetMethod);
 
         string attachMethod = source[
             source.IndexOf(
@@ -125,6 +125,8 @@ public sealed class AdjustableAcrylicBackdropTests
         int attachConfigurationIndex = attachMethod.IndexOf(
             "_controller.SetSystemBackdropConfiguration(_configuration)",
             StringComparison.Ordinal);
+        Assert.IsGreaterThanOrEqualTo(attachConfigurationIndex, 0);
+        Assert.IsGreaterThanOrEqualTo(attachTargetIndex, 0);
         Assert.IsLessThan(attachConfigurationIndex, attachTargetIndex);
     }
 
